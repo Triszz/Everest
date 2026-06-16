@@ -1,0 +1,2 @@
+-- Baseline migration: Schema was applied manually via SQL Editor
+-- All tables, indexes, and triggers already exist in the database
