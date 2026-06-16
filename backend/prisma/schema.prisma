@@ -2,7 +2,9 @@
 // Mapping với schema trong backend/src/db/init_db.sql
 
 generator client {
-  provider = "prisma-client-js"
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "commonjs"
 }
 
 datasource db {
@@ -15,29 +17,39 @@ enum UserRole {
   Customer
   Partner_Owner
   Partner_Cashier
+
+  @@map("user_role")
 }
 
 enum AccountStatus {
   Active
   Inactive
   Banned
+
+  @@map("account_status")
 }
 
 enum PartnerStatus {
   Pending
   Approved
   Rejected
+
+  @@map("partner_status")
 }
 
 enum BannerStatus {
   Visible
   Hidden
+
+  @@map("banner_status")
 }
 
 enum PolicyType {
   Terms_Of_Service
   Privacy_Policy
   Refund_Policy
+
+  @@map("policy_type")
 }
 
 enum VoucherApprovalStatus {
@@ -45,17 +57,23 @@ enum VoucherApprovalStatus {
   Pending
   Approved
   Rejected
+
+  @@map("voucher_approval_status")
 }
 
 enum VoucherDisplayStatus {
   Visible
   Hidden
+
+  @@map("voucher_display_status")
 }
 
 enum PaymentStatus {
   Pending
   Paid
   Cancelled
+
+  @@map("payment_status")
 }
 
 enum VoucherUsageStatus {
@@ -63,6 +81,8 @@ enum VoucherUsageStatus {
   Used
   Expired
   Locked
+
+  @@map("voucher_usage_status")
 }
 
 // ============= TÀI KHOẢN =============

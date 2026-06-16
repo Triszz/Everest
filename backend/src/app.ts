@@ -4,6 +4,8 @@ import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { errorHandler } from "./middlewares/errorHandler";
+import authRouter from "./modules/auth/auth.routes";
+import partnerRouter from "./modules/partners/partner.routes";
 
 const app = express();
 
@@ -32,6 +34,12 @@ const authLimiter = rateLimit({
 app.use("/api/auth", authLimiter);
 
 // ── Routes ────────────────────────────────────────────────
+app.use("/api/auth", authLimiter, authRouter);
+app.use("/api/partner", partnerRouter);
+
+// Nhân sẽ thêm:  app.use('/api/customer', customerRouter);
+// Bảo sẽ thêm:   app.use('/api/admin', adminRouter);
+
 // Health check — test kết nối Supabase
 app.get("/api/health", (_req, res) => {
   res.json({
@@ -39,10 +47,6 @@ app.get("/api/health", (_req, res) => {
     data: { status: "ok", timestamp: new Date().toISOString() },
   });
 });
-
-// TODO: Thêm routes từng module khi làm
-// app.use('/api/auth', authRouter);
-// app.use('/api/partner', authenticate, roleGuard('PARTNER'), partnerRouter);
 
 // ── Error Handler (phải ở cuối) ───────────────────────────
 app.use(errorHandler);
