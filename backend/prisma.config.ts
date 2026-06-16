@@ -1,10 +1,6 @@
 // Prisma 7 – Config cho Supabase PostgreSQL
-// Lưu ý: Prisma 7 không cho phép url/directUrl trong schema.prisma nữa.
-// Tất cả connection config phải ở đây.
 import "dotenv/config";
 import { defineConfig } from "prisma/config";
-import { Pool } from "pg";
-import { PrismaPg } from "@prisma/adapter-pg";
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
@@ -12,6 +8,8 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env["DIRECT_URL"]!, // Dùng DIRECT_URL cho migrate (session mode)
+    // Prisma CLI (migrate, studio, validate, db push) → dùng DIRECT_URL (direct connection, port 5432)
+    // Runtime (app chạy) → dùng DATABASE_URL (pooler, port 6543) — connection string trong code sẽ tự resolve
+    url: process.env["DIRECT_URL"] ?? process.env["DATABASE_URL"]!,
   },
 });

@@ -63,29 +63,5 @@ CREATE TRIGGER trg_orders_updated_at
     BEFORE UPDATE ON orders
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- 6. TRIGGER – tự động tạo public.users khi có auth.users mới (Supabase Auth)
-CREATE OR REPLACE FUNCTION public.handle_new_auth_user()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-    INSERT INTO public.users (user_id, email, full_name, role, status)
-    VALUES (
-        NEW.id,
-        NEW.email,
-        COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1)),
-        'Customer',
-        'Active'
-    )
-    ON CONFLICT (user_id) DO NOTHING;
-    RETURN NEW;
-END;
-$$;
-
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-
-CREATE TRIGGER on_auth_user_created
-    AFTER INSERT ON auth.users
-    FOR EACH ROW EXECUTE FUNCTION public.handle_new_auth_user();
+-- NOTE: Trigger handle_new_auth_user (Supabase Auth) đã bị xóa
+-- Nếu cần, xóa function bằng: DROP FUNCTION IF EXISTS public.handle_new_auth_user();

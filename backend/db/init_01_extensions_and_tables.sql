@@ -77,9 +77,7 @@ CREATE TABLE users (
     status        account_status    DEFAULT 'Active',
     partner_id    INT         REFERENCES partners(partner_id) ON DELETE SET NULL,
     created_at    TIMESTAMPTZ DEFAULT now(),
-    updated_at    TIMESTAMPTZ DEFAULT now(),
-    CONSTRAINT users_user_id_fkey_auth
-        FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+    updated_at    TIMESTAMPTZ DEFAULT now()
 );
 
 CREATE TABLE branches (
