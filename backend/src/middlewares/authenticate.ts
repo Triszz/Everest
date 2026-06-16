@@ -1,12 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import { Role } from "../shared/types";
-
-export interface JwtPayload {
-  userId: string;
-  email: string;
-  role: Role;
-}
+import { JwtPayload } from "../shared/types";
 
 // Extend Express Request để có req.user ở khắp nơi
 declare global {
