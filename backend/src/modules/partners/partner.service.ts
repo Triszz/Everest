@@ -202,6 +202,7 @@ export const partnerService = {
       password: string;
       fullName: string;
       phoneNumber?: string;
+      branchId?: number;
     },
   ) {
     const existing = await prisma.user.findFirst({
@@ -212,31 +213,68 @@ export const partnerService = {
         ],
       },
     });
+
     if (existing) {
       const field = existing.email === data.email ? "Email" : "Số điện thoại";
+
       throw new AppError(`${field} đã được sử dụng`, 409, "CONFLICT");
     }
 
     const passwordHash = await bcrypt.hash(data.password, 12);
 
-    return prisma.user.create({
-      data: {
-        email: data.email,
-        passwordHash,
-        fullName: data.fullName,
-        phoneNumber: data.phoneNumber,
-        role: "Partner_Cashier",
-        status: "Active",
-        partnerId,
-      },
-      select: {
-        userId: true,
-        email: true,
-        fullName: true,
-        role: true,
-        status: true,
-        partnerId: true,
-      },
+    return prisma.$transaction(async (tx) => {
+      // Tạo tài khoản thu ngân
+      const newUser = await tx.user.create({
+        data: {
+          email: data.email,
+          passwordHash,
+          fullName: data.fullName,
+          phoneNumber: data.phoneNumber,
+          role: "Partner_Cashier",
+          status: "Active",
+          partnerId,
+        },
+        select: {
+          userId: true,
+          email: true,
+          fullName: true,
+          role: true,
+          status: true,
+          partnerId: true,
+        },
+      });
+
+      // Nếu chỉ định chi nhánh thì gán thu ngân cho chi nhánh
+      if (data.branchId) {
+        const branch = await tx.branch.findFirst({
+          where: {
+            branchId: data.branchId,
+            partnerId,
+          },
+        });
+
+        if (!branch) {
+          throw new AppError("Không tìm thấy chi nhánh", 404, "NOT_FOUND");
+        }
+
+        if (branch.cashierId) {
+          throw new AppError("Chi nhánh đã có thu ngân", 409, "CONFLICT");
+        }
+
+        await tx.branch.update({
+          where: {
+            branchId: data.branchId,
+          },
+          data: {
+            cashierId: newUser.userId,
+          },
+        });
+      }
+
+      return {
+        ...newUser,
+        branchId: data.branchId ?? null,
+      };
     });
   },
 };

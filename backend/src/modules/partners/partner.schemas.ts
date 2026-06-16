@@ -40,6 +40,7 @@ export const createCashierSchema = z.object({
     .string()
     .regex(/^[0-9]{10,11}$/)
     .optional(),
+  branchId: z.number().int().positive().optional(),
 });
 
 export { branchIdParam };
