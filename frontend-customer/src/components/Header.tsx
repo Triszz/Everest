@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import LogoImg from '../assets/images/Logo.png';
 
 export function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [cartCount] = useState(0);
+  const location = useLocation();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
@@ -48,9 +49,9 @@ export function Header() {
 
           {/* Nav */}
           <nav style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <NavLink to="/" label="Marketplace" active />
-            <NavLink to="/my-vouchers" label="My Vouchers" />
-            <NavLink to="/rewards" label="Rewards" />
+            <NavLink to="/" label="Marketplace" isActive={location.pathname === '/'} />
+            <NavLink to="/my-voucher" label="My Vouchers" isActive={location.pathname === '/my-voucher'} />
+            <NavLink to="/rewards" label="Rewards" isActive={location.pathname === '/rewards'} />
           </nav>
 
           {/* Search + Actions */}
@@ -87,7 +88,8 @@ export function Header() {
             </div>
 
             {/* Cart */}
-            <button
+            <Link
+              to="/cart"
               id="header-cart"
               aria-label="Giỏ hàng"
               style={{
@@ -102,6 +104,7 @@ export function Header() {
                 background: 'white',
                 cursor: 'pointer',
                 transition: 'all 0.2s',
+                textDecoration: 'none',
               }}
               onMouseEnter={e => (e.currentTarget.style.borderColor = '#0E76A8')}
               onMouseLeave={e => (e.currentTarget.style.borderColor = '#E2E8F0')}
@@ -123,7 +126,7 @@ export function Header() {
                   {cartCount}
                 </span>
               )}
-            </button>
+            </Link>
 
             {/* Login */}
             <Link
@@ -152,7 +155,7 @@ export function Header() {
   );
 }
 
-function NavLink({ to, label, active }: { to: string; label: string; active?: boolean }) {
+function NavLink({ to, label, isActive }: { to: string; label: string; isActive?: boolean }) {
   return (
     <Link
       to={to}
@@ -160,19 +163,19 @@ function NavLink({ to, label, active }: { to: string; label: string; active?: bo
         padding: '6px 14px',
         fontFamily: 'Inter, sans-serif',
         fontSize: 14,
-        fontWeight: active ? 600 : 400,
-        color: active ? '#0E76A8' : '#64748B',
+        fontWeight: isActive ? 600 : 400,
+        color: isActive ? '#0E76A8' : '#64748B',
         textDecoration: 'none',
         borderRadius: 8,
-        borderBottom: active ? '2px solid #0E76A8' : '2px solid transparent',
+        borderBottom: isActive ? '2px solid #0E76A8' : '2px solid transparent',
         transition: 'color 0.2s',
-        paddingBottom: active ? 4 : 6,
+        paddingBottom: isActive ? 4 : 6,
       }}
       onMouseEnter={e => {
-        if (!active) e.currentTarget.style.color = '#0E76A8';
+        if (!isActive) e.currentTarget.style.color = '#0E76A8';
       }}
       onMouseLeave={e => {
-        if (!active) e.currentTarget.style.color = '#64748B';
+        if (!isActive) e.currentTarget.style.color = '#64748B';
       }}
     >
       {label}
