@@ -4,37 +4,6 @@ import CatDuLich from '../assets/images/cat_du_lich.png';
 import CatSacDep from '../assets/images/cat_sac_dep.png';
 import CatMuaSam from '../assets/images/cat_mua_sam.png';
 
-const CATEGORIES = [
-  {
-    id: 1,
-    name: 'Ẩm Thực',
-    subtitle: 'Ưu đãi đến 50% tại các nhà hàng 5 sao',
-    image: CatAmThuc,
-    large: true,
-  },
-  {
-    id: 2,
-    name: 'Du Lịch',
-    subtitle: 'Khám phá Việt Nam với giá ưu đãi',
-    image: CatDuLich,
-    large: false,
-  },
-  {
-    id: 3,
-    name: 'Sắc Đẹp',
-    subtitle: 'Làm đẹp với giá tốt nhất',
-    image: CatSacDep,
-    large: false,
-  },
-  {
-    id: 4,
-    name: 'Mua Sắm',
-    subtitle: 'Thời trang, điện tử và nhiều hơn nữa',
-    image: CatMuaSam,
-    large: false,
-  },
-];
-
 export function DanhMucNoiBat() {
   return (
     <section style={{ padding: '64px 0', background: 'white' }}>
