@@ -6,6 +6,7 @@ import rateLimit from "express-rate-limit";
 import { errorHandler } from "./middlewares/errorHandler";
 import authRouter from "./modules/auth/auth.routes";
 import partnerRouter from "./modules/partners/partner.routes";
+import adminUsersRouter from "./modules/admin/users/admin-users.routes";
 
 const app = express();
 
@@ -36,6 +37,7 @@ app.use("/api/auth", authLimiter);
 // ── Routes ────────────────────────────────────────────────
 app.use("/api/auth", authLimiter, authRouter);
 app.use("/api/partner", partnerRouter);
+app.use("/api/admin/users", adminUsersRouter);
 
 // Nhân sẽ thêm:  app.use('/api/customer', customerRouter);
 // Bảo sẽ thêm:   app.use('/api/admin', adminRouter);
