@@ -28,16 +28,53 @@ const INPUT_STYLE: React.CSSProperties = {
   transition: 'border-color 0.2s',
 };
 
+const INPUT_ERROR_STYLE: React.CSSProperties = {
+  ...INPUT_STYLE,
+  borderColor: '#EF4444',
+};
+
+const ERROR_TEXT_STYLE: React.CSSProperties = {
+  fontFamily: 'Inter, sans-serif',
+  fontSize: 12,
+  color: '#EF4444',
+  marginTop: 4,
+};
+
+interface FieldErrors {
+  email?: string;
+  password?: string;
+}
+
 export function LoginPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Field-level validation
+    const errors: FieldErrors = {};
+    if (!email.trim()) {
+      errors.email = 'Email không được để trống';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errors.email = 'Email không đúng định dạng';
+    }
+    if (!password) {
+      errors.password = 'Mật khẩu không được để trống';
+    } else if (password.length < 6) {
+      errors.password = 'Mật khẩu ít nhất 6 ký tự';
+    }
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
+    }
+
+    setFieldErrors({});
     setError('');
     setIsLoading(true);
 
@@ -238,33 +275,33 @@ export function LoginPage() {
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div>
-              <label htmlFor="login-email" style={LABEL_STYLE}>Email</label>
+              <label htmlFor="login-email" style={LABEL_STYLE}>Email <span style={{ color: '#EF4444' }}>*</span></label>
               <input
                 id="login-email"
                 type="email"
                 value={email}
-                onChange={e => setEmail(e.target.value)}
+                onChange={e => { setEmail(e.target.value); if (fieldErrors.email) setFieldErrors(prev => { const n = { ...prev }; delete n.email; return n; }); }}
                 placeholder="email@example.com"
-                required
-                style={INPUT_STYLE}
-                onFocus={e => (e.currentTarget.style.borderColor = '#0E76A8')}
-                onBlur={e => (e.currentTarget.style.borderColor = '#E2E8F0')}
+                style={fieldErrors.email ? INPUT_ERROR_STYLE : INPUT_STYLE}
+                onFocus={e => (e.currentTarget.style.borderColor = fieldErrors.email ? '#EF4444' : '#0E76A8')}
+                onBlur={e => (e.currentTarget.style.borderColor = fieldErrors.email ? '#EF4444' : '#E2E8F0')}
               />
+              {fieldErrors.email && <div style={ERROR_TEXT_STYLE}>{fieldErrors.email}</div>}
             </div>
 
             <div>
-              <label htmlFor="login-password" style={LABEL_STYLE}>Mật khẩu</label>
+              <label htmlFor="login-password" style={LABEL_STYLE}>Mật khẩu <span style={{ color: '#EF4444' }}>*</span></label>
               <input
                 id="login-password"
                 type="password"
                 value={password}
-                onChange={e => setPassword(e.target.value)}
+                onChange={e => { setPassword(e.target.value); if (fieldErrors.password) setFieldErrors(prev => { const n = { ...prev }; delete n.password; return n; }); }}
                 placeholder="Nhập mật khẩu"
-                required
-                style={INPUT_STYLE}
-                onFocus={e => (e.currentTarget.style.borderColor = '#0E76A8')}
-                onBlur={e => (e.currentTarget.style.borderColor = '#E2E8F0')}
+                style={fieldErrors.password ? INPUT_ERROR_STYLE : INPUT_STYLE}
+                onFocus={e => (e.currentTarget.style.borderColor = fieldErrors.password ? '#EF4444' : '#0E76A8')}
+                onBlur={e => (e.currentTarget.style.borderColor = fieldErrors.password ? '#EF4444' : '#E2E8F0')}
               />
+              {fieldErrors.password && <div style={ERROR_TEXT_STYLE}>{fieldErrors.password}</div>}
             </div>
 
             <div style={{
