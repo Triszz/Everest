@@ -1,24 +1,25 @@
 import { z } from "zod";
-import { Role, AccountStatus } from "../../shared/types";
+const roleValues = ["Admin", "Customer", "Partner_Owner", "Partner_Cashier"] as const;
+const accountStatusValues = ["Active", "Inactive", "Banned"] as const;
 
 export const listUsersSchema = z.object({
   page: z.coerce.number().int().positive().optional().default(1),
   limit: z.coerce.number().int().positive().max(100).optional().default(20),
   search: z.string().optional(),
-  role: z.nativeEnum(Role).optional(),
-  status: z.nativeEnum(AccountStatus).optional(),
+  role: z.enum(roleValues).optional(),
+  status: z.enum(accountStatusValues).optional(),
 });
 
 export const updateUserStatusSchema = z.object({
-  status: z.nativeEnum(AccountStatus),
+  status: z.enum(accountStatusValues),
 });
 
 export const updateUserRoleSchema = z.object({
-  role: z.nativeEnum(Role),
+  role: z.enum(roleValues),
 });
 
 export const getUserByIdSchema = z.object({
-  userId: z.string().uuid("ID người dùng không hợp lệ"),
+  userId: z.uuid("ID người dùng không hợp lệ"),
 });
 
 export type ListUsersInput = z.infer<typeof listUsersSchema>;

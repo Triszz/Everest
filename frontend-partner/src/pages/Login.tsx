@@ -2,6 +2,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getDefaultRoute } from '../config/navigation';
+import { STORAGE_KEY_USER } from '../services/auth.service';
+import type { PartnerRole } from '../types/auth';
 
 // ── Shared styles (matching customer login/register) ────────────────────────
 const LABEL_STYLE: React.CSSProperties = {
@@ -42,11 +44,11 @@ export function LoginPage() {
     try {
       await login(email, password);
 
-      // After login, auth state is updated — read user from localStorage
-      // to determine redirect (context may not have re-rendered yet)
-      const savedUser = localStorage.getItem('everest_partner_user');
+      // Login succeeded — read persisted user for redirect
+      // (context state will update on next render, but we need the role now)
+      const savedUser = localStorage.getItem(STORAGE_KEY_USER);
       if (savedUser) {
-        const user = JSON.parse(savedUser) as { role: 'Partner_Owner' | 'Partner_Cashier' };
+        const user = JSON.parse(savedUser) as { role: PartnerRole };
         navigate(getDefaultRoute(user.role), { replace: true });
       } else {
         navigate('/dashboard', { replace: true });

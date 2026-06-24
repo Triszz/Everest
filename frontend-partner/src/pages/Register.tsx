@@ -36,17 +36,11 @@ function validateForm(data: FormData): FormErrors {
     errors.email = 'Email không đúng định dạng';
   }
 
-  // Password
+  // Password — backend requires min 6 chars
   if (!data.password) {
     errors.password = 'Mật khẩu không được để trống';
-  } else if (data.password.length < 8) {
-    errors.password = 'Mật khẩu tối thiểu 8 ký tự';
-  } else if (!/[A-Z]/.test(data.password)) {
-    errors.password = 'Mật khẩu phải có ít nhất 1 chữ hoa';
-  } else if (!/[a-z]/.test(data.password)) {
-    errors.password = 'Mật khẩu phải có ít nhất 1 chữ thường';
-  } else if (!/[0-9]/.test(data.password)) {
-    errors.password = 'Mật khẩu phải có ít nhất 1 chữ số';
+  } else if (data.password.length < 6) {
+    errors.password = 'Mật khẩu ít nhất 6 ký tự';
   }
 
   // Confirm password
@@ -80,10 +74,8 @@ function validateForm(data: FormData): FormErrors {
     errors.taxCode = 'Mã số thuế ít nhất 10 ký tự';
   }
 
-  // Business license URL
-  if (!data.businessLicenseUrl.trim()) {
-    errors.businessLicenseUrl = 'URL giấy phép kinh doanh không được để trống';
-  } else {
+  // Business license URL — optional in backend, validate format only if provided
+  if (data.businessLicenseUrl.trim()) {
     try {
       new URL(data.businessLicenseUrl);
     } catch {
@@ -130,51 +122,8 @@ const ERROR_TEXT_STYLE: React.CSSProperties = {
 };
 
 // ── API ─────────────────────────────────────────────────────────────────────
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+import { apiRegisterPartner } from '../services/auth.service';
 
-interface ApiSuccessResponse {
-  success: true;
-  data: {
-    user: { userId: string; email: string; fullName: string; partnerId: number | null };
-    partner: { partnerId: number; companyName: string; status: string };
-  };
-  message?: string;
-}
-
-interface ApiErrorResponse {
-  success: false;
-  error?: { message: string; code?: string };
-  message?: string;
-}
-
-type ApiResponse = ApiSuccessResponse | ApiErrorResponse;
-
-async function registerPartner(data: Omit<FormData, 'confirmPassword'>): Promise<ApiResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/auth/register/partner`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      email: data.email,
-      password: data.password,
-      fullName: data.fullName,
-      phoneNumber: data.phoneNumber || undefined,
-      companyName: data.companyName,
-      taxCode: data.taxCode,
-      businessLicenseUrl: data.businessLicenseUrl || undefined,
-    }),
-  });
-
-  const json = await response.json();
-
-  if (!response.ok) {
-    return {
-      success: false,
-      message: json?.error?.message || json?.message || 'Đăng ký thất bại. Vui lòng thử lại.',
-    };
-  }
-
-  return json as ApiSuccessResponse;
-}
 
 // ── Component ───────────────────────────────────────────────────────────────
 export function RegisterPage() {
@@ -233,16 +182,21 @@ export function RegisterPage() {
     setErrors({});
 
     try {
-      const result = await registerPartner(formData);
-
-      if (!result.success) {
-        setErrors({ general: (result as ApiErrorResponse).message || 'Đăng ký thất bại' });
-        return;
-      }
+      await apiRegisterPartner({
+        email: formData.email,
+        password: formData.password,
+        fullName: formData.fullName,
+        phoneNumber: formData.phoneNumber || undefined,
+        companyName: formData.companyName,
+        taxCode: formData.taxCode,
+        businessLicenseUrl: formData.businessLicenseUrl || undefined,
+      });
 
       navigate('/register/success');
-    } catch {
-      setErrors({ general: 'Không thể kết nối server. Vui lòng thử lại sau.' });
+    } catch (err) {
+      setErrors({
+        general: err instanceof Error ? err.message : 'Đăng ký thất bại. Vui lòng thử lại.',
+      });
     } finally {
       setIsLoading(false);
     }
@@ -637,7 +591,7 @@ export function RegisterPage() {
 
             {/* Business license URL */}
             <div>
-              <label htmlFor="register-license" style={LABEL_STYLE}>URL giấy phép kinh doanh <span style={{ color: '#EF4444' }}>*</span></label>
+              <label htmlFor="register-license" style={LABEL_STYLE}>URL giấy phép kinh doanh</label>
               <input
                 id="register-license"
                 type="url"
