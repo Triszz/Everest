@@ -1,62 +1,20 @@
+import { post, get, postFull } from './api-client';
 import type {
   LoginResponseData,
   RegisterPartnerResponseData,
   RefreshResponseData,
   MeResponseData,
-  ApiSuccess,
-  ApiError,
 } from '../types/auth';
 
-// ── Base URL ────────────────────────────────────────────────────────────────
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+// Re-export storage keys from api-client for backward compatibility
+export {
+  STORAGE_KEY_ACCESS_TOKEN,
+  STORAGE_KEY_REFRESH_TOKEN,
+  STORAGE_KEY_USER,
+} from './api-client';
 
-// ── Storage keys ────────────────────────────────────────────────────────────
-export const STORAGE_KEY_ACCESS_TOKEN = 'everest_partner_token';
-export const STORAGE_KEY_REFRESH_TOKEN = 'everest_partner_refresh_token';
-export const STORAGE_KEY_USER = 'everest_partner_user';
+// ── Types ───────────────────────────────────────────────────────────────────
 
-// ── Error helper ────────────────────────────────────────────────────────────
-function extractErrorMessage(json: ApiError): string {
-  return json?.error?.message || 'Đã xảy ra lỗi, vui lòng thử lại';
-}
-
-// ── API calls ───────────────────────────────────────────────────────────────
-
-/**
- * POST /api/auth/login
- * Body: { email, password }
- * 200 → { success: true, data: { accessToken, refreshToken, user } }
- * 401 → { success: false, error: { code: 'UNAUTHORIZED', message } }
- * 403 → { success: false, error: { code: 'FORBIDDEN', message } }
- */
-export async function apiLogin(
-  email: string,
-  password: string
-): Promise<LoginResponseData> {
-  const res = await fetch(`${API_BASE}/api/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
-  });
-
-  const json = await res.json();
-
-  if (!res.ok) {
-    throw new Error(extractErrorMessage(json as ApiError));
-  }
-
-  return (json as ApiSuccess<LoginResponseData>).data;
-}
-
-/**
- * POST /api/auth/register/partner
- * Body: { email, password, fullName, phoneNumber?, companyName, taxCode, businessLicenseUrl? }
- * 201 → { success: true, data: { user, partner }, message }
- * 400 → VALIDATION_ERROR
- * 409 → CONFLICT (email/phone/taxCode đã tồn tại)
- *
- * NOTE: Backend KHÔNG trả token. Partner phải chờ Admin phê duyệt mới login được.
- */
 export interface RegisterPartnerInput {
   email: string;
   password: string;
@@ -67,69 +25,55 @@ export interface RegisterPartnerInput {
   businessLicenseUrl?: string;
 }
 
+// ── API calls ───────────────────────────────────────────────────────────────
+
+/**
+ * POST /api/auth/login
+ * 200 → { accessToken, refreshToken, user }
+ * 401 → UNAUTHORIZED | 403 → FORBIDDEN
+ */
+export function apiLogin(
+  email: string,
+  password: string,
+): Promise<LoginResponseData> {
+  return post<LoginResponseData>('/api/auth/login', { email, password });
+}
+
+/**
+ * POST /api/auth/register/partner
+ * 201 → { user, partner } — NO token (partner waits for admin approval)
+ * 400 → VALIDATION_ERROR | 409 → CONFLICT
+ */
 export async function apiRegisterPartner(
-  input: RegisterPartnerInput
+  input: RegisterPartnerInput,
 ): Promise<{ data: RegisterPartnerResponseData; message?: string }> {
-  const res = await fetch(`${API_BASE}/api/auth/register/partner`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
-  });
-
-  const json = await res.json();
-
-  if (!res.ok) {
-    throw new Error(extractErrorMessage(json as ApiError));
-  }
-
-  const success = json as ApiSuccess<RegisterPartnerResponseData>;
-  return { data: success.data, message: success.message };
+  const response = await postFull<RegisterPartnerResponseData>(
+    '/api/auth/register/partner',
+    input,
+  );
+  return { data: response.data, message: response.message };
 }
 
 /**
  * POST /api/auth/refresh
- * Body: { refreshToken }
- * 200 → { success: true, data: { accessToken } }
+ * 200 → { accessToken }
  * 401 → UNAUTHORIZED
  */
-export async function apiRefreshToken(
-  refreshToken: string
+export function apiRefreshToken(
+  refreshToken: string,
 ): Promise<RefreshResponseData> {
-  const res = await fetch(`${API_BASE}/api/auth/refresh`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refreshToken }),
-  });
-
-  const json = await res.json();
-
-  if (!res.ok) {
-    throw new Error(extractErrorMessage(json as ApiError));
-  }
-
-  return (json as ApiSuccess<RefreshResponseData>).data;
+  return post<RefreshResponseData>('/api/auth/refresh', { refreshToken });
 }
 
 /**
  * GET /api/auth/me
- * Header: Authorization: Bearer <accessToken>
- * 200 → { success: true, data: { userId, email, fullName, role, ... } }
+ * 200 → user object
  * 401 → UNAUTHORIZED
+ *
+ * Accepts explicit token for hydration (before context has auth state).
  */
-export async function apiGetMe(accessToken: string): Promise<MeResponseData> {
-  const res = await fetch(`${API_BASE}/api/auth/me`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${accessToken}`,
-    },
+export function apiGetMe(accessToken: string): Promise<MeResponseData> {
+  return get<MeResponseData>('/api/auth/me', {
+    headers: { Authorization: `Bearer ${accessToken}` },
   });
-
-  const json = await res.json();
-
-  if (!res.ok) {
-    throw new Error(extractErrorMessage(json as ApiError));
-  }
-
-  return (json as ApiSuccess<MeResponseData>).data;
 }
