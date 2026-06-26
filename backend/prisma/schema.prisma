@@ -176,11 +176,12 @@ model Policy {
 model Voucher {
   voucherId         Int                    @id @default(autoincrement()) @map("voucher_id")
   partnerId         Int                    @map("partner_id")
-  categoryId        Int?                   @map("category_id")
+  categoryId        Int                    @map("category_id")
   title             String                 @db.VarChar(255)
   description       String?
   originalPrice     Decimal                @map("original_price") @db.Decimal(12, 2)
   salePrice         Decimal                @map("sale_price") @db.Decimal(12, 2)
+  applicationCondition String?             @map("application_condition")
   totalQuantity     Int                    @map("total_quantity")
   availableQuantity Int                    @map("available_quantity")
   imageUrl          String?                @map("image_url") @db.VarChar(255)
@@ -193,7 +194,7 @@ model Voucher {
   updatedAt         DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
 
   partner        Partner         @relation(fields: [partnerId], references: [partnerId], onDelete: Cascade)
-  category       Category?       @relation(fields: [categoryId], references: [categoryId], onDelete: SetNull)
+  category       Category       @relation(fields: [categoryId], references: [categoryId], onDelete: Restrict)
   voucherBranches VoucherBranch[]
   cartItems      CartItem[]
   orderItems     OrderItem[]
