@@ -9,6 +9,7 @@ import partnerRouter from "./modules/partners/partner.routes";
 import adminUsersRouter from "./modules/admin/users/admin-users.routes";
 import voucherRouter from "./modules/customer/vouchers/vouchers.routes";
 import categoryRouter from "./modules/customer/categories/categories.routes";
+import bannerRouter from "./modules/customer/banners/banners.routes";
 
 const app = express();
 
@@ -52,6 +53,7 @@ app.use("/api/partner", partnerRouter);
 app.use("/api/admin/users", adminUsersRouter);
 app.use("/api/vouchers", voucherRouter);
 app.use("/api/categories", categoryRouter);
+app.use("/api/banners", bannerRouter);
 
 // Health check — test kết nối Supabase
 app.get("/api/health", (_req, res) => {

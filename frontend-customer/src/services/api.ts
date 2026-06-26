@@ -87,6 +87,14 @@ export interface CategoryVoucherQuery {
   limit?: number;
 }
 
+export interface Banner {
+  bannerId: number;
+  title: string;
+  imageUrl: string;
+  targetUrl: string | null;
+  displayOrder: number;
+}
+
 export const voucherApi = {
   list: async (params?: VoucherQuery) => {
     const query = new URLSearchParams();
@@ -156,5 +164,12 @@ export const categoryApi = {
       vouchers: Voucher[];
       pagination: PaginationMeta;
     }>(res);
+  },
+};
+
+export const bannerApi = {
+  list: async () => {
+    const res = await fetch(`${BASE_URL}/banners`);
+    return handleResponse<{ success: boolean; data: Banner[] }>(res);
   },
 };
