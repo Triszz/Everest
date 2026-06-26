@@ -1,61 +1,44 @@
 import { Link } from 'react-router-dom';
-import VCafe from '../assets/images/v_cafe.png';
-import VSpa from '../assets/images/v_spa.png';
-import VHotel from '../assets/images/v_hotel.png';
-import VShopping from '../assets/images/v_shopping.png';
-
-const VOUCHERS = [
-  {
-    id: 1,
-    title: 'Buffet Tôi Hải Sản Cao Cấp Tối Thứ 7',
-    partner: 'The Log Dining',
-    originalPrice: 1500000,
-    salePrice: 899000,
-    sold: 1200,
-    rating: 4.8,
-    ratingCount: '1.2k',
-    discount: 40,
-    image: VCafe,
-  },
-  {
-    id: 2,
-    title: 'Liệu Trình Chăm Sóc Da Chuyên Sâu 90 Phút',
-    partner: 'Mirano Spa',
-    originalPrice: 950000,
-    salePrice: 595000,
-    sold: 830,
-    rating: 4.6,
-    ratingCount: '420',
-    discount: 38,
-    image: VSpa,
-  },
-  {
-    id: 3,
-    title: 'Nghỉ Dưỡng Sang Trọng Hạng Phòng Superior',
-    partner: 'Pullman Sài Gòn',
-    originalPrice: 4000000,
-    salePrice: 3150000,
-    sold: 610,
-    rating: 4.7,
-    ratingCount: '420',
-    discount: 25,
-    image: VHotel,
-  },
-  {
-    id: 4,
-    title: 'Voucher Mua Sắm Tiêu Dùng Gia Đình Toàn Hệ Thống',
-    partner: 'WinMart',
-    originalPrice: 200000,
-    salePrice: 100000,
-    sold: 3100,
-    rating: 3.6,
-    ratingCount: '1.3k',
-    discount: 50,
-    image: VShopping,
-  },
-];
+import { useState, useEffect } from 'react';
+import { voucherApi } from '../services/api';
+import type { Voucher } from '../services/api';
 
 export function FeaturedVouchers() {
+  const [vouchers, setVouchers] = useState<Voucher[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    voucherApi.getFeatured()
+      .then((res) => {
+        if (res.success && res.data) {
+          setVouchers(res.data);
+        }
+      })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <section style={{ padding: '64px 0', background: '#F8FAFC' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px', textAlign: 'center' }}>
+          Đang tải voucher...
+        </div>
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section style={{ padding: '64px 0', background: '#F8FAFC' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px', textAlign: 'center', color: '#EF4444' }}>
+          Không thể tải voucher: {error}
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section style={{ padding: '64px 0', background: '#F8FAFC' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px' }}>
@@ -111,9 +94,15 @@ export function FeaturedVouchers() {
           gridTemplateColumns: 'repeat(4, 1fr)',
           gap: 20,
         }}>
-          {VOUCHERS.map((voucher) => (
-            <VoucherCard key={voucher.id} voucher={voucher} />
-          ))}
+          {vouchers.length === 0 ? (
+            <p style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#64748B' }}>
+              Hiện không có voucher nào
+            </p>
+          ) : (
+            vouchers.map((voucher) => (
+              <VoucherCard key={voucher.voucherId} voucher={voucher} />
+            ))
+          )}
         </div>
 
       </div>
@@ -121,13 +110,17 @@ export function FeaturedVouchers() {
   );
 }
 
-function VoucherCard({ voucher }: { voucher: typeof VOUCHERS[0] }) {
-  const formatPrice = (p: number) => p.toLocaleString('vi-VN') + 'đ';
+function VoucherCard({ voucher }: { voucher: Voucher }) {
+  const formatPrice = (p: string | number) => Number(p).toLocaleString('vi-VN') + 'đ';
+  const discount = voucher.originalPrice
+    ? Math.round((1 - Number(voucher.salePrice) / Number(voucher.originalPrice)) * 100)
+    : 0;
+  const imageUrl = voucher.imageUrl || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&h=300&fit=crop';
 
   return (
     <Link
-      id={`voucher-card-${voucher.id}`}
-      to={`/voucher/${voucher.id}`}
+      id={`voucher-card-${voucher.voucherId}`}
+      to={`/voucher/${voucher.voucherId}`}
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -153,7 +146,7 @@ function VoucherCard({ voucher }: { voucher: typeof VOUCHERS[0] }) {
       {/* Image */}
       <div style={{ position: 'relative', height: 160, overflow: 'hidden' }}>
         <img
-          src={voucher.image}
+          src={imageUrl}
           alt={voucher.title}
           style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.4s ease' }}
           onMouseOver={e => (e.currentTarget.style.transform = 'scale(1.06)')}
@@ -172,7 +165,7 @@ function VoucherCard({ voucher }: { voucher: typeof VOUCHERS[0] }) {
           padding: '3px 8px',
           borderRadius: 6,
         }}>
-          -{voucher.discount}%
+          -{discount}%
         </span>
         {/* Partner tag */}
         <span style={{
@@ -188,7 +181,7 @@ function VoucherCard({ voucher }: { voucher: typeof VOUCHERS[0] }) {
           borderRadius: 6,
           backdropFilter: 'blur(4px)',
         }}>
-          {voucher.partner}
+          {voucher.partner?.companyName || 'N/A'}
         </span>
       </div>
 
@@ -214,10 +207,10 @@ function VoucherCard({ voucher }: { voucher: typeof VOUCHERS[0] }) {
             <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
           </svg>
           <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#64748B', fontWeight: 600 }}>
-            {voucher.rating}
+            {voucher.averageRating?.toFixed(1) || '0.0'}
           </span>
           <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: '#94A3B8' }}>
-            ({voucher.ratingCount} đã bán)
+            ({voucher.reviewCount || 0} đã bán)
           </span>
         </div>
 
@@ -225,7 +218,7 @@ function VoucherCard({ voucher }: { voucher: typeof VOUCHERS[0] }) {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto' }}>
           <div>
             <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#94A3B8', textDecoration: 'line-through', display: 'block' }}>
-              {formatPrice(voucher.originalPrice)}
+              {voucher.originalPrice ? formatPrice(voucher.originalPrice) : ''}
             </span>
             <span style={{
               fontFamily: 'Manrope, sans-serif',
