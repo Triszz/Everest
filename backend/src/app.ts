@@ -7,7 +7,8 @@ import { errorHandler } from "./middlewares/errorHandler";
 import authRouter from "./modules/auth/auth.routes";
 import partnerRouter from "./modules/partners/partner.routes";
 import adminUsersRouter from "./modules/admin/users/admin-users.routes";
-import categoriesRouter from './modules/categories/category.routes';
+import voucherRouter from "./modules/customer/vouchers/vouchers.routes";
+import categoryRouter from "./modules/customer/categories/categories.routes";
 
 const app = express();
 
@@ -20,14 +21,12 @@ const allowedOrigins = (process.env.CLIENT_URL || "http://localhost:5173")
 
 app.use(
   cors({
-    origin(origin, callback) {
-      // Allow requests with no origin (e.g. curl, Postman, same-origin)
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error(`CORS: origin ${origin} not allowed`));
-      }
-    },
+    origin: [
+      process.env.CLIENT_URL || "http://localhost:5173",
+      "http://localhost:5174",
+      "http://localhost:5175",
+      "http://localhost:5176",
+    ],
     credentials: true,
   }),
 );
@@ -51,10 +50,8 @@ app.use("/api/auth", authLimiter);
 app.use("/api/auth", authLimiter, authRouter);
 app.use("/api/partner", partnerRouter);
 app.use("/api/admin/users", adminUsersRouter);
-app.use('/api/categories', categoriesRouter);
-
-// Nhân sẽ thêm:  app.use('/api/customer', customerRouter);
-// Bảo sẽ thêm:   app.use('/api/admin', adminRouter);
+app.use("/api/vouchers", voucherRouter);
+app.use("/api/categories", categoryRouter);
 
 // Health check — test kết nối Supabase
 app.get("/api/health", (_req, res) => {
