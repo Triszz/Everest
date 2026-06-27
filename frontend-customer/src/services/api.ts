@@ -1,25 +1,11 @@
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
-interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: {
-    code: string;
-    message: string;
-  };
-}
-
 interface PaginationMeta {
   page: number;
   limit: number;
   total: number;
   totalPages: number;
 }
-
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('access_token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
 
 // ── Token Refresh Mechanism ───────────────────────────────────────────────────
 let isRefreshing = false;
