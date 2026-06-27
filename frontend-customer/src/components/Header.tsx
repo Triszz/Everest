@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import LogoImg from '../assets/images/Logo.png';
+import { cartApi } from '../services/api';
 
 export function Header() {
   const [scrolled, setScrolled] = useState(false);
-  const [cartCount] = useState(0);
+  const [cartCount, setCartCount] = useState(0);
   const location = useLocation();
 
   useEffect(() => {
@@ -12,6 +13,23 @@ export function Header() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Fetch cart count on mount and when location changes
+  useEffect(() => {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      setCartCount(0);
+      return;
+    }
+
+    cartApi.getCart()
+      .then(res => {
+        if (res.success && res.data) {
+          setCartCount(res.data.summary.totalItems);
+        }
+      })
+      .catch(() => setCartCount(0));
+  }, [location.pathname]);
 
   return (
     <header

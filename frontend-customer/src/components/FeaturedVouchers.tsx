@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { voucherApi } from '../services/api';
+import { voucherApi, cartApi } from '../services/api';
 import type { Voucher } from '../services/api';
+import { Loader2 } from 'lucide-react';
 
 export function FeaturedVouchers() {
   const [vouchers, setVouchers] = useState<Voucher[]>([]);
@@ -110,12 +111,18 @@ export function FeaturedVouchers() {
   );
 }
 
-function VoucherCard({ voucher }: { voucher: Voucher }) {
+function VoucherCard({ voucher, onAddToCart }: { voucher: Voucher; onAddToCart?: () => void }) {
   const formatPrice = (p: string | number) => Number(p).toLocaleString('vi-VN') + 'đ';
   const discount = voucher.originalPrice
     ? Math.round((1 - Number(voucher.salePrice) / Number(voucher.originalPrice)) * 100)
     : 0;
   const imageUrl = voucher.imageUrl || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&h=300&fit=crop';
+
+  const handleAddToCart = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (onAddToCart) onAddToCart();
+  };
 
   return (
     <Link
@@ -229,31 +236,72 @@ function VoucherCard({ voucher }: { voucher: Voucher }) {
               {formatPrice(voucher.salePrice)}
             </span>
           </div>
-          <button
-            aria-label="Thêm vào giỏ"
-            style={{
-              width: 34,
-              height: 34,
-              background: '#E8F4FA',
-              border: 'none',
-              borderRadius: 9,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              transition: 'background 0.2s',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.background = '#0E76A8')}
-            onMouseLeave={e => (e.currentTarget.style.background = '#E8F4FA')}
-            onClick={ev => ev.preventDefault()}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0E76A8" strokeWidth="2.2">
-              <circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" />
-              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-            </svg>
-          </button>
+          <AddToCartButton voucherId={voucher.voucherId} />
         </div>
       </div>
     </Link>
+  );
+}
+
+function AddToCartButton({ voucherId }: { voucherId: number }) {
+  const [loading, setLoading] = useState(false);
+  const [added, setAdded] = useState(false);
+
+  const handleAddToCart = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (loading) return;
+
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      if (confirm('Bạn cần đăng nhập để thêm vào giỏ hàng. Đăng nhập ngay?')) {
+        window.location.href = '/login';
+      }
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await cartApi.addToCart(voucherId, 1);
+      setAdded(true);
+      setTimeout(() => setAdded(false), 2000);
+    } catch (err: any) {
+      alert(err.message || 'Không thể thêm vào giỏ hàng');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <button
+      aria-label="Thêm vào giỏ"
+      onClick={handleAddToCart}
+      disabled={loading}
+      style={{
+        width: 34,
+        height: 34,
+        background: added ? '#10B981' : '#E8F4FA',
+        border: 'none',
+        borderRadius: 9,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: loading ? 'wait' : 'pointer',
+        transition: 'background 0.2s',
+      }}
+    >
+      {loading ? (
+        <Loader2 size={16} style={{ animation: 'spin 1s linear infinite', color: '#0E76A8' }} />
+      ) : added ? (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      ) : (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0E76A8" strokeWidth="2.2">
+          <circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" />
+          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+        </svg>
+      )}
+    </button>
   );
 }

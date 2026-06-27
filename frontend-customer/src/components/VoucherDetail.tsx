@@ -1,7 +1,7 @@
 import { useParams, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { UtensilsCrossed, Wifi, ShoppingBag, Car } from 'lucide-react';
-import { voucherApi } from '../services/api';
+import { voucherApi, cartApi } from '../services/api';
 import type { Voucher, Review } from '../services/api';
 
 export function VoucherDetail() {
@@ -12,6 +12,8 @@ export function VoucherDetail() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'howto' | 'faqs' | 'related'>('overview');
   const [qty, setQty] = useState(1);
+  const [addingToCart, setAddingToCart] = useState(false);
+  const [addedToCart, setAddedToCart] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -55,6 +57,47 @@ export function VoucherDetail() {
     : 0;
   const totalPrice = Number(voucher.salePrice) * qty;
   const imageUrl = voucher.imageUrl || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&h=600&fit=crop';
+
+  const handleAddToCart = async () => {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      if (confirm('Bạn cần đăng nhập để thêm vào giỏ hàng. Đăng nhập ngay?')) {
+        window.location.href = '/login';
+      }
+      return;
+    }
+
+    try {
+      setAddingToCart(true);
+      await cartApi.addToCart(voucher.voucherId, qty);
+      setAddedToCart(true);
+      setTimeout(() => setAddedToCart(false), 2000);
+    } catch (err: any) {
+      alert(err.message || 'Không thể thêm vào giỏ hàng');
+    } finally {
+      setAddingToCart(false);
+    }
+  };
+
+  const handleBuyNow = async () => {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      if (confirm('Bạn cần đăng nhập để mua. Đăng nhập ngay?')) {
+        window.location.href = '/login';
+      }
+      return;
+    }
+
+    try {
+      setAddingToCart(true);
+      await cartApi.addToCart(voucher.voucherId, qty);
+      window.location.href = '/cart';
+    } catch (err: any) {
+      alert(err.message || 'Không thể thêm vào giỏ hàng');
+    } finally {
+      setAddingToCart(false);
+    }
+  };
 
   return (
     <div style={{ background: '#F8FAFC', minHeight: '100vh' }}>
@@ -179,18 +222,33 @@ export function VoucherDetail() {
               </div>
 
               <button
-                style={{ width: '100%', padding: '14px 0', background: '#0E76A8', color: 'white', border: 'none', borderRadius: 12, fontFamily: 'Inter, sans-serif', fontSize: 15, fontWeight: 700, cursor: 'pointer', marginBottom: 10 }}
+                onClick={handleBuyNow}
+                disabled={addingToCart}
+                style={{ width: '100%', padding: '14px 0', background: '#0E76A8', color: 'white', border: 'none', borderRadius: 12, fontFamily: 'Inter, sans-serif', fontSize: 15, fontWeight: 700, cursor: addingToCart ? 'wait' : 'pointer', opacity: addingToCart ? 0.7 : 1, marginBottom: 10 }}
               >
                 Mua ngay
               </button>
               <button
-                style={{ width: '100%', padding: '14px 0', background: 'white', color: '#0E76A8', border: '1.5px solid #E2E8F0', borderRadius: 12, fontFamily: 'Inter, sans-serif', fontSize: 15, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}
+                onClick={handleAddToCart}
+                disabled={addingToCart}
+                style={{ width: '100%', padding: '14px 0', background: addedToCart ? '#10B981' : 'white', color: addedToCart ? 'white' : '#0E76A8', border: '1.5px solid #E2E8F0', borderRadius: 12, fontFamily: 'Inter, sans-serif', fontSize: 15, fontWeight: 700, cursor: addingToCart ? 'wait' : 'pointer', opacity: addingToCart ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" />
-                  <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-                </svg>
-                Thêm vào giỏ hàng
+                {addedToCart ? (
+                  <>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    Đã thêm vào giỏ!
+                  </>
+                ) : (
+                  <>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" />
+                      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+                    </svg>
+                    Thêm vào giỏ hàng
+                  </>
+                )}
               </button>
             </div>
           </div>

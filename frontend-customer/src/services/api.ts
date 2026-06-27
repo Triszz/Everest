@@ -95,6 +95,44 @@ export interface Banner {
   displayOrder: number;
 }
 
+// Cart Types
+export interface CartVoucher {
+  voucherId: number;
+  title: string;
+  imageUrl: string | null;
+  salePrice: number;
+  originalPrice: number;
+  availableQuantity: number;
+  expiryDays: number;
+  startDate: string;
+  endDate: string;
+  approvalStatus: string;
+  displayStatus: string;
+  partner: {
+    partnerId: number;
+    companyName: string;
+  };
+  category: {
+    categoryId: number;
+    categoryName: string;
+  };
+}
+
+export interface CartItem {
+  cartItemId: number;
+  quantity: number;
+  addedAt: string;
+  voucher: CartVoucher;
+}
+
+export interface Cart {
+  items: CartItem[];
+  summary: {
+    totalItems: number;
+    totalAmount: number;
+  };
+}
+
 export const voucherApi = {
   list: async (params?: VoucherQuery) => {
     const query = new URLSearchParams();
@@ -171,5 +209,54 @@ export const bannerApi = {
   list: async () => {
     const res = await fetch(`${BASE_URL}/banners`);
     return handleResponse<{ success: boolean; data: Banner[] }>(res);
+  },
+};
+
+export const cartApi = {
+  getCart: async () => {
+    const res = await fetch(`${BASE_URL}/cart`, {
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse<{ success: boolean; data: Cart }>(res);
+  },
+
+  addToCart: async (voucherId: number, quantity: number) => {
+    const res = await fetch(`${BASE_URL}/cart/items`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify({ voucher_id: voucherId, quantity }),
+    });
+    return handleResponse<{ success: boolean; data: { message: string; item: CartItem } }>(res);
+  },
+
+  updateCartItem: async (itemId: number, quantity: number) => {
+    const res = await fetch(`${BASE_URL}/cart/items/${itemId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify({ quantity }),
+    });
+    return handleResponse<{ success: boolean; data: { message: string; item: CartItem } }>(res);
+  },
+
+  removeCartItem: async (itemId: number) => {
+    const res = await fetch(`${BASE_URL}/cart/items/${itemId}`, {
+      method: 'DELETE',
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse<{ success: boolean; data: { message: string } }>(res);
+  },
+
+  clearCart: async () => {
+    const res = await fetch(`${BASE_URL}/cart`, {
+      method: 'DELETE',
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse<{ success: boolean; data: { message: string } }>(res);
   },
 };
