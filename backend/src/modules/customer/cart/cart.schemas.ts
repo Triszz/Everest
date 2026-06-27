@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 const coerceToNumber = (errorMsg: string) =>
-  z.coerce.number({ invalid_type_error: errorMsg });
+  z.coerce.number(errorMsg);
 
 export const addToCartSchema = z.object({
   voucher_id: coerceToNumber("voucher_id phải là số"),

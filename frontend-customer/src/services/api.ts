@@ -21,6 +21,94 @@ const getAuthHeaders = () => {
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
+// ── Token Refresh Mechanism ───────────────────────────────────────────────────
+let isRefreshing = false;
+let refreshSubscribers: Array<(token: string) => void> = [];
+
+const subscribeTokenRefresh = (callback: (token: string) => void) => {
+  refreshSubscribers.push(callback);
+};
+
+const onTokenRefreshed = (token: string) => {
+  refreshSubscribers.forEach((cb) => cb(token));
+  refreshSubscribers = [];
+};
+
+const refreshAccessToken = async (): Promise<string | null> => {
+  const refreshToken = localStorage.getItem('refresh_token');
+  if (!refreshToken) return null;
+
+  try {
+    const res = await fetch(`${BASE_URL}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+    const json = await res.json();
+    if (json.success && json.data?.accessToken) {
+      localStorage.setItem('access_token', json.data.accessToken);
+      return json.data.accessToken;
+    }
+  } catch {
+    // Refresh failed
+  }
+  return null;
+};
+
+/**
+ * Fetch wrapper với auto-refresh token khi nhận 401
+ */
+const authFetch = async (
+  url: string,
+  options: RequestInit & { auth?: boolean } = {},
+): Promise<Response> => {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...options.headers as Record<string, string>,
+  };
+
+  // Attach auth token
+  if (options.auth) {
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+  }
+
+  let response = await fetch(url, { ...options, headers });
+
+  // Handle 401 - attempt token refresh
+  if (response.status === 401) {
+    if (!isRefreshing) {
+      isRefreshing = true;
+      const newToken = await refreshAccessToken();
+      isRefreshing = false;
+
+      if (newToken) {
+        onTokenRefreshed(newToken);
+        // Retry with new token
+        headers['Authorization'] = `Bearer ${newToken}`;
+        response = await fetch(url, { ...options, headers });
+      } else {
+        // Refresh failed - clear tokens and redirect
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        window.location.href = '/login';
+      }
+    } else {
+      // Another refresh in progress, wait
+      await new Promise<string>((resolve) => {
+        subscribeTokenRefresh(resolve);
+      });
+      const newToken = localStorage.getItem('access_token')!;
+      headers['Authorization'] = `Bearer ${newToken}`;
+      response = await fetch(url, { ...options, headers });
+    }
+  }
+
+  return response;
+};
+
 const handleResponse = async <T>(res: Response): Promise<T> => {
   const json = await res.json();
   if (!res.ok) {
@@ -161,31 +249,23 @@ export const voucherApi = {
         if (v !== undefined && v !== null) query.set(k, String(v));
       });
     }
-    const res = await fetch(`${BASE_URL}/vouchers?${query}`, {
-      headers: { ...getAuthHeaders() },
-    });
+    const res = await authFetch(`${BASE_URL}/vouchers?${query}`, { auth: true });
     const json = await handleResponse<{ success: boolean; vouchers: Voucher[]; pagination: PaginationMeta }>(res);
     return { ...json, data: json.vouchers };
   },
 
   getFeatured: async () => {
-    const res = await fetch(`${BASE_URL}/vouchers/featured`, {
-      headers: { ...getAuthHeaders() },
-    });
+    const res = await authFetch(`${BASE_URL}/vouchers/featured`, { auth: true });
     return handleResponse<{ success: boolean; data: Voucher[] }>(res);
   },
 
   getById: async (id: number) => {
-    const res = await fetch(`${BASE_URL}/vouchers/${id}`, {
-      headers: { ...getAuthHeaders() },
-    });
+    const res = await authFetch(`${BASE_URL}/vouchers/${id}`, { auth: true });
     return handleResponse<{ success: boolean; data: Voucher }>(res);
   },
 
   getReviews: async (id: number, page = 1, limit = 10) => {
-    const res = await fetch(`${BASE_URL}/vouchers/${id}/reviews?page=${page}&limit=${limit}`, {
-      headers: { ...getAuthHeaders() },
-    });
+    const res = await authFetch(`${BASE_URL}/vouchers/${id}/reviews?page=${page}&limit=${limit}`, { auth: true });
     const json = await handleResponse<{ success: boolean; reviews: Review[]; pagination: PaginationMeta }>(res);
     return { ...json, data: json.reviews };
   },
@@ -193,16 +273,12 @@ export const voucherApi = {
 
 export const categoryApi = {
   list: async () => {
-    const res = await fetch(`${BASE_URL}/categories`, {
-      headers: { ...getAuthHeaders() },
-    });
+    const res = await authFetch(`${BASE_URL}/categories`, { auth: true });
     return handleResponse<{ success: boolean; data: Category[] }>(res);
   },
 
   getById: async (id: number) => {
-    const res = await fetch(`${BASE_URL}/categories/${id}`, {
-      headers: { ...getAuthHeaders() },
-    });
+    const res = await authFetch(`${BASE_URL}/categories/${id}`, { auth: true });
     return handleResponse<{ success: boolean; data: Category }>(res);
   },
 
@@ -213,9 +289,7 @@ export const categoryApi = {
         if (v !== undefined && v !== null) query.set(k, String(v));
       });
     }
-    const res = await fetch(`${BASE_URL}/categories/${id}/vouchers?${query}`, {
-      headers: { ...getAuthHeaders() },
-    });
+    const res = await authFetch(`${BASE_URL}/categories/${id}/vouchers?${query}`, { auth: true });
     return handleResponse<{
       success: boolean;
       category: Category;
@@ -234,48 +308,40 @@ export const bannerApi = {
 
 export const cartApi = {
   getCart: async () => {
-    const res = await fetch(`${BASE_URL}/cart`, {
-      headers: { ...getAuthHeaders() },
-    });
+    const res = await authFetch(`${BASE_URL}/cart`, { auth: true });
     return handleResponse<{ success: boolean; data: Cart }>(res);
   },
 
   addToCart: async (voucherId: number, quantity: number) => {
-    const res = await fetch(`${BASE_URL}/cart/items`, {
+    const res = await authFetch(`${BASE_URL}/cart/items`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getAuthHeaders(),
-      },
+      auth: true,
       body: JSON.stringify({ voucher_id: voucherId, quantity }),
     });
     return handleResponse<{ success: boolean; data: { message: string; item: CartItem } }>(res);
   },
 
   updateCartItem: async (itemId: number, quantity: number) => {
-    const res = await fetch(`${BASE_URL}/cart/items/${itemId}`, {
+    const res = await authFetch(`${BASE_URL}/cart/items/${itemId}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getAuthHeaders(),
-      },
+      auth: true,
       body: JSON.stringify({ quantity }),
     });
     return handleResponse<{ success: boolean; data: { message: string; item: CartItem } }>(res);
   },
 
   removeCartItem: async (itemId: number) => {
-    const res = await fetch(`${BASE_URL}/cart/items/${itemId}`, {
+    const res = await authFetch(`${BASE_URL}/cart/items/${itemId}`, {
       method: 'DELETE',
-      headers: { ...getAuthHeaders() },
+      auth: true,
     });
     return handleResponse<{ success: boolean; data: { message: string } }>(res);
   },
 
   clearCart: async () => {
-    const res = await fetch(`${BASE_URL}/cart`, {
+    const res = await authFetch(`${BASE_URL}/cart`, {
       method: 'DELETE',
-      headers: { ...getAuthHeaders() },
+      auth: true,
     });
     return handleResponse<{ success: boolean; data: { message: string } }>(res);
   },
@@ -306,9 +372,7 @@ export const authApi = {
   },
 
   me: async () => {
-    const res = await fetch(`${BASE_URL}/auth/me`, {
-      headers: { ...getAuthHeaders() },
-    });
+    const res = await authFetch(`${BASE_URL}/auth/me`, { auth: true });
     return handleResponse<{ success: boolean; data: MeResponse }>(res);
   },
 
