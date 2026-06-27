@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Minus, Plus, Trash2, ShoppingBag, Loader2 } from 'lucide-react';
-import { cartApi, Cart, CartItem } from '../services/api';
+import { cartApi } from '../services/api';
+import type { Cart, CartItem } from '../services/api';
 
-export function Cart() {
+export function CartPage() {
   const navigate = useNavigate();
   const [cart, setCart] = useState<Cart | null>(null);
   const [loading, setLoading] = useState(true);

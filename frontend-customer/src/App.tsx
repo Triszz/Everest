@@ -4,7 +4,7 @@ import { LoginPage } from './pages/Login';
 import { RegisterPage } from './pages/Register';
 import { LogoutSuccessPage } from './pages/LogoutSuccess';
 import { VoucherDetail } from './components/VoucherDetail';
-import { Cart } from './pages/Cart';
+import { CartPage } from './pages/Cart';
 import { MyVoucher } from './pages/MyVoucher';
 import { Checkout } from './pages/Checkout';
 import { Rewards } from './pages/Rewards';
@@ -34,7 +34,7 @@ function App() {
           <Route path="/voucher/:id" element={<VoucherDetail />} />
           <Route path="/vouchers" element={<VouchersPage />} />
           <Route path="/category/:id" element={<CategoryPage />} />
-          <Route path="/cart" element={<Cart />} />
+          <Route path="/cart" element={<CartPage />} />
           <Route path="/my-voucher" element={<MyVoucher />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/rewards" element={<Rewards />} />

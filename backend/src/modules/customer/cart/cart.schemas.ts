@@ -1,13 +1,7 @@
 import { z } from "zod";
 
 const coerceToNumber = (errorMsg: string) =>
-  z.string().pipe(
-    z.string().transform((val) => {
-      const num = parseInt(val, 10);
-      if (isNaN(num)) throw new Error(errorMsg);
-      return num;
-    })
-  );
+  z.coerce.number({ invalid_type_error: errorMsg });
 
 export const addToCartSchema = z.object({
   voucher_id: coerceToNumber("voucher_id phải là số"),

@@ -44,11 +44,12 @@ export const cartController = {
         });
       } else if ((error as any).name === "ZodError") {
         const zodError = error as any;
+        const firstError = zodError.errors?.[0];
         res.status(400).json({
           success: false,
           error: {
             code: "VALIDATION_ERROR",
-            message: zodError.errors[0]?.message || "Dữ liệu không hợp lệ",
+            message: firstError?.message || "Dữ liệu không hợp lệ",
           },
         });
       } else {
@@ -84,11 +85,12 @@ export const cartController = {
         });
       } else if ((error as any).name === "ZodError") {
         const zodError = error as any;
+        const firstError = zodError.errors?.[0];
         res.status(400).json({
           success: false,
           error: {
             code: "VALIDATION_ERROR",
-            message: zodError.errors[0]?.message || "Dữ liệu không hợp lệ",
+            message: firstError?.message || "Dữ liệu không hợp lệ",
           },
         });
       } else {
@@ -118,11 +120,13 @@ export const cartController = {
           },
         });
       } else if ((error as any).name === "ZodError") {
+        const zodError = error as any;
+        const firstError = zodError.errors?.[0];
         res.status(400).json({
           success: false,
           error: {
             code: "VALIDATION_ERROR",
-            message: "Dữ liệu không hợp lệ",
+            message: firstError?.message || "Dữ liệu không hợp lệ",
           },
         });
       } else {

@@ -133,6 +133,26 @@ export interface Cart {
   };
 }
 
+// Auth Types
+export interface User {
+  userId: string;
+  email: string;
+  fullName: string;
+  role: string;
+  phoneNumber?: string;
+  status: string;
+}
+
+export interface AuthResponse {
+  user: User;
+  accessToken: string;
+  refreshToken: string;
+}
+
+export interface MeResponse {
+  user: User;
+}
+
 export const voucherApi = {
   list: async (params?: VoucherQuery) => {
     const query = new URLSearchParams();
@@ -258,5 +278,46 @@ export const cartApi = {
       headers: { ...getAuthHeaders() },
     });
     return handleResponse<{ success: boolean; data: { message: string } }>(res);
+  },
+};
+
+export const authApi = {
+  login: async (email: string, password: string) => {
+    const res = await fetch(`${BASE_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    return handleResponse<{ success: boolean; data: AuthResponse }>(res);
+  },
+
+  register: async (data: {
+    email: string;
+    password: string;
+    fullName: string;
+    phoneNumber?: string;
+  }) => {
+    const res = await fetch(`${BASE_URL}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return handleResponse<{ success: boolean; data: AuthResponse }>(res);
+  },
+
+  me: async () => {
+    const res = await fetch(`${BASE_URL}/auth/me`, {
+      headers: { ...getAuthHeaders() },
+    });
+    return handleResponse<{ success: boolean; data: MeResponse }>(res);
+  },
+
+  refresh: async (refreshToken: string) => {
+    const res = await fetch(`${BASE_URL}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+    return handleResponse<{ success: boolean; data: AuthResponse }>(res);
   },
 };

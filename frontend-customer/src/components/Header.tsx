@@ -6,6 +6,8 @@ import { cartApi } from '../services/api';
 export function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [cartCount, setCartCount] = useState(0);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState<any>(null);
   const location = useLocation();
 
   useEffect(() => {
@@ -14,7 +16,20 @@ export function Header() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Fetch cart count on mount and when location changes
+  // Check login status
+  useEffect(() => {
+    const token = localStorage.getItem('access_token');
+    const userData = localStorage.getItem('user');
+    if (token && userData) {
+      setIsLoggedIn(true);
+      setUser(JSON.parse(userData));
+    } else {
+      setIsLoggedIn(false);
+      setUser(null);
+    }
+  }, [location.pathname]);
+
+  // Fetch cart count
   useEffect(() => {
     const token = localStorage.getItem('access_token');
     if (!token) {
@@ -30,6 +45,16 @@ export function Header() {
       })
       .catch(() => setCartCount(0));
   }, [location.pathname]);
+
+  const handleLogout = () => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user');
+    setIsLoggedIn(false);
+    setUser(null);
+    setCartCount(0);
+    window.location.href = '/logout';
+  };
 
   return (
     <header
@@ -146,26 +171,81 @@ export function Header() {
               )}
             </Link>
 
-            {/* Login */}
-            <Link
-              id="header-login"
-              to="/login"
-              style={{
-                padding: '9px 20px',
-                background: '#0E76A8',
-                color: 'white',
-                fontFamily: 'Manrope, sans-serif',
-                fontSize: 14,
-                fontWeight: 700,
-                borderRadius: 10,
-                textDecoration: 'none',
-                transition: 'background 0.2s',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.background = '#0A5C87')}
-              onMouseLeave={e => (e.currentTarget.style.background = '#0E76A8')}
-            >
-              Đăng nhập
-            </Link>
+            {/* User Menu or Login */}
+            {isLoggedIn ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '6px 12px',
+                  background: '#F8FAFC',
+                  borderRadius: 10,
+                }}>
+                  <div style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: '50%',
+                    background: '#0E76A8',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'white',
+                    fontSize: 14,
+                    fontWeight: 700,
+                  }}>
+                    {user?.fullName?.[0]?.toUpperCase() || 'U'}
+                  </div>
+                  <span style={{
+                    fontFamily: 'Inter, sans-serif',
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: '#1E293B',
+                  }}>
+                    {user?.fullName?.split(' ').pop() || 'User'}
+                  </span>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  style={{
+                    padding: '9px 16px',
+                    background: '#FEF2F2',
+                    color: '#EF4444',
+                    border: 'none',
+                    borderRadius: 10,
+                    fontFamily: 'Manrope, sans-serif',
+                    fontSize: 14,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'background 0.2s',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = '#FEE2E2')}
+                  onMouseLeave={e => (e.currentTarget.style.background = '#FEF2F2')}
+                >
+                  Đăng xuất
+                </button>
+              </div>
+            ) : (
+              <Link
+                id="header-login"
+                to="/login"
+                style={{
+                  padding: '9px 20px',
+                  background: '#0E76A8',
+                  color: 'white',
+                  fontFamily: 'Manrope, sans-serif',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  borderRadius: 10,
+                  textDecoration: 'none',
+                  transition: 'background 0.2s',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = '#0A5C87')}
+                onMouseLeave={e => (e.currentTarget.style.background = '#0E76A8')}
+              >
+                Đăng nhập
+              </Link>
+            )}
           </div>
         </div>
       </div>
