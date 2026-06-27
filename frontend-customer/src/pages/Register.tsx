@@ -1,5 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
+import { authApi } from '../services/api';
 
 export function RegisterPage() {
   const navigate = useNavigate();
@@ -8,10 +9,49 @@ export function RegisterPage() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate('/login');
+    setError(null);
+
+    // Validate passwords match
+    if (password !== confirmPassword) {
+      setError('Mật khẩu xác nhận không khớp');
+      return;
+    }
+
+    // Validate password length
+    if (password.length < 6) {
+      setError('Mật khẩu phải có ít nhất 6 ký tự');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await authApi.register({
+        email,
+        password,
+        fullName,
+        phoneNumber: phone || undefined,
+      });
+
+      if (response.success && response.data) {
+        // Lưu tokens vào localStorage
+        localStorage.setItem('access_token', response.data.accessToken);
+        localStorage.setItem('refresh_token', response.data.refreshToken);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+
+        // Chuyển hướng về trang chủ
+        navigate('/');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Đăng ký thất bại. Vui lòng thử lại.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -206,6 +246,27 @@ export function RegisterPage() {
             }}>Tạo tài khoản để bắt đầu tiết kiệm ngay!</p>
           </div>
 
+          {/* Error Message */}
+          {error && (
+            <div style={{
+              padding: '12px 16px',
+              background: '#FEE2E2',
+              border: '1px solid #FECACA',
+              borderRadius: 12,
+              marginBottom: 20,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+            }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              <span style={{ fontSize: 14, color: '#DC2626' }}>{error}</span>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div>
               <label style={{
@@ -281,7 +342,7 @@ export function RegisterPage() {
                 fontWeight: 600,
                 color: '#1E293B',
                 marginBottom: 8,
-              }}>Số điện thoại</label>
+              }}>Số điện thoại <span style={{ color: '#94A3B8', fontWeight: 400 }}>(tùy chọn)</span></label>
               <input
                 id="register-phone"
                 type="tel"
@@ -319,8 +380,9 @@ export function RegisterPage() {
                 type="password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                placeholder="Tối thiểu 8 ký tự"
+                placeholder="Tối thiểu 6 ký tự"
                 required
+                minLength={6}
                 style={{
                   width: '100%',
                   padding: '12px 16px',
@@ -354,6 +416,7 @@ export function RegisterPage() {
                 onChange={e => setConfirmPassword(e.target.value)}
                 placeholder="Nhập lại mật khẩu"
                 required
+                minLength={6}
                 style={{
                   width: '100%',
                   padding: '12px 16px',
@@ -388,23 +451,24 @@ export function RegisterPage() {
 
             <button
               type="submit"
+              disabled={loading}
               style={{
                 width: '100%',
                 padding: '14px',
-                background: '#0E76A8',
+                background: loading ? '#94A3B8' : '#0E76A8',
                 color: 'white',
                 border: 'none',
                 borderRadius: 12,
                 fontSize: 15,
                 fontFamily: 'Inter, sans-serif',
                 fontWeight: 700,
-                cursor: 'pointer',
+                cursor: loading ? 'wait' : 'pointer',
                 transition: 'background 0.2s',
               }}
-              onMouseEnter={e => (e.currentTarget.style.background = '#0A5C87')}
-              onMouseLeave={e => (e.currentTarget.style.background = '#0E76A8')}
+              onMouseEnter={e => { if (!loading) e.currentTarget.style.background = '#0A5C87'; }}
+              onMouseLeave={e => { if (!loading) e.currentTarget.style.background = '#0E76A8'; }}
             >
-              Đăng ký
+              {loading ? 'Đang đăng ký...' : 'Đăng ký'}
             </button>
           </form>
 
