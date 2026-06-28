@@ -5,6 +5,10 @@ import { getDefaultRoute } from './config/navigation';
 import { RegisterPage } from './pages/Register';
 import { RegisterSuccessPage } from './pages/RegisterSuccess';
 import { LoginPage } from './pages/Login';
+import { VouchersPage } from './pages/Vouchers';
+import { VoucherCreatePage } from './pages/VoucherCreate';
+import { VoucherDetailPage } from './pages/VoucherDetail';
+import { VoucherEditPage } from './pages/VoucherEdit';
 
 // ── Placeholder pages (sẽ implement chi tiết sau) ──────────────────────────
 function PlaceholderPage({ title }: { title: string }) {
@@ -84,7 +88,22 @@ function AppRoutes() {
       } />
       <Route path="/vouchers" element={
         <PrivateRoute allowedRoles={['Partner_Owner']}>
-          <AppLayout><PlaceholderPage title="Quản lý Voucher" /></AppLayout>
+          <AppLayout><VouchersPage /></AppLayout>
+        </PrivateRoute>
+      } />
+      <Route path="/vouchers/create" element={
+        <PrivateRoute allowedRoles={['Partner_Owner']}>
+          <AppLayout><VoucherCreatePage /></AppLayout>
+        </PrivateRoute>
+      } />
+      <Route path="/vouchers/:id" element={
+        <PrivateRoute allowedRoles={['Partner_Owner']}>
+          <AppLayout><VoucherDetailPage /></AppLayout>
+        </PrivateRoute>
+      } />
+      <Route path="/vouchers/:id/edit" element={
+        <PrivateRoute allowedRoles={['Partner_Owner']}>
+          <AppLayout><VoucherEditPage /></AppLayout>
         </PrivateRoute>
       } />
       <Route path="/validate" element={
