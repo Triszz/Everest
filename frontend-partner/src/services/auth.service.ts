@@ -1,4 +1,4 @@
-import { post, get, postFull } from './api-client';
+import { post, get } from './api-client';
 import type {
   LoginResponseData,
   RegisterPartnerResponseData,
@@ -26,6 +26,10 @@ export interface RegisterPartnerInput {
 }
 
 // ── API calls ───────────────────────────────────────────────────────────────
+//
+// NOTE: All these endpoints are public/auth-bootstrap, so we set
+// `skipAuthRefresh: true` to avoid the global 401 → refresh flow
+// recursing into itself when login itself fails.
 
 /**
  * POST /api/auth/login
@@ -36,7 +40,11 @@ export function apiLogin(
   email: string,
   password: string,
 ): Promise<LoginResponseData> {
-  return post<LoginResponseData>('/api/auth/login', { email, password });
+  return post<LoginResponseData>(
+    '/api/auth/login',
+    { email, password },
+    { skipAuthRefresh: true },
+  ).then(res => res.data);
 }
 
 /**
@@ -47,9 +55,10 @@ export function apiLogin(
 export async function apiRegisterPartner(
   input: RegisterPartnerInput,
 ): Promise<{ data: RegisterPartnerResponseData; message?: string }> {
-  const response = await postFull<RegisterPartnerResponseData>(
+  const response = await post<RegisterPartnerResponseData>(
     '/api/auth/register/partner',
     input,
+    { skipAuthRefresh: true },
   );
   return { data: response.data, message: response.message };
 }
@@ -58,22 +67,30 @@ export async function apiRegisterPartner(
  * POST /api/auth/refresh
  * 200 → { accessToken }
  * 401 → UNAUTHORIZED
+ *
+ * Internal: api-client handles refresh automatically on 401.
+ * This export is for AuthContext's hydration flow (on page reload).
  */
 export function apiRefreshToken(
   refreshToken: string,
 ): Promise<RefreshResponseData> {
-  return post<RefreshResponseData>('/api/auth/refresh', { refreshToken });
+  return post<RefreshResponseData>(
+    '/api/auth/refresh',
+    { refreshToken },
+    { skipAuthRefresh: true },
+  ).then(res => res.data);
 }
 
 /**
  * GET /api/auth/me
  * 200 → user object
- * 401 → UNAUTHORIZED
+ * 401 → UNAUTHORIZED (api-client will auto-refresh + retry)
  *
  * Accepts explicit token for hydration (before context has auth state).
  */
 export function apiGetMe(accessToken: string): Promise<MeResponseData> {
   return get<MeResponseData>('/api/auth/me', {
     headers: { Authorization: `Bearer ${accessToken}` },
-  });
+    auth: true,
+  }).then(res => res.data);
 }
