@@ -63,8 +63,17 @@ export const partnerService = {
               select: {
                 voucherId: true,
                 title: true,
+                description: true,
+                imageUrl: true,
+                originalPrice: true,
+                salePrice: true,
+                totalQuantity: true,
+                availableQuantity: true,
+                startDate: true,
+                endDate: true,
                 approvalStatus: true,
                 displayStatus: true,
+                category: { select: { categoryId: true, categoryName: true } },
               },
             },
           },
@@ -125,6 +134,38 @@ export const partnerService = {
   },
 
   // ── Cashier Management ───────────────────────────────────────
+
+  /**
+   * Tìm kiếm thu ngân thuộc partner hiện tại.
+   * Chỉ trả về user có role = Partner_Cashier và partnerId = partnerId.
+   * Dùng cho autocomplete ở frontend khi gán cashier vào branch.
+   */
+  async searchCashiers(
+    partnerId: number,
+    query: { q?: string; limit?: number },
+  ) {
+    const { q, limit = 20 } = query;
+    return prisma.user.findMany({
+      where: {
+        role: "Partner_Cashier",
+        partnerId,
+        status: "Active",
+        ...(q && {
+          OR: [
+            { email: { contains: q, mode: "insensitive" as const } },
+            { fullName: { contains: q, mode: "insensitive" as const } },
+          ],
+        }),
+      },
+      orderBy: { fullName: "asc" },
+      take: limit,
+      select: {
+        userId: true,
+        email: true,
+        fullName: true,
+      },
+    });
+  },
 
   async assignCashier(
     branchId: number,

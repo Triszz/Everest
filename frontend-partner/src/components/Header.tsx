@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import LogoImg from '../assets/images/Logo.png';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import { getNavItems, getDefaultRoute } from '../config/navigation';
 
 export function Header() {
@@ -21,10 +21,9 @@ export function Header() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Close mobile menu on route change
-  useEffect(() => {
-    setMobileMenuOpen(false);
-  }, [location.pathname]);
+  // Close mobile menu on route change — done via inline setMobileMenuOpen
+  // in NavLink's click handler instead of a useEffect, to avoid the
+  // `set-state-in-effect` rule.
 
   const isActive = (path: string) => {
     if (path === '/dashboard') return location.pathname === '/dashboard' || location.pathname === '/';
@@ -92,6 +91,7 @@ export function Header() {
                   to={item.to}
                   label={item.label}
                   isActive={isActive(item.to)}
+                  onNavigate={() => setMobileMenuOpen(false)}
                 />
               ))}
             </nav>
@@ -251,6 +251,7 @@ export function Header() {
               <Link
                 key={item.to}
                 to={item.to}
+                onClick={() => setMobileMenuOpen(false)}
                 style={{
                   padding: '10px 14px',
                   fontFamily: 'Inter, sans-serif',
@@ -272,6 +273,7 @@ export function Header() {
                 <div style={{ height: 1, background: '#E2E8F0', margin: '8px 0' }} />
                 <Link
                   to="/settings"
+                  onClick={() => setMobileMenuOpen(false)}
                   style={{
                     padding: '10px 14px',
                     fontFamily: 'Inter, sans-serif',
@@ -333,10 +335,11 @@ export function Header() {
 }
 
 // ── NavLink sub-component (same pattern as customer) ────────────────────────
-function NavLink({ to, label, isActive }: { to: string; label: string; isActive?: boolean }) {
+function NavLink({ to, label, isActive, onNavigate }: { to: string; label: string; isActive?: boolean; onNavigate?: () => void }) {
   return (
     <Link
       to={to}
+      onClick={onNavigate}
       style={{
         padding: '6px 14px',
         fontFamily: 'Inter, sans-serif',

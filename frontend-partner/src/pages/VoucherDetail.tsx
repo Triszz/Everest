@@ -50,7 +50,9 @@ const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1555396273-367ea4eb4db
 export function VoucherDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const voucherId = Number(id);
+  const parsedId = id ? Number(id) : NaN;
+  const voucherId = Number.isFinite(parsedId) && parsedId > 0 ? parsedId : null;
+  const invalidId = voucherId === null;
 
   const [voucher, setVoucher] = useState<VoucherDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -58,18 +60,11 @@ export function VoucherDetailPage() {
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
-    if (!voucherId || isNaN(voucherId)) {
-      setNotFound(true);
-      setLoading(false);
-      return;
-    }
+    if (invalidId) return;
     let cancelled = false;
     (async () => {
-      setLoading(true);
-      setError(null);
-      setNotFound(false);
       try {
-        const data = await apiGetVoucher(voucherId);
+        const data = await apiGetVoucher(voucherId!);
         if (!cancelled) setVoucher(data);
       } catch (err) {
         if (cancelled) return;
@@ -83,7 +78,7 @@ export function VoucherDetailPage() {
       }
     })();
     return () => { cancelled = true; };
-  }, [voucherId]);
+  }, [voucherId, invalidId]);
 
   const handleBack = () => navigate('/vouchers');
 
@@ -152,7 +147,7 @@ export function VoucherDetailPage() {
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 24px 48px' }}>
         {loading ? (
           <DetailSkeleton />
-        ) : notFound ? (
+        ) : invalidId || notFound ? (
           <EmptyState
             icon={
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke={COLORS.textMuted} strokeWidth="1.5">

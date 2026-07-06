@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import { getDefaultRoute } from '../config/navigation';
 import { STORAGE_KEY_USER } from '../services/auth.service';
 import type { PartnerRole } from '../types/auth';

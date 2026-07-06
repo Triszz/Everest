@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
@@ -92,35 +92,54 @@ export function VouchersPage() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  const fetchVouchers = useCallback(async () => {
+  // Derived query "key" — used to drive refetch when filters change.
+  // (Computed from current state, no extra setState needed.)
+  const [fetchTick, setFetchTick] = useState(0);
+
+  // Fetch — effect only SUBSCRIBES to filter state + fetchTick; all setState
+  // happens in async callback (allowed by `set-state-in-effect` rule).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const params: VoucherQueryParams = {
+          page: currentPage,
+          limit: 10,
+        };
+        if (statusFilter) params.status = statusFilter as ApprovalStatus;
+        if (debouncedSearch) params.q = debouncedSearch;
+
+        const result = await apiListVouchers(params);
+        if (cancelled) return;
+        setVouchers(result.data);
+        setPagination(result.pagination);
+      } catch (err) {
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : 'Không thể tải danh sách voucher');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [currentPage, statusFilter, debouncedSearch, fetchTick]);
+
+  // Trigger refresh from UI — setLoading(true) is in an event handler, not
+  // in the effect body, so it's allowed.
+  const handleRefresh = () => {
     setLoading(true);
     setError(null);
-    try {
-      const params: VoucherQueryParams = {
-        page: currentPage,
-        limit: 10,
-      };
-      if (statusFilter) params.status = statusFilter as ApprovalStatus;
-      if (debouncedSearch) params.q = debouncedSearch;
+    setFetchTick(t => t + 1);
+  };
 
-      const result = await apiListVouchers(params);
-      setVouchers(result.data);
-      setPagination(result.pagination);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Không thể tải danh sách voucher');
-    } finally {
-      setLoading(false);
-    }
-  }, [currentPage, statusFilter, debouncedSearch]);
-
-  useEffect(() => {
-    fetchVouchers();
-  }, [fetchVouchers]);
-
-  // Reset page when filter/search changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [statusFilter, debouncedSearch]);
+  // Reset page when filter/search changes — guard inside the same render
+  // so we don't trigger an effect. This is the "set state during rendering"
+  // pattern React allows.
+  const resetKey = `${statusFilter}|${debouncedSearch}`;
+  const [prevResetKey, setPrevResetKey] = useState(resetKey);
+  if (prevResetKey !== resetKey) {
+    setPrevResetKey(resetKey);
+    if (currentPage !== 1) setCurrentPage(1);
+  }
 
   // ── Dialog helpers ───────────────────────────────────────────────────────────
   const openSubmitDialog = (voucher: Voucher) => {
@@ -142,7 +161,7 @@ export function VouchersPage() {
     try {
       await apiSubmitVoucher(voucher.voucherId);
       toast.success('Đã gửi voucher lên chờ Admin duyệt.');
-      await fetchVouchers();
+      handleRefresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Gửi duyệt thất bại');
     } finally {
@@ -159,7 +178,7 @@ export function VouchersPage() {
     try {
       await apiDeleteVoucher(voucher.voucherId);
       toast.success('Đã xóa voucher thành công.');
-      await fetchVouchers();
+      handleRefresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Xóa thất bại');
     } finally {
@@ -291,7 +310,7 @@ export function VouchersPage() {
 
             {/* Refresh */}
             <button
-              onClick={fetchVouchers}
+              onClick={handleRefresh}
               disabled={loading}
               style={{
                 display: 'inline-flex',
@@ -366,7 +385,7 @@ export function VouchersPage() {
             </div>
             <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 15, color: COLORS.error, marginBottom: 16 }}>{error}</p>
             <button
-              onClick={fetchVouchers}
+              onClick={handleRefresh}
               style={{
                 padding: '10px 24px',
                 background: COLORS.primary,
