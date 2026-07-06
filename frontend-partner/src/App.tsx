@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import { Header, Footer, PrivateRoute, GuestRoute } from './components';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { getDefaultRoute } from './config/navigation';
@@ -136,6 +137,43 @@ function AppRoutes() {
 function App() {
   return (
     <AuthProvider>
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 3000,
+          style: {
+            fontFamily: 'Inter, sans-serif',
+            fontSize: 14,
+            fontWeight: 500,
+            borderRadius: 12,
+            padding: '14px 18px',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+            maxWidth: 420,
+          },
+          success: {
+            style: {
+              background: '#ECFDF5',
+              color: '#065F46',
+              border: '1px solid #A7F3D0',
+            },
+            iconTheme: {
+              primary: '#10B981',
+              secondary: '#ECFDF5',
+            },
+          },
+          error: {
+            style: {
+              background: '#FEF2F2',
+              color: '#991B1B',
+              border: '1px solid #FECACA',
+            },
+            iconTheme: {
+              primary: '#EF4444',
+              secondary: '#FEF2F2',
+            },
+          },
+        }}
+      />
       <AppRoutes />
     </AuthProvider>
   );

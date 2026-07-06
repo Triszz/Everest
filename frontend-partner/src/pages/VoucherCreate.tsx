@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { VoucherForm } from '../components/voucher/VoucherForm';
 import { apiCreateVoucher } from '../services/voucher.service';
 import { ApiException } from '../services/api-client';
@@ -28,9 +29,7 @@ export function VoucherCreatePage() {
     setIsSubmitting(true);
     try {
       await apiCreateVoucher(payload);
-      // Backend auto-sets approvalStatus=Draft, displayStatus=Hidden.
-      // Frontend intentionally does NOT send those fields.
-      alert('Tạo voucher thành công! Voucher đã được lưu vào danh sách nháp.');
+      toast.success('Tạo voucher thành công! Voucher đã được lưu vào danh sách nháp.');
       navigate('/vouchers', { replace: true });
     } catch (err) {
       const message =
