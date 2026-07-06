@@ -3,10 +3,10 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { VoucherForm } from '../components/voucher/VoucherForm';
 import { apiGetVoucher, apiUpdateVoucher } from '../services/voucher.service';
+import { apiListCategories } from '../services/category.service';
 import { ApiException } from '../services/api-client';
 import { voucherDetailToFormData } from '../utils/voucherForm';
-import type { VoucherDetail } from '../types/voucher';
-import type { ApprovalStatus } from '../types/voucher';
+import type { VoucherDetail, VoucherCategory, ApprovalStatus } from '../types/voucher';
 
 // ── Design tokens (matching VoucherCreate / VoucherDetail) ──────────────────
 const COLORS = {
@@ -33,7 +33,9 @@ const APPROVAL_LABEL: Record<ApprovalStatus, string> = {
 export function VoucherEditPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const voucherId = Number(id);
+  const parsedId = id ? Number(id) : NaN;
+  const voucherId = Number.isFinite(parsedId) && parsedId > 0 ? parsedId : null;
+  const invalidId = voucherId === null;
 
   const [voucher, setVoucher] = useState<VoucherDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -43,20 +45,32 @@ export function VoucherEditPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Load voucher
+  const [categories, setCategories] = useState<VoucherCategory[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+
+  // Load categories (independent of voucher)
   useEffect(() => {
-    if (!voucherId || isNaN(voucherId)) {
-      setNotFound(true);
-      setLoading(false);
-      return;
-    }
     let cancelled = false;
     (async () => {
-      setLoading(true);
-      setError(null);
-      setNotFound(false);
       try {
-        const data = await apiGetVoucher(voucherId);
+        const data = await apiListCategories();
+        if (!cancelled) setCategories(data);
+      } catch {
+        if (!cancelled) toast.error('Không thể tải danh mục');
+      } finally {
+        if (!cancelled) setLoadingCategories(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Load voucher
+  useEffect(() => {
+    if (invalidId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await apiGetVoucher(voucherId!);
         if (!cancelled) setVoucher(data);
       } catch (err) {
         if (cancelled) return;
@@ -70,7 +84,7 @@ export function VoucherEditPage() {
       }
     })();
     return () => { cancelled = true; };
-  }, [voucherId]);
+  }, [voucherId, invalidId]);
 
   const handleCancel = () => navigate('/vouchers');
 
@@ -171,7 +185,7 @@ export function VoucherEditPage() {
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 24px 48px' }}>
         {loading ? (
           <LoadingBlock />
-        ) : notFound ? (
+        ) : invalidId || notFound ? (
           <NotEditableCard
             title="Không tìm thấy voucher"
             description="Voucher này không tồn tại hoặc đã bị xóa."
@@ -200,6 +214,8 @@ export function VoucherEditPage() {
           <VoucherForm
             mode="edit"
             initialData={voucherDetailToFormData(voucher)}
+            categories={categories}
+            loadingCategories={loadingCategories}
             onSubmit={handleSubmit}
             onCancel={handleCancel}
             isSubmitting={isSubmitting}

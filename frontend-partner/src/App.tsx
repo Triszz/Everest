@@ -1,7 +1,8 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { Header, Footer, PrivateRoute, GuestRoute } from './components';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthProvider } from './context/AuthContext';
+import { useAuth } from './context/useAuth';
 import { getDefaultRoute } from './config/navigation';
 import { RegisterPage } from './pages/Register';
 import { RegisterSuccessPage } from './pages/RegisterSuccess';
@@ -10,6 +11,10 @@ import { VouchersPage } from './pages/Vouchers';
 import { VoucherCreatePage } from './pages/VoucherCreate';
 import { VoucherDetailPage } from './pages/VoucherDetail';
 import { VoucherEditPage } from './pages/VoucherEdit';
+import { BranchesPage } from './pages/Branches';
+import { BranchCreatePage } from './pages/BranchCreate';
+import { BranchDetailPage } from './pages/BranchDetail';
+import { BranchEditPage } from './pages/BranchEdit';
 
 // ── Placeholder pages (sẽ implement chi tiết sau) ──────────────────────────
 function PlaceholderPage({ title }: { title: string }) {
@@ -114,7 +119,22 @@ function AppRoutes() {
       } />
       <Route path="/branches" element={
         <PrivateRoute allowedRoles={['Partner_Owner']}>
-          <AppLayout><PlaceholderPage title="Quản lý Chi nhánh" /></AppLayout>
+          <AppLayout><BranchesPage /></AppLayout>
+        </PrivateRoute>
+      } />
+      <Route path="/branches/create" element={
+        <PrivateRoute allowedRoles={['Partner_Owner']}>
+          <AppLayout><BranchCreatePage /></AppLayout>
+        </PrivateRoute>
+      } />
+      <Route path="/branches/:id" element={
+        <PrivateRoute allowedRoles={['Partner_Owner']}>
+          <AppLayout><BranchDetailPage /></AppLayout>
+        </PrivateRoute>
+      } />
+      <Route path="/branches/:id/edit" element={
+        <PrivateRoute allowedRoles={['Partner_Owner']}>
+          <AppLayout><BranchEditPage /></AppLayout>
         </PrivateRoute>
       } />
       <Route path="/reports" element={

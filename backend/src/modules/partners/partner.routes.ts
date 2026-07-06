@@ -21,6 +21,7 @@ router.post("/branches/:branchId/cashier", partnerController.assignCashier);
 router.delete("/branches/:branchId/cashier", partnerController.removeCashier);
 
 router.post("/cashiers", partnerController.createCashier); // Tạo tài khoản thu ngân mới
+router.get("/cashiers", partnerController.listCashiers); // Tìm kiếm thu ngân (autocomplete)
 
 router.use('/vouchers', voucherRouter);
 

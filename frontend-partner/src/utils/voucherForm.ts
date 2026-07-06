@@ -1,5 +1,5 @@
 import type { VoucherDetail } from '../types/voucher';
-import type { VoucherFormData } from '../components/voucher/VoucherForm';
+import type { VoucherFormData } from '../components/voucher/voucherForm.helpers';
 
 /**
  * Convert an ISO 8601 datetime string (e.g. "2026-07-01T10:30:00.000Z")

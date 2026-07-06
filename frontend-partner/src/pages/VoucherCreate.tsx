@@ -1,9 +1,12 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { VoucherForm } from '../components/voucher/VoucherForm';
 import { apiCreateVoucher } from '../services/voucher.service';
+import { apiListCategories } from '../services/category.service';
 import { ApiException } from '../services/api-client';
+import type { VoucherCategory } from '../types/voucher';
+import { parseVoucherCreateSearchParams } from '../utils/searchParams';
 
 // ── Design tokens (matching Vouchers list + Customer) ────────────────────────
 const COLORS = {
@@ -17,8 +20,39 @@ const COLORS = {
 
 export function VoucherCreatePage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [categories, setCategories] = useState<VoucherCategory[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+
+  // Parse ?branch=... bằng Zod. Invalid → bỏ qua, form mở không preselect.
+  const { branch: preselectedBranchId } = parseVoucherCreateSearchParams(searchParams);
+  const preselectedBranchIds = preselectedBranchId ? [preselectedBranchId] : [];
+
+  // Derived loading state — true khi chưa có categories & chưa có lỗi & chưa bỏ qua
+  const loadCategories = async () => {
+    try {
+      setLoadingCategories(true);
+      const data = await apiListCategories();
+      setCategories(data);
+    } catch {
+      toast.error('Không thể tải danh mục. Vui lòng thử lại.');
+      setCategories([]);
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (cancelled) return;
+      await loadCategories();
+    })();
+    return () => { cancelled = true; };
+    // We intentionally depend only on mount — categories don't need re-fetch
+  }, []);
 
   const handleCancel = () => {
     navigate('/vouchers');
@@ -108,6 +142,9 @@ export function VoucherCreatePage() {
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 24px 48px' }}>
         <VoucherForm
           mode="create"
+          preselectedBranchIds={preselectedBranchIds}
+          categories={categories}
+          loadingCategories={loadingCategories}
           onSubmit={handleSubmit}
           onCancel={handleCancel}
           isSubmitting={isSubmitting}
