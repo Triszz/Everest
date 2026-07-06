@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { VoucherForm } from '../components/voucher/VoucherForm';
 import { apiGetVoucher, apiUpdateVoucher } from '../services/voucher.service';
 import { ApiException } from '../services/api-client';
@@ -79,7 +80,7 @@ export function VoucherEditPage() {
     setIsSubmitting(true);
     try {
       await apiUpdateVoucher(voucher.voucherId, payload);
-      alert('Cập nhật voucher thành công!');
+      toast.success('Cập nhật voucher thành công!');
       navigate('/vouchers', { replace: true });
     } catch (err) {
       const message =

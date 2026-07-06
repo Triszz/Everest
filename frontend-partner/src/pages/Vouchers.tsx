@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import {
   apiListVouchers,
   apiSubmitVoucher,
@@ -7,6 +8,8 @@ import {
 } from '../services/voucher.service';
 import type { VoucherQueryParams } from '../services/voucher.service';
 import type { Voucher, ApprovalStatus, Pagination } from '../types/voucher';
+import { ConfirmDialog } from '../components/common/ConfirmDialog';
+import type { ConfirmDialogProps } from '../components/common/ConfirmDialog';
 
 // ── Design tokens (matching Customer) ───────────────────────────────────────
 const COLORS = {
@@ -70,8 +73,17 @@ export function VouchersPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Action loading
+  // Action loading (kept for disable visual on card during API call)
   const [actionLoading, setActionLoading] = useState<number | null>(null);
+
+  // Confirm dialog state (discriminated union — one dialog at a time)
+  const [dialog, setDialog] = useState<{
+    type: 'submit';
+    voucher: Voucher;
+  } | {
+    type: 'delete';
+    voucher: Voucher;
+  } | null>(null);
 
   // Debounced search
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -110,32 +122,77 @@ export function VouchersPage() {
     setCurrentPage(1);
   }, [statusFilter, debouncedSearch]);
 
-  // ── Actions ───────────────────────────────────────────────────────────────
-  const handleSubmit = async (voucher: Voucher) => {
-    if (!window.confirm(`Gửi duyệt voucher "${voucher.title}"?`)) return;
+  // ── Dialog helpers ───────────────────────────────────────────────────────────
+  const openSubmitDialog = (voucher: Voucher) => {
+    setActionLoading(null);
+    setDialog({ type: 'submit', voucher });
+  };
+
+  const openDeleteDialog = (voucher: Voucher) => {
+    setActionLoading(null);
+    setDialog({ type: 'delete', voucher });
+  };
+
+  // Actual submit action
+  const handleSubmitConfirm = async () => {
+    if (!dialog || dialog.type !== 'submit') return;
+    const { voucher } = dialog;
     setActionLoading(voucher.voucherId);
+    setDialog(null);
     try {
       await apiSubmitVoucher(voucher.voucherId);
+      toast.success('Đã gửi voucher lên chờ Admin duyệt.');
       await fetchVouchers();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Gửi duyệt thất bại');
+      toast.error(err instanceof Error ? err.message : 'Gửi duyệt thất bại');
     } finally {
       setActionLoading(null);
     }
   };
 
-  const handleDelete = async (voucher: Voucher) => {
-    if (!window.confirm(`Xóa voucher "${voucher.title}"? Hành động này không thể hoàn tác.`)) return;
+  // Actual delete action
+  const handleDeleteConfirm = async () => {
+    if (!dialog || dialog.type !== 'delete') return;
+    const { voucher } = dialog;
     setActionLoading(voucher.voucherId);
+    setDialog(null);
     try {
       await apiDeleteVoucher(voucher.voucherId);
+      toast.success('Đã xóa voucher thành công.');
       await fetchVouchers();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Xóa thất bại');
+      toast.error(err instanceof Error ? err.message : 'Xóa thất bại');
     } finally {
       setActionLoading(null);
     }
   };
+
+  // Dialog config derived from current dialog state
+  const dialogProps = ((): ConfirmDialogProps | null => {
+    if (!dialog) return null;
+    if (dialog.type === 'submit') {
+      return {
+        title: 'Gửi voucher để duyệt?',
+        description: 'Sau khi gửi, bạn sẽ không thể chỉnh sửa voucher cho đến khi Admin xử lý.',
+        confirmText: 'Gửi duyệt',
+        cancelText: 'Hủy',
+        variant: 'warning',
+        loading: actionLoading !== null,
+        onConfirm: handleSubmitConfirm,
+        onCancel: () => setDialog(null),
+      };
+    }
+    return {
+      title: 'Xóa voucher này?',
+      description: 'Hành động này không thể hoàn tác.',
+      confirmText: 'Xóa Voucher',
+      cancelText: 'Hủy',
+      variant: 'danger',
+      loading: actionLoading !== null,
+      onConfirm: handleDeleteConfirm,
+      onCancel: () => setDialog(null),
+    };
+  })();
 
   return (
     <div style={{ background: COLORS.bgPage, minHeight: '100vh' }}>
@@ -540,7 +597,7 @@ export function VouchersPage() {
                           {/* Submit for approval */}
                           {canSubmit(voucher.approvalStatus) && (
                             <button
-                              onClick={() => handleSubmit(voucher)}
+                              onClick={() => openSubmitDialog(voucher)}
                               disabled={isActionLoading}
                               style={{
                                 display: 'inline-flex', alignItems: 'center', gap: 4,
@@ -564,7 +621,7 @@ export function VouchersPage() {
                           {/* Delete */}
                           {canDelete(voucher.approvalStatus) && (
                             <button
-                              onClick={() => handleDelete(voucher)}
+                              onClick={() => openDeleteDialog(voucher)}
                               disabled={isActionLoading}
                               style={{
                                 display: 'inline-flex', alignItems: 'center', gap: 4,
@@ -642,6 +699,9 @@ export function VouchersPage() {
           </>
         )}
       </div>
+
+      {/* Confirm dialog */}
+      {dialogProps && <ConfirmDialog {...dialogProps} />}
 
       {/* Animations */}
       <style>{`
