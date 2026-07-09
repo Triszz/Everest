@@ -10,6 +10,7 @@ import {
   assignCashierSchema,
   createCashierSchema,
   branchIdParam,
+  listCashiersQuerySchema,
 } from "./partner.schemas";
 
 const requirePartnerId = (req: Request): number => {
@@ -95,6 +96,16 @@ export const partnerController = {
       data: null,
       message: "Xóa chi nhánh thành công",
     });
+  }),
+
+  // Cashier Management
+  listCashiers: asyncHandler(async (req: Request, res: Response) => {
+    const query = parseOrThrow(listCashiersQuerySchema, req.query);
+    const data = await partnerService.searchCashiers(
+      requirePartnerId(req),
+      query,
+    );
+    res.json({ success: true, data });
   }),
 
   assignCashier: asyncHandler(async (req: Request, res: Response) => {

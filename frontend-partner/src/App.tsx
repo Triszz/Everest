@@ -1,10 +1,20 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import { Header, Footer, PrivateRoute, GuestRoute } from './components';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthProvider } from './context/AuthContext';
+import { useAuth } from './context/useAuth';
 import { getDefaultRoute } from './config/navigation';
 import { RegisterPage } from './pages/Register';
 import { RegisterSuccessPage } from './pages/RegisterSuccess';
 import { LoginPage } from './pages/Login';
+import { VouchersPage } from './pages/Vouchers';
+import { VoucherCreatePage } from './pages/VoucherCreate';
+import { VoucherDetailPage } from './pages/VoucherDetail';
+import { VoucherEditPage } from './pages/VoucherEdit';
+import { BranchesPage } from './pages/Branches';
+import { BranchCreatePage } from './pages/BranchCreate';
+import { BranchDetailPage } from './pages/BranchDetail';
+import { BranchEditPage } from './pages/BranchEdit';
 
 // ── Placeholder pages (sẽ implement chi tiết sau) ──────────────────────────
 function PlaceholderPage({ title }: { title: string }) {
@@ -84,7 +94,22 @@ function AppRoutes() {
       } />
       <Route path="/vouchers" element={
         <PrivateRoute allowedRoles={['Partner_Owner']}>
-          <AppLayout><PlaceholderPage title="Quản lý Voucher" /></AppLayout>
+          <AppLayout><VouchersPage /></AppLayout>
+        </PrivateRoute>
+      } />
+      <Route path="/vouchers/create" element={
+        <PrivateRoute allowedRoles={['Partner_Owner']}>
+          <AppLayout><VoucherCreatePage /></AppLayout>
+        </PrivateRoute>
+      } />
+      <Route path="/vouchers/:id" element={
+        <PrivateRoute allowedRoles={['Partner_Owner']}>
+          <AppLayout><VoucherDetailPage /></AppLayout>
+        </PrivateRoute>
+      } />
+      <Route path="/vouchers/:id/edit" element={
+        <PrivateRoute allowedRoles={['Partner_Owner']}>
+          <AppLayout><VoucherEditPage /></AppLayout>
         </PrivateRoute>
       } />
       <Route path="/validate" element={
@@ -94,7 +119,22 @@ function AppRoutes() {
       } />
       <Route path="/branches" element={
         <PrivateRoute allowedRoles={['Partner_Owner']}>
-          <AppLayout><PlaceholderPage title="Quản lý Chi nhánh" /></AppLayout>
+          <AppLayout><BranchesPage /></AppLayout>
+        </PrivateRoute>
+      } />
+      <Route path="/branches/create" element={
+        <PrivateRoute allowedRoles={['Partner_Owner']}>
+          <AppLayout><BranchCreatePage /></AppLayout>
+        </PrivateRoute>
+      } />
+      <Route path="/branches/:id" element={
+        <PrivateRoute allowedRoles={['Partner_Owner']}>
+          <AppLayout><BranchDetailPage /></AppLayout>
+        </PrivateRoute>
+      } />
+      <Route path="/branches/:id/edit" element={
+        <PrivateRoute allowedRoles={['Partner_Owner']}>
+          <AppLayout><BranchEditPage /></AppLayout>
         </PrivateRoute>
       } />
       <Route path="/reports" element={
@@ -117,6 +157,43 @@ function AppRoutes() {
 function App() {
   return (
     <AuthProvider>
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 3000,
+          style: {
+            fontFamily: 'Inter, sans-serif',
+            fontSize: 14,
+            fontWeight: 500,
+            borderRadius: 12,
+            padding: '14px 18px',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+            maxWidth: 420,
+          },
+          success: {
+            style: {
+              background: '#ECFDF5',
+              color: '#065F46',
+              border: '1px solid #A7F3D0',
+            },
+            iconTheme: {
+              primary: '#10B981',
+              secondary: '#ECFDF5',
+            },
+          },
+          error: {
+            style: {
+              background: '#FEF2F2',
+              color: '#991B1B',
+              border: '1px solid #FECACA',
+            },
+            iconTheme: {
+              primary: '#EF4444',
+              secondary: '#FEF2F2',
+            },
+          },
+        }}
+      />
       <AppRoutes />
     </AuthProvider>
   );

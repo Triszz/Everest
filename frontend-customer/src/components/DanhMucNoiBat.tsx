@@ -1,10 +1,56 @@
 import { Link } from 'react-router-dom';
-import CatAmThuc from '../assets/images/cat_am_thuc.png';
-import CatDuLich from '../assets/images/cat_du_lich.png';
-import CatSacDep from '../assets/images/cat_sac_dep.png';
-import CatMuaSam from '../assets/images/cat_mua_sam.png';
+import { useState, useEffect } from 'react';
+import { categoryApi } from '../services/api';
+import type { Category } from '../services/api';
+
+// Default images for categories (in case API doesn't return images)
+const DEFAULT_IMAGES: Record<number, string> = {
+  1: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&h=1200&fit=crop',
+  2: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&h=800&fit=crop',
+  3: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=800&h=800&fit=crop',
+  4: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800&h=800&fit=crop',
+};
 
 export function DanhMucNoiBat() {
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    categoryApi.list()
+      .then((res) => {
+        if (res.success && res.data) {
+          setCategories(res.data);
+        }
+      })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <section style={{ padding: '64px 0', background: 'white' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px', textAlign: 'center' }}>
+          Đang tải danh mục...
+        </div>
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section style={{ padding: '64px 0', background: 'white' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px', textAlign: 'center', color: '#EF4444' }}>
+          Không thể tải danh mục: {error}
+        </div>
+      </section>
+    );
+  }
+
+  // Get first category for large card, rest for smaller cards
+  const mainCategory = categories[0];
+  const otherCategories = categories.slice(1, 4);
+
   return (
     <section style={{ padding: '64px 0', background: 'white' }}>
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px' }}>
@@ -49,94 +95,95 @@ export function DanhMucNoiBat() {
           </Link>
         </div>
 
-        {/* Grid: 1 large left + 3 right */}
+        {/* Grid: 1 large left + right side */}
         <div style={{
           display: 'grid',
           gridTemplateColumns: '1fr 1fr',
           gridTemplateRows: 'auto auto',
           gap: 16,
         }}>
-          {/* Large card: Ẩm Thực */}
-          <Link
-            id="category-am-thuc"
-            to="/category/1"
-            style={{
-              gridRow: '1 / 3',
-              position: 'relative',
-              borderRadius: 20,
-              overflow: 'hidden',
-              display: 'block',
-              textDecoration: 'none',
-              height: 400,
-            }}
-          >
-            <img
-              src={CatAmThuc}
-              alt="Ẩm Thực"
-              style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.4s ease' }}
-              onMouseOver={e => (e.currentTarget.style.transform = 'scale(1.04)')}
-              onMouseOut={e => (e.currentTarget.style.transform = 'scale(1)')}
-            />
-            <div style={{
-              position: 'absolute', inset: 0,
-              background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.1) 50%, transparent 100%)',
-            }} />
-            <div style={{ position: 'absolute', bottom: 24, left: 24 }}>
-              <h3 style={{
-                fontFamily: 'Manrope, sans-serif',
-                fontSize: 26,
-                fontWeight: 800,
-                color: 'white',
-                letterSpacing: '-0.5px',
-              }}>Ẩm Thực</h3>
-              <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: 'rgba(255,255,255,0.85)', marginTop: 4 }}>
-                Ưu đãi đến 50% tại các nhà hàng 5 sao
-              </p>
-            </div>
-          </Link>
+          {/* Large card: First category */}
+          {mainCategory && (
+            <Link
+              id={`category-${mainCategory.categoryId}`}
+              to={`/category/${mainCategory.categoryId}`}
+              style={{
+                gridRow: '1 / 3',
+                position: 'relative',
+                borderRadius: 20,
+                overflow: 'hidden',
+                display: 'block',
+                textDecoration: 'none',
+                height: 400,
+              }}
+            >
+              <img
+                src={DEFAULT_IMAGES[mainCategory.categoryId] || DEFAULT_IMAGES[1]}
+                alt={mainCategory.categoryName}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.4s ease' }}
+                onMouseOver={e => (e.currentTarget.style.transform = 'scale(1.04)')}
+                onMouseOut={e => (e.currentTarget.style.transform = 'scale(1)')}
+              />
+              <div style={{
+                position: 'absolute', inset: 0,
+                background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.1) 50%, transparent 100%)',
+              }} />
+              <div style={{ position: 'absolute', bottom: 24, left: 24 }}>
+                <h3 style={{
+                  fontFamily: 'Manrope, sans-serif',
+                  fontSize: 26,
+                  fontWeight: 800,
+                  color: 'white',
+                  letterSpacing: '-0.5px',
+                }}>{mainCategory.categoryName}</h3>
+                <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: 'rgba(255,255,255,0.85)', marginTop: 4 }}>
+                  {mainCategory.voucherCount || 0} voucher
+                </p>
+              </div>
+            </Link>
+          )}
 
-          {/* Du Lịch - large right top */}
-          <Link
-            id="category-du-lich"
-            to="/category/2"
-            style={{
-              position: 'relative',
-              borderRadius: 20,
-              overflow: 'hidden',
-              display: 'block',
-              textDecoration: 'none',
-              height: 192,
-            }}
-          >
-            <img
-              src={CatDuLich}
-              alt="Du Lịch"
-              style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.4s ease' }}
-              onMouseOver={e => (e.currentTarget.style.transform = 'scale(1.04)')}
-              onMouseOut={e => (e.currentTarget.style.transform = 'scale(1)')}
-            />
-            <div style={{
-              position: 'absolute', inset: 0,
-              background: 'linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 60%)',
-            }} />
-            <div style={{ position: 'absolute', bottom: 16, left: 18 }}>
-              <h3 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 18, fontWeight: 700, color: 'white' }}>Du Lịch</h3>
-              <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: 'rgba(255,255,255,0.8)', marginTop: 2 }}>
-                Khám phá Việt Nam với giá ưu đãi
-              </p>
-            </div>
-          </Link>
+          {/* Second category - large right top */}
+          {otherCategories[0] && (
+            <Link
+              id={`category-${otherCategories[0].categoryId}`}
+              to={`/category/${otherCategories[0].categoryId}`}
+              style={{
+                position: 'relative',
+                borderRadius: 20,
+                overflow: 'hidden',
+                display: 'block',
+                textDecoration: 'none',
+                height: 192,
+              }}
+            >
+              <img
+                src={DEFAULT_IMAGES[otherCategories[0].categoryId] || DEFAULT_IMAGES[2]}
+                alt={otherCategories[0].categoryName}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.4s ease' }}
+                onMouseOver={e => (e.currentTarget.style.transform = 'scale(1.04)')}
+                onMouseOut={e => (e.currentTarget.style.transform = 'scale(1)')}
+              />
+              <div style={{
+                position: 'absolute', inset: 0,
+                background: 'linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 60%)',
+              }} />
+              <div style={{ position: 'absolute', bottom: 16, left: 18 }}>
+                <h3 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 18, fontWeight: 700, color: 'white' }}>{otherCategories[0].categoryName}</h3>
+                <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: 'rgba(255,255,255,0.8)', marginTop: 2 }}>
+                  {otherCategories[0].voucherCount || 0} voucher
+                </p>
+              </div>
+            </Link>
+          )}
 
           {/* Bottom right: 2 smaller cards */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, height: 192 }}>
-            {[
-              { id: 3, name: 'Sắc Đẹp', image: CatSacDep, slug: 'sac-dep' },
-              { id: 4, name: 'Mua Sắm', image: CatMuaSam, slug: 'mua-sam' },
-            ].map(cat => (
+            {otherCategories.slice(1, 3).map((cat) => (
               <Link
-                key={cat.id}
-                id={`category-${cat.slug}`}
-                to={`/category/${cat.id}`}
+                key={cat.categoryId}
+                id={`category-${cat.categoryId}`}
+                to={`/category/${cat.categoryId}`}
                 style={{
                   position: 'relative',
                   borderRadius: 20,
@@ -147,8 +194,8 @@ export function DanhMucNoiBat() {
                 }}
               >
                 <img
-                  src={cat.image}
-                  alt={cat.name}
+                  src={DEFAULT_IMAGES[cat.categoryId] || DEFAULT_IMAGES[3]}
+                  alt={cat.categoryName}
                   style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.4s ease' }}
                   onMouseOver={e => (e.currentTarget.style.transform = 'scale(1.06)')}
                   onMouseOut={e => (e.currentTarget.style.transform = 'scale(1)')}
@@ -159,8 +206,11 @@ export function DanhMucNoiBat() {
                 }} />
                 <div style={{ position: 'absolute', bottom: 14, left: 14 }}>
                   <h3 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 15, fontWeight: 700, color: 'white' }}>
-                    {cat.name}
+                    {cat.categoryName}
                   </h3>
+                  <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: 'rgba(255,255,255,0.8)' }}>
+                    {cat.voucherCount || 0} voucher
+                  </p>
                 </div>
               </Link>
             ))}

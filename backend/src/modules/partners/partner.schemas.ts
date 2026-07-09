@@ -32,6 +32,12 @@ export const assignCashierSchema = z.object({
   cashierEmail: z.email("Email không hợp lệ"),
 });
 
+/** Schema cho query search cashier (?q=&limit=) */
+export const listCashiersQuerySchema = z.object({
+  q: z.string().trim().optional(),
+  limit: z.coerce.number().int().positive().max(50).optional().default(20),
+});
+
 export const createCashierSchema = z.object({
   email: z.email("Email không hợp lệ"),
   password: z.string().min(6, "Mật khẩu ít nhất 6 ký tự"),

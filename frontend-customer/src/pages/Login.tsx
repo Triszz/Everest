@@ -1,14 +1,36 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
+import { authApi } from '../services/api';
 
 export function LoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate('/');
+    setError(null);
+    setLoading(true);
+
+    try {
+      const response = await authApi.login(email, password);
+
+      if (response.success && response.data) {
+        // Lưu tokens vào localStorage
+        localStorage.setItem('access_token', response.data.accessToken);
+        localStorage.setItem('refresh_token', response.data.refreshToken);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+
+        // Chuyển hướng về trang chủ
+        navigate('/');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Đăng nhập thất bại. Vui lòng thử lại.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -167,6 +189,27 @@ export function LoginPage() {
             }}>Chào mừng bạn quay trở lại!</p>
           </div>
 
+          {/* Error Message */}
+          {error && (
+            <div style={{
+              padding: '12px 16px',
+              background: '#FEE2E2',
+              border: '1px solid #FECACA',
+              borderRadius: 12,
+              marginBottom: 20,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+            }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              <span style={{ fontSize: 14, color: '#DC2626' }}>{error}</span>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div>
               <label style={{
@@ -260,23 +303,24 @@ export function LoginPage() {
 
             <button
               type="submit"
+              disabled={loading}
               style={{
                 width: '100%',
                 padding: '14px',
-                background: '#0E76A8',
+                background: loading ? '#94A3B8' : '#0E76A8',
                 color: 'white',
                 border: 'none',
                 borderRadius: 12,
                 fontSize: 15,
                 fontFamily: 'Inter, sans-serif',
                 fontWeight: 700,
-                cursor: 'pointer',
+                cursor: loading ? 'wait' : 'pointer',
                 transition: 'background 0.2s',
               }}
-              onMouseEnter={e => (e.currentTarget.style.background = '#0A5C87')}
-              onMouseLeave={e => (e.currentTarget.style.background = '#0E76A8')}
+              onMouseEnter={e => { if (!loading) e.currentTarget.style.background = '#0A5C87'; }}
+              onMouseLeave={e => { if (!loading) e.currentTarget.style.background = '#0E76A8'; }}
             >
-              Đăng nhập
+              {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
             </button>
           </form>
 
@@ -310,11 +354,11 @@ export function LoginPage() {
               fontFamily: 'Inter, sans-serif',
               fontWeight: 600,
               color: '#1E293B',
-              cursor: 'pointer',
-              transition: 'border-color 0.2s',
+              cursor: 'not-allowed',
+              opacity: 0.6,
             }}
-            onMouseEnter={e => (e.currentTarget.style.borderColor = '#0E76A8')}
-            onBlur={e => (e.currentTarget.style.borderColor = '#E2E8F0')}
+            disabled
+            title="Tính năng đang phát triển"
             >
               <svg width="18" height="18" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -338,11 +382,11 @@ export function LoginPage() {
               fontFamily: 'Inter, sans-serif',
               fontWeight: 600,
               color: '#1E293B',
-              cursor: 'pointer',
-              transition: 'border-color 0.2s',
+              cursor: 'not-allowed',
+              opacity: 0.6,
             }}
-            onMouseEnter={e => (e.currentTarget.style.borderColor = '#0E76A8')}
-            onBlur={e => (e.currentTarget.style.borderColor = '#E2E8F0')}
+            disabled
+            title="Tính năng đang phát triển"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="#1877F2">
                 <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>

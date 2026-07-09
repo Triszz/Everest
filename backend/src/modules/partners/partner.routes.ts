@@ -2,6 +2,7 @@ import { Router } from "express";
 import { partnerController } from "./partner.controller";
 import { authenticate } from "../../middlewares/authenticate";
 import { roleGuard } from "../../middlewares/roleGuard";
+import voucherRouter from '../vouchers/voucher.routes';
 
 const router = Router();
 
@@ -20,5 +21,8 @@ router.post("/branches/:branchId/cashier", partnerController.assignCashier);
 router.delete("/branches/:branchId/cashier", partnerController.removeCashier);
 
 router.post("/cashiers", partnerController.createCashier); // Tạo tài khoản thu ngân mới
+router.get("/cashiers", partnerController.listCashiers); // Tìm kiếm thu ngân (autocomplete)
+
+router.use('/vouchers', voucherRouter);
 
 export default router;

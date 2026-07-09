@@ -7,14 +7,28 @@ import { errorHandler } from "./middlewares/errorHandler";
 import authRouter from "./modules/auth/auth.routes";
 import partnerRouter from "./modules/partners/partner.routes";
 import adminRouter from "./modules/admin/admin.routes";
+import voucherRouter from "./modules/customer/vouchers/vouchers.routes";
+import categoryRouter from "./modules/customer/categories/categories.routes";
+import bannerRouter from "./modules/customer/banners/banners.routes";
+import cartRouter from "./modules/customer/cart/cart.routes";
 
 const app = express();
 
 // ── Security ──────────────────────────────────────────────
 app.use(helmet());
+
+const allowedOrigins = (process.env.CLIENT_URL || "http://localhost:5173")
+  .split(",")
+  .map((o) => o.trim());
+
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    origin: [
+      process.env.CLIENT_URL || "http://localhost:5173",
+      "http://localhost:5174",
+      "http://localhost:5175",
+      "http://localhost:5176",
+    ],
     credentials: true,
   }),
 );
@@ -38,9 +52,10 @@ app.use("/api/auth", authLimiter);
 app.use("/api/auth", authLimiter, authRouter);
 app.use("/api/partner", partnerRouter);
 app.use("/api/admin", adminRouter);
-
-// Nhân sẽ thêm:  app.use('/api/customer', customerRouter);
-// Bảo sẽ thêm:   app.use('/api/admin', adminRouter);
+app.use("/api/vouchers", voucherRouter);
+app.use("/api/categories", categoryRouter);
+app.use("/api/banners", bannerRouter);
+app.use("/api/cart", cartRouter);
 
 // Health check — test kết nối Supabase
 app.get("/api/health", (_req, res) => {
