@@ -18,4 +18,19 @@ router.post("/partners/:partnerId/approve", adminController.approvePartner);
 router.post("/partners/:partnerId/reject", adminController.rejectPartner);
 router.patch("/partners/:partnerId/lock", adminController.togglePartnerLock);
 
+router.get("/partners/:partnerId/branches", adminController.listBranches);
+router.get("/partners/:partnerId/branches/:branchId", adminController.getBranchById);
+router.post("/partners/:partnerId/branches", adminController.createBranch);
+router.patch("/partners/:partnerId/branches/:branchId", adminController.updateBranch);
+router.delete("/partners/:partnerId/branches/:branchId", adminController.deleteBranch);
+router.patch("/partners/:partnerId/branches/:branchId/lock", adminController.toggleBranchLock);
+
+router.get("/categories", adminController.listCategories);
+router.get("/categories/:categoryId", adminController.getCategoryById);
+router.post("/categories", adminController.createCategory);
+router.patch("/categories/:categoryId", adminController.updateCategory);
+router.delete("/categories/:categoryId", adminController.deleteCategory);
+
+router.get("/vouchers", adminController.listVouchers);
+
 export default router;

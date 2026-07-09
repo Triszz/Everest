@@ -13,6 +13,20 @@ import {
   approvePartnerSchema,
   rejectPartnerSchema,
   togglePartnerLockSchema,
+  listBranchesSchema,
+  getBranchByIdSchema,
+  createBranchSchema,
+  updateBranchSchema,
+  deleteBranchSchema,
+  toggleBranchLockSchema,
+  listCategoriesSchema,
+  createCategorySchema,
+  updateCategorySchema,
+  getCategoryByIdSchema,
+  listVouchersSchema,
+  getVoucherByIdSchema,
+  approveVoucherSchema,
+  rejectVoucherSchema,
 } from "./admin.schemas";
 
 const parseQuery = <T>(schema: { parse: (v: unknown) => T }, value: unknown): T => {
@@ -98,5 +112,109 @@ export const adminController = {
     const data = await adminService.togglePartnerLock(partnerId, input);
     const msg = input.locked ? "Khóa đối tác thành công" : "Mở khóa đối tác thành công";
     res.json({ success: true, data, message: msg });
+  }),
+
+  // ─── Branch Management ───────────────────────────────────────────────────────
+
+  listBranches: asyncHandler(async (req: Request, res: Response) => {
+    const { partnerId } = parseQuery(getPartnerByIdSchema, req.params);
+    const input = parseQuery(listBranchesSchema, req.query);
+    const data = await adminService.listBranches(partnerId, input);
+    res.json({ success: true, data });
+  }),
+
+  getBranchById: asyncHandler(async (req: Request, res: Response) => {
+    const { partnerId, branchId } = parseQuery(getBranchByIdSchema, req.params);
+    const data = await adminService.getBranchById(partnerId, branchId);
+    res.json({ success: true, data });
+  }),
+
+  createBranch: asyncHandler(async (req: Request, res: Response) => {
+    const { partnerId } = parseQuery(getPartnerByIdSchema, req.params);
+    const input = parseBody(createBranchSchema, req.body);
+    const data = await adminService.createBranch(partnerId, input);
+    res.json({ success: true, data, message: "Thêm chi nhánh thành công" });
+  }),
+
+  updateBranch: asyncHandler(async (req: Request, res: Response) => {
+    const { partnerId, branchId } = parseQuery(getBranchByIdSchema, req.params);
+    const input = parseBody(updateBranchSchema, req.body);
+    const data = await adminService.updateBranch(partnerId, branchId, input);
+    res.json({ success: true, data, message: "Cập nhật chi nhánh thành công" });
+  }),
+
+  deleteBranch: asyncHandler(async (req: Request, res: Response) => {
+    const { partnerId, branchId } = parseQuery(getBranchByIdSchema, req.params);
+    await adminService.deleteBranch(partnerId, branchId);
+    res.json({ success: true, message: "Xóa chi nhánh thành công" });
+  }),
+
+  toggleBranchLock: asyncHandler(async (req: Request, res: Response) => {
+    const { partnerId, branchId } = parseQuery(getBranchByIdSchema, req.params);
+    const input = parseBody(toggleBranchLockSchema, req.body);
+    const data = await adminService.toggleBranchLock(partnerId, branchId, input);
+    const msg = input.locked ? "Khóa chi nhánh thành công" : "Mở khóa chi nhánh thành công";
+    res.json({ success: true, data, message: msg });
+  }),
+
+  // ─── Category Management ────────────────────────────────────────────────────
+
+  listCategories: asyncHandler(async (req: Request, res: Response) => {
+    const input = parseQuery(listCategoriesSchema, req.query);
+    const data = await adminService.listCategories(input);
+    res.json({ success: true, data });
+  }),
+
+  getCategoryById: asyncHandler(async (req: Request, res: Response) => {
+    const { categoryId } = parseQuery(getCategoryByIdSchema, req.params);
+    const data = await adminService.getCategoryById(categoryId);
+    res.json({ success: true, data });
+  }),
+
+  createCategory: asyncHandler(async (req: Request, res: Response) => {
+    const input = parseBody(createCategorySchema, req.body);
+    const data = await adminService.createCategory(input);
+    res.json({ success: true, data, message: "Tạo danh mục thành công" });
+  }),
+
+  updateCategory: asyncHandler(async (req: Request, res: Response) => {
+    const { categoryId } = parseQuery(getCategoryByIdSchema, req.params);
+    const input = parseBody(updateCategorySchema, req.body);
+    const data = await adminService.updateCategory(categoryId, input);
+    res.json({ success: true, data, message: "Cập nhật danh mục thành công" });
+  }),
+
+  deleteCategory: asyncHandler(async (req: Request, res: Response) => {
+    const { categoryId } = parseQuery(getCategoryByIdSchema, req.params);
+    await adminService.deleteCategory(categoryId);
+    res.json({ success: true, message: "Xóa danh mục thành công" });
+  }),
+
+  // ─── Voucher Management ─────────────────────────────────────────────────────
+
+  listVouchers: asyncHandler(async (req: Request, res: Response) => {
+    const input = parseQuery(listVouchersSchema, req.query);
+    const data = await adminService.listVouchers(input);
+    res.json({ success: true, data });
+  }),
+
+  getVoucherById: asyncHandler(async (req: Request, res: Response) => {
+    const { voucherId } = parseQuery(getVoucherByIdSchema, req.params);
+    const data = await adminService.getVoucherById(voucherId);
+    res.json({ success: true, data });
+  }),
+
+  approveVoucher: asyncHandler(async (req: Request, res: Response) => {
+    const { voucherId } = parseQuery(getVoucherByIdSchema, req.params);
+    const input = parseBody(approveVoucherSchema, req.body);
+    const data = await adminService.approveVoucher(voucherId, input);
+    res.json({ success: true, data, message: "Duyệt voucher thành công" });
+  }),
+
+  rejectVoucher: asyncHandler(async (req: Request, res: Response) => {
+    const { voucherId } = parseQuery(getVoucherByIdSchema, req.params);
+    const input = parseBody(rejectVoucherSchema, req.body);
+    const data = await adminService.rejectVoucher(voucherId, input);
+    res.json({ success: true, data, message: "Từ chối voucher thành công" });
   }),
 };

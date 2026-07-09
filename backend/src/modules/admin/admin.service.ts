@@ -11,6 +11,17 @@ import type {
   ApprovePartnerInput,
   RejectPartnerInput,
   TogglePartnerLockInput,
+  ListBranchesInput,
+  CreateBranchInput,
+  UpdateBranchInput,
+  DeleteBranchInput,
+  ToggleBranchLockInput,
+  ListCategoriesInput,
+  CreateCategoryInput,
+  UpdateCategoryInput,
+  ListVouchersInput,
+  ApproveVoucherInput,
+  RejectVoucherInput,
 } from "./admin.schemas";
 import { buildPaginated, getPagination } from "../../shared/utils/paginate";
 
@@ -292,6 +303,385 @@ export const adminService = {
         taxCode: true,
         status: true,
         isLocked: true,
+        updatedAt: true,
+      },
+    });
+  },
+
+  // ─── Branch Management ───────────────────────────────────────────────────────
+
+  async listBranches(partnerId: number, input: ListBranchesInput) {
+    const { page, limit, skip } = getPagination({ page: input.page, limit: input.limit });
+
+    const partner = await prisma.partner.findUnique({ where: { partnerId } });
+    if (!partner) throw new AppError("Đối tác không tồn tại", 404, "NOT_FOUND");
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const where: any = { partnerId };
+    if (input.isLocked !== undefined) where.isLocked = input.isLocked;
+    if (input.search) {
+      where.OR = [
+        { branchName: { contains: input.search, mode: "insensitive" } },
+        { address: { contains: input.search, mode: "insensitive" } },
+      ];
+    }
+
+    const [branches, total] = await Promise.all([
+      prisma.branch.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: "desc" },
+        select: {
+          branchId: true,
+          branchName: true,
+          address: true,
+          phoneNumber: true,
+          isLocked: true,
+          createdAt: true,
+          updatedAt: true,
+          cashier: {
+            select: { userId: true, fullName: true, email: true },
+          },
+        },
+      }),
+      prisma.branch.count({ where }),
+    ]);
+
+    return buildPaginated(branches, total, page, limit);
+  },
+
+  async getBranchById(partnerId: number, branchId: number) {
+    const branch = await prisma.branch.findUnique({
+      where: { branchId, partnerId },
+      select: {
+        branchId: true,
+        branchName: true,
+        address: true,
+        phoneNumber: true,
+        isLocked: true,
+        createdAt: true,
+        updatedAt: true,
+        cashier: {
+          select: { userId: true, fullName: true, email: true, status: true },
+        },
+        partner: {
+          select: { partnerId: true, companyName: true, status: true },
+        },
+      },
+    });
+    if (!branch) throw new AppError("Chi nhánh không tồn tại", 404, "NOT_FOUND");
+    return branch;
+  },
+
+  async createBranch(partnerId: number, input: CreateBranchInput) {
+    const partner = await prisma.partner.findUnique({ where: { partnerId } });
+    if (!partner) throw new AppError("Đối tác không tồn tại", 404, "NOT_FOUND");
+
+    return prisma.branch.create({
+      data: { partnerId, ...input },
+      select: {
+        branchId: true,
+        branchName: true,
+        address: true,
+        phoneNumber: true,
+        isLocked: true,
+        createdAt: true,
+      },
+    });
+  },
+
+  async updateBranch(partnerId: number, branchId: number, input: UpdateBranchInput) {
+    const branch = await prisma.branch.findUnique({ where: { branchId, partnerId } });
+    if (!branch) throw new AppError("Chi nhánh không tồn tại", 404, "NOT_FOUND");
+
+    return prisma.branch.update({
+      where: { branchId },
+      data: input,
+      select: {
+        branchId: true,
+        branchName: true,
+        address: true,
+        phoneNumber: true,
+        isLocked: true,
+        updatedAt: true,
+      },
+    });
+  },
+
+  async deleteBranch(partnerId: number, branchId: number) {
+    const branch = await prisma.branch.findUnique({ where: { branchId, partnerId } });
+    if (!branch) throw new AppError("Chi nhánh không tồn tại", 404, "NOT_FOUND");
+
+    // Check for active issued vouchers at this branch
+    const activeVouchers = await prisma.issuedVoucher.count({
+      where: {
+        branchId,
+        status: { notIn: ["Used", "Expired"] },
+      },
+    });
+    if (activeVouchers > 0) {
+      throw new AppError(
+        `Chi nhánh đang có ${activeVouchers} voucher đang hoạt động. Không thể xóa.`,
+        400,
+        "BRANCH_HAS_ACTIVE_VOUCHERS",
+      );
+    }
+
+    await prisma.branch.delete({ where: { branchId } });
+    return { branchId, deletedAt: new Date() };
+  },
+
+  async toggleBranchLock(partnerId: number, branchId: number, input: ToggleBranchLockInput) {
+    const branch = await prisma.branch.findUnique({ where: { branchId, partnerId } });
+    if (!branch) throw new AppError("Chi nhánh không tồn tại", 404, "NOT_FOUND");
+
+    return prisma.branch.update({
+      where: { branchId },
+      data: { isLocked: input.locked },
+      select: {
+        branchId: true,
+        branchName: true,
+        address: true,
+        isLocked: true,
+        updatedAt: true,
+      },
+    });
+  },
+
+  // ─── Category Management ─────────────────────────────────────────────────────
+
+  async listCategories(input: ListCategoriesInput) {
+    const { page, limit, skip } = getPagination({ page: input.page, limit: input.limit });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const where: any = {};
+    if (input.search) {
+      where.OR = [
+        { categoryName: { contains: input.search, mode: "insensitive" } },
+        { description: { contains: input.search, mode: "insensitive" } },
+      ];
+    }
+
+    const [categories, total] = await Promise.all([
+      prisma.category.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { categoryId: "asc" },
+        select: {
+          categoryId: true,
+          categoryName: true,
+          description: true,
+          _count: { select: { vouchers: true } },
+        },
+      }),
+      prisma.category.count({ where }),
+    ]);
+
+    return buildPaginated(categories, total, page, limit);
+  },
+
+  async getCategoryById(categoryId: number) {
+    const category = await prisma.category.findUnique({
+      where: { categoryId },
+      select: {
+        categoryId: true,
+        categoryName: true,
+        description: true,
+        vouchers: {
+          select: {
+            voucherId: true,
+            title: true,
+            approvalStatus: true,
+            displayStatus: true,
+            availableQuantity: true,
+            salePrice: true,
+          },
+        },
+      },
+    });
+    if (!category) throw new AppError("Danh mục không tồn tại", 404, "NOT_FOUND");
+    return category;
+  },
+
+  async createCategory(input: CreateCategoryInput) {
+    const existing = await prisma.category.findFirst({
+      where: { categoryName: input.categoryName },
+    });
+    if (existing) {
+      throw new AppError("Tên danh mục đã tồn tại", 409, "CATEGORY_EXISTS");
+    }
+
+    return prisma.category.create({
+      data: input,
+      select: { categoryId: true, categoryName: true, description: true },
+    });
+  },
+
+  async updateCategory(categoryId: number, input: UpdateCategoryInput) {
+    const category = await prisma.category.findUnique({ where: { categoryId } });
+    if (!category) throw new AppError("Danh mục không tồn tại", 404, "NOT_FOUND");
+
+    if (input.categoryName && input.categoryName !== category.categoryName) {
+      const duplicate = await prisma.category.findFirst({
+        where: { categoryName: input.categoryName },
+      });
+      if (duplicate) {
+        throw new AppError("Tên danh mục đã tồn tại", 409, "CATEGORY_EXISTS");
+      }
+    }
+
+    return prisma.category.update({
+      where: { categoryId },
+      data: input,
+      select: { categoryId: true, categoryName: true, description: true, updatedAt: true },
+    });
+  },
+
+  async deleteCategory(categoryId: number) {
+    const category = await prisma.category.findUnique({ where: { categoryId } });
+    if (!category) throw new AppError("Danh mục không tồn tại", 404, "NOT_FOUND");
+
+    const voucherCount = await prisma.voucher.count({ where: { categoryId } });
+    if (voucherCount > 0) {
+      throw new AppError(
+        `Danh mục đang chứa ${voucherCount} voucher. Không thể xóa.`,
+        400,
+        "CATEGORY_HAS_VOUCHERS",
+      );
+    }
+
+    await prisma.category.delete({ where: { categoryId } });
+    return { categoryId, deletedAt: new Date() };
+  },
+
+  // ─── Voucher Management ─────────────────────────────────────────────────────
+
+  async listVouchers(input: ListVouchersInput) {
+    const { page, limit, skip } = getPagination({ page: input.page, limit: input.limit });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const where: any = {};
+    if (input.search) {
+      where.OR = [
+        { title: { contains: input.search, mode: "insensitive" } },
+        { description: { contains: input.search, mode: "insensitive" } },
+      ];
+    }
+    if (input.categoryId) where.categoryId = input.categoryId;
+    if (input.partnerId) where.partnerId = input.partnerId;
+    if (input.approvalStatus) where.approvalStatus = input.approvalStatus;
+
+    const [vouchers, total] = await Promise.all([
+      prisma.voucher.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: "desc" },
+        select: {
+          voucherId: true,
+          title: true,
+          description: true,
+          originalPrice: true,
+          salePrice: true,
+          totalQuantity: true,
+          availableQuantity: true,
+          approvalStatus: true,
+          displayStatus: true,
+          startDate: true,
+          endDate: true,
+          category: { select: { categoryId: true, categoryName: true } },
+          partner: { select: { partnerId: true, companyName: true } },
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
+      prisma.voucher.count({ where }),
+    ]);
+
+    return buildPaginated(vouchers, total, page, limit);
+  },
+
+  // ─── Voucher Approval ───────────────────────────────────────────────────────
+
+  async getVoucherById(voucherId: number) {
+    const voucher = await prisma.voucher.findUnique({
+      where: { voucherId },
+      select: {
+        voucherId: true,
+        title: true,
+        description: true,
+        originalPrice: true,
+        salePrice: true,
+        totalQuantity: true,
+        availableQuantity: true,
+        imageUrl: true,
+        startDate: true,
+        endDate: true,
+        expiryDays: true,
+        approvalStatus: true,
+        displayStatus: true,
+        createdAt: true,
+        updatedAt: true,
+        partner: {
+          select: {
+            partnerId: true,
+            companyName: true,
+            status: true,
+            isLocked: true,
+          },
+        },
+        category: {
+          select: { categoryId: true, categoryName: true },
+        },
+      },
+    });
+    if (!voucher) throw new AppError("Voucher không tồn tại", 404, "NOT_FOUND");
+    return voucher;
+  },
+
+  async approveVoucher(voucherId: number, input: ApproveVoucherInput) {
+    const voucher = await prisma.voucher.findUnique({ where: { voucherId } });
+    if (!voucher) throw new AppError("Voucher không tồn tại", 404, "NOT_FOUND");
+    if (voucher.approvalStatus === "Approved") {
+      throw new AppError("Voucher đã được duyệt trước đó", 400, "ALREADY_APPROVED");
+    }
+    if (voucher.approvalStatus === "Rejected") {
+      throw new AppError("Voucher đã bị từ chối. Không thể duyệt lại.", 400, "CANNOT_APPROVE_REJECTED");
+    }
+
+    return prisma.voucher.update({
+      where: { voucherId },
+      data: { approvalStatus: "Approved" },
+      select: {
+        voucherId: true,
+        title: true,
+        approvalStatus: true,
+        displayStatus: true,
+        updatedAt: true,
+      },
+    });
+  },
+
+  async rejectVoucher(voucherId: number, input: RejectVoucherInput) {
+    const voucher = await prisma.voucher.findUnique({ where: { voucherId } });
+    if (!voucher) throw new AppError("Voucher không tồn tại", 404, "NOT_FOUND");
+    if (voucher.approvalStatus === "Rejected") {
+      throw new AppError("Voucher đã bị từ chối trước đó", 400, "ALREADY_REJECTED");
+    }
+    if (voucher.approvalStatus === "Approved") {
+      throw new AppError("Voucher đã được duyệt. Không thể từ chối.", 400, "CANNOT_REJECT_APPROVED");
+    }
+
+    return prisma.voucher.update({
+      where: { voucherId },
+      data: { approvalStatus: "Rejected" },
+      select: {
+        voucherId: true,
+        title: true,
+        approvalStatus: true,
+        displayStatus: true,
         updatedAt: true,
       },
     });
