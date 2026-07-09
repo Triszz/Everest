@@ -114,6 +114,7 @@ model Partner {
   taxCode            String        @unique @map("tax_code") @db.VarChar(20)
   businessLicenseUrl String?       @map("business_license_url") @db.VarChar(255)
   status             PartnerStatus @default(Pending)
+  isLocked           Boolean      @default(false) @map("is_locked")
   createdAt          DateTime      @default(now()) @map("created_at") @db.Timestamptz
   updatedAt          DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
 
@@ -131,6 +132,7 @@ model Branch {
   branchName  String    @map("branch_name") @db.VarChar(150)
   address     String    @db.VarChar(255)
   phoneNumber String?   @map("phone_number") @db.VarChar(15)
+  isLocked    Boolean   @default(false) @map("is_locked")
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
 
   partner        Partner          @relation(fields: [partnerId], references: [partnerId], onDelete: Cascade)
