@@ -214,7 +214,9 @@ export interface User {
   fullName: string;
   role: string;
   phoneNumber?: string;
-  status: string;
+  status: 'Active' | 'Inactive' | 'Banned';
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface AuthResponse {
@@ -369,5 +371,30 @@ export const authApi = {
       body: JSON.stringify({ refreshToken }),
     });
     return handleResponse<{ success: boolean; data: AuthResponse }>(res);
+  },
+};
+
+export const profileApi = {
+  getProfile: async () => {
+    const res = await authFetch(`${BASE_URL}/customer/profile/me`, { auth: true });
+    return handleResponse<{ success: boolean; data: User }>(res);
+  },
+
+  updateProfile: async (data: { fullName?: string; phoneNumber?: string | null }) => {
+    const res = await authFetch(`${BASE_URL}/customer/profile/me`, {
+      method: 'PUT',
+      auth: true,
+      body: JSON.stringify(data),
+    });
+    return handleResponse<{ success: boolean; data: User; message: string }>(res);
+  },
+
+  changePassword: async (data: { currentPassword: string; newPassword: string }) => {
+    const res = await authFetch(`${BASE_URL}/customer/profile/password`, {
+      method: 'PUT',
+      auth: true,
+      body: JSON.stringify(data),
+    });
+    return handleResponse<{ success: boolean; data: null; message: string }>(res);
   },
 };

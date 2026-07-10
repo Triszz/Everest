@@ -174,14 +174,21 @@ export function Header() {
             {/* User Menu or Login */}
             {isLoggedIn ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '6px 12px',
-                  background: '#F8FAFC',
-                  borderRadius: 10,
-                }}>
+                <Link
+                  to="/profile"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '6px 12px',
+                    background: '#F8FAFC',
+                    borderRadius: 10,
+                    textDecoration: 'none',
+                    transition: 'background 0.2s',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#E8F4FA'}
+                  onMouseLeave={e => e.currentTarget.style.background = '#F8FAFC'}
+                >
                   <div style={{
                     width: 32,
                     height: 32,
@@ -204,7 +211,10 @@ export function Header() {
                   }}>
                     {user?.fullName?.split(' ').pop() || 'User'}
                   </span>
-                </div>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2">
+                    <path d="M6 9l6 6 6-6"/>
+                  </svg>
+                </Link>
                 <button
                   onClick={handleLogout}
                   style={{
