@@ -12,6 +12,7 @@ import { VouchersPage } from './pages/Vouchers';
 import { CategoryPage } from './pages/Category';
 import { ProfilePage } from './pages/Profile';
 import { SettingsPage } from './pages/Settings';
+import { EditProfilePage } from './pages/EditProfile';
 
 function App() {
   return (
@@ -42,6 +43,7 @@ function App() {
           <Route path="/rewards" element={<Rewards />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/settings/edit" element={<EditProfilePage />} />
         </Routes>
       </main>
       <Footer />
