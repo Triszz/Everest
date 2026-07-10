@@ -1,27 +1,49 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-interface User {
-  id?: string;
-  fullName: string;
-  email: string;
-  phoneNumber?: string;
-  role: string;
-  createdAt?: string;
-}
+import { profileApi, type User as ApiUser } from '../services/api';
 
 export function ProfilePage() {
   const navigate = useNavigate();
-  const user = useMemo<User | null>(() => {
-    const stored = localStorage.getItem('user');
-    return stored ? JSON.parse(stored) : null;
-  }, []);
+  const [user, setUser] = useState<ApiUser | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user) navigate('/login');
-  }, [user, navigate]);
+    let cancelled = false;
 
-  if (!user) {
+    const fetchProfile = async () => {
+      const stored = localStorage.getItem('user');
+      if (stored) {
+        try {
+          setUser(JSON.parse(stored));
+        } catch {
+          // ignore parse error
+        }
+      }
+
+      try {
+        const res = await profileApi.getProfile();
+        if (!cancelled && res.data) {
+          setUser(res.data);
+          localStorage.setItem('user', JSON.stringify(res.data));
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Không thể tải thông tin người dùng');
+          if (!stored) navigate('/login');
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    fetchProfile();
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate]);
+
+  if (loading) {
     return (
       <div style={{
         minHeight: '60vh',
@@ -39,6 +61,10 @@ export function ProfilePage() {
         }} />
       </div>
     );
+  }
+
+  if (!user) {
+    return null;
   }
 
   return (
@@ -65,6 +91,19 @@ export function ProfilePage() {
             fontSize: 14,
             color: '#64748B',
           }}>Quản lý thông tin cá nhân của bạn</p>
+          {error && (
+            <div style={{
+              marginTop: 12,
+              padding: '10px 14px',
+              background: '#FEF2F2',
+              color: '#DC2626',
+              borderRadius: 8,
+              fontSize: 13,
+              fontFamily: 'Inter, sans-serif',
+            }}>
+              {error}
+            </div>
+          )}
         </div>
 
         <div style={{
@@ -160,15 +199,20 @@ export function ProfilePage() {
               <FormField label="Họ và tên" value={user.fullName || '-'} />
               <FormField label="Email" value={user.email || '-'} />
               <FormField label="Số điện thoại" value={user.phoneNumber || 'Chưa cập nhật'} />
-              <FormField label="Vai trò" value={user.role === 'customer' ? 'Khách hàng' : user.role} />
+              <FormField label="Vai trò" value={
+                user.role === 'Customer' ? 'Khách hàng' :
+                user.role === 'Admin' ? 'Quản trị viên' :
+                user.role === 'Partner_Owner' ? 'Chủ đối tác' :
+                user.role === 'Partner_Cashier' ? 'Thu ngân' : user.role
+              } />
               <FormField label="Trạng thái" value={
                 <span style={{
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 6,
                   padding: '4px 12px',
-                  background: '#DCFCE7',
-                  color: '#16A34A',
+                  background: user.status === 'Active' ? '#DCFCE7' : user.status === 'Inactive' ? '#FEF3C7' : '#FEE2E2',
+                  color: user.status === 'Active' ? '#16A34A' : user.status === 'Inactive' ? '#D97706' : '#DC2626',
                   borderRadius: 20,
                   fontSize: 13,
                   fontWeight: 600,
@@ -177,12 +221,12 @@ export function ProfilePage() {
                     width: 6,
                     height: 6,
                     borderRadius: '50%',
-                    background: '#16A34A',
+                    background: user.status === 'Active' ? '#16A34A' : user.status === 'Inactive' ? '#D97706' : '#DC2626',
                   }} />
-                  Đang hoạt động
+                  {user.status === 'Active' ? 'Đang hoạt động' : user.status === 'Inactive' ? 'Chưa kích hoạt' : 'Đã khóa'}
                 </span>
               } />
-              <FormField label="Ngày tham gia" value={user.createdAt ? new Date(user.createdAt).toLocaleDateString('vi-VN') : '-'} />
+              <FormField label="Ngày tham gia" value={user.createdAt ? new Date(user.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: 'long', year: 'numeric' }) : '-'} />
             </div>
 
             <div style={{
