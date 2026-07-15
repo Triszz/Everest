@@ -7,6 +7,7 @@ import { VoucherDetail } from './components/VoucherDetail';
 import { CartPage } from './pages/Cart';
 import { MyVoucher } from './pages/MyVoucher';
 import { Checkout } from './pages/Checkout';
+import { OrderSuccessPage } from './pages/OrderSuccess';
 import { Rewards } from './pages/Rewards';
 import { VouchersPage } from './pages/Vouchers';
 import { CategoryPage } from './pages/Category';
@@ -40,6 +41,7 @@ function App() {
           <Route path="/cart" element={<CartPage />} />
           <Route path="/my-voucher" element={<MyVoucher />} />
           <Route path="/checkout" element={<Checkout />} />
+          <Route path="/checkout/success" element={<OrderSuccessPage />} />
           <Route path="/rewards" element={<Rewards />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/settings" element={<SettingsPage />} />
