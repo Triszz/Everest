@@ -47,6 +47,14 @@ export const partnerController = {
     res.json({ success: true, data });
   }),
 
+  // Settings page — user + partner combined
+  getSettings: asyncHandler(async (req: Request, res: Response) => {
+    const partnerId = requirePartnerId(req);
+    const userId = req.user!.userId;
+    const data = await partnerService.getSettings(partnerId, userId);
+    res.json({ success: true, data });
+  }),
+
   updateProfile: asyncHandler(async (req: Request, res: Response) => {
     const body = parseOrThrow(updatePartnerSchema, req.body);
     const data = await partnerService.updateProfile(
