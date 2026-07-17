@@ -9,6 +9,7 @@ const router = Router();
 // Tất cả routes cần login + role Partner_Owner
 router.use(authenticate, roleGuard("Partner_Owner"));
 
+router.get("/settings", partnerController.getSettings);
 router.get("/profile", partnerController.getProfile);
 router.put("/profile", partnerController.updateProfile);
 

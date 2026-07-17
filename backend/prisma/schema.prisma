@@ -92,6 +92,7 @@ model User {
   phoneNumber  String?        @unique @map("phone_number") @db.VarChar(15)
   passwordHash String?        @map("password_hash") @db.VarChar(255)
   fullName     String         @map("full_name") @db.VarChar(100)
+  avatar       String?        @map("avatar") @db.VarChar(255)
   role         UserRole       @default(Customer)
   status       AccountStatus  @default(Active)
   partnerId    Int?           @map("partner_id")
@@ -109,14 +110,18 @@ model User {
 }
 
 model Partner {
-  partnerId          Int           @id @default(autoincrement()) @map("partner_id")
-  companyName        String        @map("company_name") @db.VarChar(150)
-  taxCode            String        @unique @map("tax_code") @db.VarChar(20)
-  businessLicenseUrl String?       @map("business_license_url") @db.VarChar(255)
-  status             PartnerStatus @default(Pending)
-  isLocked           Boolean      @default(false) @map("is_locked")
-  createdAt          DateTime      @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt          DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+  partnerId               Int           @id @default(autoincrement()) @map("partner_id")
+  companyName             String        @map("company_name") @db.VarChar(150)
+  taxCode                 String        @unique @map("tax_code") @db.VarChar(20)
+  representativeName      String?       @map("representative_name") @db.VarChar(100)
+  representativePosition  String?       @map("representative_position") @db.VarChar(100)
+  representativePhone     String?       @map("representative_phone") @db.VarChar(15)
+  representativeEmail     String?       @map("representative_email") @db.VarChar(100)
+  businessLicenseUrl      String?       @map("business_license_url") @db.VarChar(255)
+  status                  PartnerStatus @default(Pending)
+  isLocked                Boolean       @default(false) @map("is_locked")
+  createdAt               DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt               DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
 
   users    User[]
   branches Branch[]

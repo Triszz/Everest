@@ -1,10 +1,14 @@
-import { post, get } from './api-client';
+import { post, get, put } from './api-client';
 import type {
   LoginResponseData,
   RegisterPartnerResponseData,
   RefreshResponseData,
   MeResponseData,
 } from '../types/auth';
+import type {
+  UpdateUserProfileInput,
+  ChangePasswordInput,
+} from '../types/settings';
 
 // Re-export storage keys from api-client for backward compatibility
 export {
@@ -93,4 +97,20 @@ export function apiGetMe(accessToken: string): Promise<MeResponseData> {
     headers: { Authorization: `Bearer ${accessToken}` },
     auth: true,
   }).then(res => res.data);
+}
+
+/**
+ * PUT /api/auth/me
+ * Updates the authenticated user's fullName and phoneNumber.
+ */
+export function apiUpdateMyProfile(input: UpdateUserProfileInput): Promise<MeResponseData> {
+  return put<MeResponseData>('/api/auth/me', input, { auth: true }).then(res => res.data);
+}
+
+/**
+ * PUT /api/auth/password
+ * Changes the authenticated user's password.
+ */
+export function apiChangePassword(input: ChangePasswordInput): Promise<void> {
+  return put<void>('/api/auth/password', input, { auth: true }).then(res => res.data);
 }

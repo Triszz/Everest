@@ -15,6 +15,7 @@ import { BranchesPage } from './pages/Branches';
 import { BranchCreatePage } from './pages/BranchCreate';
 import { BranchDetailPage } from './pages/BranchDetail';
 import { BranchEditPage } from './pages/BranchEdit';
+import { SettingsPage } from './pages/Settings';
 
 // ── Placeholder pages (sẽ implement chi tiết sau) ──────────────────────────
 function PlaceholderPage({ title }: { title: string }) {
@@ -143,8 +144,8 @@ function AppRoutes() {
         </PrivateRoute>
       } />
       <Route path="/settings" element={
-        <PrivateRoute>
-          <AppLayout><PlaceholderPage title="Cài đặt tài khoản" /></AppLayout>
+        <PrivateRoute allowedRoles={['Partner_Owner', 'Partner_Cashier']}>
+          <AppLayout><SettingsPage /></AppLayout>
         </PrivateRoute>
       } />
 

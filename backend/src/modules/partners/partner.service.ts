@@ -28,9 +28,53 @@ export const partnerService = {
     return partner;
   },
 
+  // ── Settings ──────────────────────────────────────────────────
+  // GET /api/partner/settings → user + partner combined (for Settings page)
+  async getSettings(partnerId: number, userId: string) {
+    const [user, partner] = await Promise.all([
+      prisma.user.findUnique({
+        where: { userId },
+        select: {
+          userId: true,
+          email: true,
+          fullName: true,
+          phoneNumber: true,
+        },
+      }),
+      prisma.partner.findUnique({
+        where: { partnerId },
+        select: {
+          partnerId: true,
+          companyName: true,
+          taxCode: true,
+          representativeName: true,
+          representativePosition: true,
+          representativePhone: true,
+          representativeEmail: true,
+          businessLicenseUrl: true,
+          status: true,
+          createdAt: true,
+        },
+      }),
+    ]);
+
+    if (!partner)
+      throw new AppError("Không tìm thấy thông tin đối tác", 404, "NOT_FOUND");
+    if (!user)
+      throw new AppError("Không tìm thấy người dùng", 404, "NOT_FOUND");
+
+    return { user, partner };
+  },
+
   async updateProfile(
     partnerId: number,
-    data: { companyName?: string; businessLicenseUrl?: string | null },
+    data: {
+      representativeName?: string | null;
+      representativePosition?: string | null;
+      representativePhone?: string | null;
+      representativeEmail?: string | null;
+      businessLicenseUrl?: string | null;
+    },
   ) {
     const partner = await prisma.partner.findUnique({ where: { partnerId } });
     if (!partner)
