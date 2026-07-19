@@ -12,7 +12,7 @@ const buildQueryString = (params?: Record<string, any>): string => {
 
 // ── Types & Interfaces ──────────────────────────────────────────────────────
 export type UserRole = 'Admin' | 'Customer' | 'Partner_Owner' | 'Partner_Cashier';
-export type AccountStatus = 'Active' | 'Inactive' | 'Banned';
+export type AccountStatus = 'Active' | 'Banned';
 export type PartnerStatus = 'Pending' | 'Approved' | 'Rejected';
 
 export interface UserResponse {
@@ -83,6 +83,16 @@ export interface PaginatedList<T> {
   totalPages: number;
 }
 
+interface ApiPaginatedResponse<T> {
+  data: T[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
 // ── Users API ───────────────────────────────────────────────────────────────
 export const adminUsersApi = {
   list(params?: {
@@ -92,10 +102,19 @@ export const adminUsersApi = {
     role?: UserRole;
     status?: AccountStatus;
   }): Promise<PaginatedList<UserResponse>> {
-    return get<PaginatedList<UserResponse>>(
+    return get<ApiPaginatedResponse<UserResponse>>(
       `/api/admin/users${buildQueryString(params)}`,
       { auth: true },
-    ).then((res) => res.data);
+    ).then((res) => {
+      const { data, pagination } = res.data;
+      return {
+        list: data,
+        total: pagination.total,
+        page: pagination.page,
+        limit: pagination.limit,
+        totalPages: pagination.totalPages,
+      };
+    });
   },
 
   getById(userId: string): Promise<UserResponse> {

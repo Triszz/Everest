@@ -111,11 +111,6 @@ export const adminService = {
   async updateUserRole(userId: string, input: UpdateUserRoleInput, actorRole: Role) {
     const user = await prisma.user.findUnique({ where: { userId } });
     if (!user) throw new AppError("Người dùng không tồn tại", 404, "NOT_FOUND");
-
-    if (user.role === "Admin" || input.role === "Admin") {
-      throw new AppError("Không thể gán hoặc thay đổi vai trò Admin", 403, "FORBIDDEN");
-    }
-
     const rolePriority: Record<UserRole, number> = {
       Partner_Cashier: 1,
       Partner_Owner: 2,

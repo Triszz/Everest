@@ -14,7 +14,7 @@ export function useUsersManagement() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
-  
+
   const [filters, setFilters] = useState<UsersFilter>({
     search: '',
     role: '',
@@ -23,25 +23,25 @@ export function useUsersManagement() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  // Detail user viewing state
+
   const [selectedUser, setSelectedUser] = useState<UserResponse | null>(null);
   const [isFetchingDetail, setIsFetchingDetail] = useState(false);
 
-  // Fetch users list with current page and filters
+  // Fetch users list
   const fetchUsers = useCallback(async (targetPage = 1) => {
     setIsLoading(true);
     setError(null);
     try {
-      const apiParams = {
+      const apiParams: Parameters<typeof adminUsersApi.list>[0] = {
         page: targetPage,
         limit,
-        search: filters.search || undefined,
-        role: filters.role || undefined,
-        status: filters.status || undefined,
+        ...(filters.search && { search: filters.search }),
+        ...(filters.role && { role: filters.role as UserRole }),
+        ...(filters.status && { status: filters.status as AccountStatus }),
       };
 
-      const result: PaginatedList<UserResponse> = await adminUsersApi.list(apiParams);
+      const result = await adminUsersApi.list(apiParams);
+      console.log(result.list);
       setUsers(result.list);
       setTotal(result.total);
       setPage(result.page);
@@ -55,7 +55,7 @@ export function useUsersManagement() {
     }
   }, [filters, limit]);
 
-  // Fetch user detail by ID
+  // Fetch single user detail
   const fetchUserDetail = useCallback(async (userId: string) => {
     setIsFetchingDetail(true);
     setError(null);
@@ -72,50 +72,43 @@ export function useUsersManagement() {
     }
   }, []);
 
-  // Update user status (Active / Inactive / Banned)
-  const updateUserStatus = useCallback(async (userId: string, newStatus: AccountStatus) => {
+  // Toggle lock/unlock — no reason required
+  const toggleUserLock = useCallback(async (userId: string, currentStatus: AccountStatus) => {
+    const targetStatus: AccountStatus = currentStatus === 'Banned' ? 'Active' : 'Banned';
     setError(null);
     try {
-      const updatedUser = await adminUsersApi.updateStatus(userId, newStatus);
-      
-      // Update local state lists
-      setUsers((prevUsers) =>
-        prevUsers.map((user) => (user.userId === userId ? updatedUser : user))
+      const updatedUser = await adminUsersApi.updateStatus(userId, targetStatus);
+
+      setUsers((prev) =>
+        prev.map((u) => (u.userId === userId ? updatedUser : u)),
       );
-      
-      // Update selected detail user if applicable
+
       if (selectedUser?.userId === userId) {
         setSelectedUser(updatedUser);
       }
+
       return updatedUser;
     } catch (err: any) {
       console.error('Failed to update user status:', err);
-      setError(err.message || 'Không thể cập nhật trạng thái tài khoản.');
+      setError(err.message || 'Không thể thay đổi trạng thái tài khoản.');
       throw err;
     }
   }, [selectedUser]);
 
-  // Toggle user lock/unlock (Active <-> Banned)
-  const toggleUserLock = useCallback(async (userId: string, currentStatus: AccountStatus) => {
-    const targetStatus: AccountStatus = currentStatus === 'Banned' ? 'Active' : 'Banned';
-    return updateUserStatus(userId, targetStatus);
-  }, [updateUserStatus]);
-
-  // Assign role to user
+  // Update user role
   const updateUserRole = useCallback(async (userId: string, newRole: UserRole) => {
     setError(null);
     try {
       const updatedUser = await adminUsersApi.updateRole(userId, newRole);
-      
-      // Update local state lists
-      setUsers((prevUsers) =>
-        prevUsers.map((user) => (user.userId === userId ? updatedUser : user))
+
+      setUsers((prev) =>
+        prev.map((u) => (u.userId === userId ? { ...u, role: newRole } : u)),
       );
-      
-      // Update selected detail user if applicable
+
       if (selectedUser?.userId === userId) {
         setSelectedUser(updatedUser);
       }
+
       return updatedUser;
     } catch (err: any) {
       console.error('Failed to update user role:', err);
@@ -124,21 +117,16 @@ export function useUsersManagement() {
     }
   }, [selectedUser]);
 
-  // Helper function to update filters
+  // Update filters (triggers auto-fetch via useEffect)
   const updateFilters = useCallback((newFilters: Partial<UsersFilter>) => {
     setFilters((prev) => ({ ...prev, ...newFilters }));
   }, []);
 
-  // Reset filters to defaults
   const resetFilters = useCallback(() => {
-    setFilters({
-      search: '',
-      role: '',
-      status: '',
-    });
+    setFilters({ search: '', role: '', status: '' });
   }, []);
 
-  // Auto-fetch users when filter changes or page triggers (initial load)
+  // Re-fetch when filters change
   useEffect(() => {
     fetchUsers(1);
   }, [fetchUsers]);
@@ -156,7 +144,6 @@ export function useUsersManagement() {
     isFetchingDetail,
     fetchUsers,
     fetchUserDetail,
-    updateUserStatus,
     toggleUserLock,
     updateUserRole,
     updateFilters,

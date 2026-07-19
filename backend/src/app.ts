@@ -4,6 +4,7 @@ import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { errorHandler } from "./middlewares/errorHandler";
+import { requestLogger } from "./middlewares/requestLogger";
 import authRouter from "./modules/auth/auth.routes";
 import partnerRouter from "./modules/partners/partner.routes";
 import adminRouter from "./modules/admin/admin.routes";
@@ -52,6 +53,9 @@ const authLimiter = rateLimit({
   },
 });
 app.use("/api/auth", authLimiter);
+
+// ── Request Logging ────────────────────────────────────────
+app.use(requestLogger);
 
 // ── Routes ────────────────────────────────────────────────
 app.use("/api/auth", authLimiter, authRouter);

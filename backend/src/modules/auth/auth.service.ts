@@ -65,9 +65,6 @@ export const authService = {
     if (user.status === "Banned") {
       throw new AppError("Tài khoản đã bị khóa", 403, "FORBIDDEN");
     }
-    if (user.status === "Inactive") {
-      throw new AppError("Tài khoản chưa được kích hoạt", 403, "FORBIDDEN");
-    }
 
     const valid = await bcrypt.compare(input.password, user.passwordHash);
     if (!valid)

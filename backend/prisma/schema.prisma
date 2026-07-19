@@ -23,7 +23,6 @@ enum UserRole {
 
 enum AccountStatus {
   Active
-  Inactive
   Banned
 
   @@map("account_status")
