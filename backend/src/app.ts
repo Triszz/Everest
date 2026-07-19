@@ -33,11 +33,15 @@ app.use(
   }),
 );
 app.use(express.json());
-
+app.use(
+  express.urlencoded({
+    extended: true,
+  }),
+);
 // Rate limit cho auth routes
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 phút
-  max: 20,
+  max: 1000000,
   message: {
     success: false,
     error: {

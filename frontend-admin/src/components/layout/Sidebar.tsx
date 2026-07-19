@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom'
+import { useAuth } from '../../context/useAuth'
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: 'insights' },
@@ -11,6 +12,8 @@ const navItems = [
 ]
 
 export default function Sidebar() {
+  const { user, logout } = useAuth()
+
   return (
     <aside
       style={{
@@ -27,7 +30,7 @@ export default function Sidebar() {
         boxShadow: '4px 0 16px rgba(0,0,0,0.1)',
       }}
     >
-      {/* Logo */}
+      {/* Logo / Admin User info */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2.5rem', padding: '0.5rem' }}>
         <div
           style={{
@@ -38,24 +41,46 @@ export default function Sidebar() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            flexShrink: 0,
           }}
         >
           <span className="material-symbols-outlined" style={{ color: 'white', fontSize: '20px' }}>
             admin_panel_settings
           </span>
         </div>
-        <div>
-          <div className="font-headline-md" style={{ color: 'white', fontSize: '1.25rem', lineHeight: 1.2 }}>
-            Admin Console
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div
+            className="font-headline-md"
+            style={{
+              color: 'white',
+              fontSize: '1rem',
+              lineHeight: 1.2,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+            title={user?.fullName || 'Admin Console'}
+          >
+            {user?.fullName || 'Admin Console'}
           </div>
-          <div className="font-label-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>
-            Super Admin
+          <div
+            className="font-label-sm"
+            style={{
+              color: 'rgba(255,255,255,0.5)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              fontSize: '0.75rem',
+            }}
+            title={user?.email || 'System Administrator'}
+          >
+            {user?.email || 'System Administrator'}
           </div>
         </div>
       </div>
 
       {/* Navigation */}
-      <nav style={{ flex: 1 }}>
+      <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
         {navItems.map((item) => (
           <NavLink
             key={item.path}
@@ -69,6 +94,41 @@ export default function Sidebar() {
             <span>{item.label}</span>
           </NavLink>
         ))}
+
+        <button
+          onClick={logout}
+          className="nav-link"
+          style={{
+            marginTop: 'auto',
+            color: '#fca5a5',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+            padding: '0.625rem 1rem',
+            borderRadius: '0.5rem',
+            border: 'none',
+            background: 'transparent',
+            cursor: 'pointer',
+            textAlign: 'left',
+            fontFamily: '"JetBrains Mono", monospace',
+            fontSize: '0.875rem',
+            width: '100%',
+            transition: 'all 0.15s',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
+            e.currentTarget.style.color = '#f87171';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'transparent';
+            e.currentTarget.style.color = '#fca5a5';
+          }}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
+            logout
+          </span>
+          <span>Đăng xuất</span>
+        </button>
       </nav>
 
       {/* Footer */}

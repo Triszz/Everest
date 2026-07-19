@@ -40,7 +40,7 @@ export const cartService = {
 
     const totalItems = cartItems.length;
     const totalAmount = cartItems.reduce(
-      (sum, item) => sum + item.voucher.salePrice * item.quantity,
+      (sum, item) => sum + Number(item.voucher.salePrice) * item.quantity,
       0
     );
 
