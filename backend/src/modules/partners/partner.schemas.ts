@@ -5,7 +5,14 @@ const branchIdParam = z.object({
 });
 
 export const updatePartnerSchema = z.object({
-  companyName: z.string().min(2).max(150).optional(),
+  representativeName: z.string().min(2).max(100).optional().nullable(),
+  representativePosition: z.string().min(2).max(100).optional().nullable(),
+  representativePhone: z
+    .string()
+    .regex(/^[0-9]{10,11}$/)
+    .optional()
+    .nullable(),
+  representativeEmail: z.string().email().optional().nullable(),
   businessLicenseUrl: z.string().url().optional().nullable(),
 });
 
