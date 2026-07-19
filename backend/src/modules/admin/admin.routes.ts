@@ -32,8 +32,9 @@ router.patch("/categories/:categoryId", adminController.updateCategory);
 router.delete("/categories/:categoryId", adminController.deleteCategory);
 
 router.get("/vouchers", adminController.listVouchers);
-router.get("/vouchers/:voucherId", adminController.getVoucherById);
+router.get("/vouchers/stats", adminController.getVoucherStats);
 router.post("/vouchers/:voucherId/approve", adminController.approveVoucher);
 router.post("/vouchers/:voucherId/reject", adminController.rejectVoucher);
+router.patch("/vouchers/:voucherId/display", adminController.setVoucherDisplayStatus);
 
 export default router;
