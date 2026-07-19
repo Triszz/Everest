@@ -143,7 +143,7 @@ export const listVouchersSchema = z.object({
     .regex(/^\d+$/, "partnerId phải là số nguyên")
     .transform(Number)
     .optional(),
-  approvalStatus: z.string().optional(),
+  approvalStatus: z.nativeEnum(VoucherApprovalStatus).optional(),
 });
 
 export const getVoucherByIdSchema = z.object({
@@ -180,6 +180,14 @@ export type ListCategoriesInput = z.infer<typeof listCategoriesSchema>;
 export type CreateCategoryInput = z.infer<typeof createCategorySchema>;
 export type UpdateCategoryInput = z.infer<typeof updateCategorySchema>;
 export type GetCategoryByIdInput = z.infer<typeof getCategoryByIdSchema>;
+export const toggleVoucherDisplaySchema = z.object({
+  displayStatus: z.enum(["Visible", "Hidden"], {
+    message: "displayStatus phải là Visible hoặc Hidden",
+  }),
+});
+
+export type SetVoucherDisplayStatusInput = z.infer<typeof toggleVoucherDisplaySchema>;
+
 export type ListVouchersInput = z.infer<typeof listVouchersSchema>;
 export type GetVoucherByIdInput = z.infer<typeof getVoucherByIdSchema>;
 export type ApproveVoucherInput = z.infer<typeof approveVoucherSchema>;

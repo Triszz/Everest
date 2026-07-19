@@ -27,6 +27,7 @@ import {
   getVoucherByIdSchema,
   approveVoucherSchema,
   rejectVoucherSchema,
+  toggleVoucherDisplaySchema,
 } from "./admin.schemas";
 
 const parseQuery = <T>(schema: { parse: (v: unknown) => T }, value: unknown): T => {
@@ -198,12 +199,6 @@ export const adminController = {
     res.json({ success: true, data });
   }),
 
-  getVoucherById: asyncHandler(async (req: Request, res: Response) => {
-    const { voucherId } = parseQuery(getVoucherByIdSchema, req.params);
-    const data = await adminService.getVoucherById(voucherId);
-    res.json({ success: true, data });
-  }),
-
   approveVoucher: asyncHandler(async (req: Request, res: Response) => {
     const { voucherId } = parseQuery(getVoucherByIdSchema, req.params);
     const input = parseBody(approveVoucherSchema, req.body);
@@ -216,5 +211,18 @@ export const adminController = {
     const input = parseBody(rejectVoucherSchema, req.body);
     const data = await adminService.rejectVoucher(voucherId, input);
     res.json({ success: true, data, message: "Từ chối voucher thành công" });
+  }),
+
+  setVoucherDisplayStatus: asyncHandler(async (req: Request, res: Response) => {
+    const { voucherId } = parseQuery(getVoucherByIdSchema, req.params);
+    const input = parseBody(toggleVoucherDisplaySchema, req.body);
+    const data = await adminService.setVoucherDisplayStatus(voucherId, input);
+    const msg = input.displayStatus === "Visible" ? "Hiển thị voucher thành công" : "Ẩn voucher thành công";
+    res.json({ success: true, data, message: msg });
+  }),
+
+  getVoucherStats: asyncHandler(async (_req: Request, res: Response) => {
+    const data = await adminService.getVoucherStats();
+    res.json({ success: true, data });
   }),
 };

@@ -303,6 +303,15 @@ export const adminCategoriesApi = {
 };
 
 // ── Vouchers API ────────────────────────────────────────────────────────────
+export interface VoucherStatsResponse {
+  total: number;
+  approved: number;
+  pending: number;
+  rejected: number;
+  totalIssued: number;
+  totalUsed: number;
+}
+
 export const adminVouchersApi = {
   list(params?: {
     page?: number;
@@ -312,16 +321,36 @@ export const adminVouchersApi = {
     partnerId?: number;
     approvalStatus?: string;
   }): Promise<PaginatedList<VoucherResponse>> {
-    return get<PaginatedList<VoucherResponse>>(
+    return get<ApiPaginatedResponse<VoucherResponse>>(
       `/api/admin/vouchers${buildQueryString(params)}`,
       { auth: true },
-    ).then((res) => res.data);
+    ).then((res) => {
+      const { data, pagination } = res.data;
+      return {
+        list: data,
+        total: pagination.total,
+        page: pagination.page,
+        limit: pagination.limit,
+        totalPages: pagination.totalPages,
+      };
+    });
   },
 
-  getById(voucherId: number): Promise<VoucherResponse> {
-    return get<VoucherResponse>(`/api/admin/vouchers/${voucherId}`, {
-      auth: true,
-    }).then((res) => res.data);
+  getStats(): Promise<VoucherStatsResponse> {
+    return get<VoucherStatsResponse>('/api/admin/vouchers/stats', { auth: true }).then(
+      (res) => res.data,
+    );
+  },
+
+  setDisplayStatus(
+    voucherId: number,
+    body: { displayStatus: "Visible" | "Hidden" },
+  ): Promise<VoucherResponse> {
+    return patch<VoucherResponse>(
+      `/api/admin/vouchers/${voucherId}/display`,
+      body,
+      { auth: true },
+    ).then((res) => res.data);
   },
 
   approve(voucherId: number, body?: { note?: string }): Promise<VoucherResponse> {

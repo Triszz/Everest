@@ -1,7 +1,7 @@
 import { prisma } from "../../config/prisma";
 import { AppError } from "../../middlewares/errorHandler";
 import type { AccountStatus, Role } from "../../shared/types";
-import type { UserRole } from "../../generated/prisma/enums";
+import type { UserRole, VoucherApprovalStatus } from "../../generated/prisma/enums";
 import type { PartnerStatus } from "../../generated/prisma/enums";
 import type {
   ListUsersInput,
@@ -566,7 +566,7 @@ export const adminService = {
     }
     if (input.categoryId) where.categoryId = input.categoryId;
     if (input.partnerId) where.partnerId = input.partnerId;
-    if (input.approvalStatus) where.approvalStatus = input.approvalStatus;
+    if (input.approvalStatus) where.approvalStatus = input.approvalStatus as VoucherApprovalStatus;
 
     const [vouchers, total] = await Promise.all([
       prisma.voucher.findMany({
@@ -672,6 +672,39 @@ export const adminService = {
     return prisma.voucher.update({
       where: { voucherId },
       data: { approvalStatus: "Rejected" },
+      select: {
+        voucherId: true,
+        title: true,
+        approvalStatus: true,
+        displayStatus: true,
+        updatedAt: true,
+      },
+    });
+  },
+
+  async getVoucherStats() {
+    const [total, approved, pending, rejected, totalIssued, totalUsed] = await Promise.all([
+      prisma.voucher.count(),
+      prisma.voucher.count({ where: { approvalStatus: "Approved" } }),
+      prisma.voucher.count({ where: { approvalStatus: "Pending" } }),
+      prisma.voucher.count({ where: { approvalStatus: "Rejected" } }),
+      prisma.issuedVoucher.count(),
+      prisma.issuedVoucher.count({ where: { status: "Used" } }),
+    ]);
+
+    return { total, approved, pending, rejected, totalIssued, totalUsed };
+  },
+
+  async setVoucherDisplayStatus(
+    voucherId: number,
+    input: { displayStatus: "Visible" | "Hidden" },
+  ) {
+    const voucher = await prisma.voucher.findUnique({ where: { voucherId } });
+    if (!voucher) throw new AppError("Voucher không tồn tại", 404, "NOT_FOUND");
+
+    return prisma.voucher.update({
+      where: { voucherId },
+      data: { displayStatus: input.displayStatus },
       select: {
         voucherId: true,
         title: true,
