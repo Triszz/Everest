@@ -1,7 +1,6 @@
 import { z } from "zod";
 import {
   UserRole,
-  AccountStatus,
   PartnerStatus,
   VoucherApprovalStatus,
 } from "../../generated/prisma/enums";
@@ -11,11 +10,13 @@ export const listUsersSchema = z.object({
   limit: z.coerce.number().int().positive().max(100).optional().default(20),
   search: z.string().optional(),
   role: z.nativeEnum(UserRole).optional(),
-  status: z.nativeEnum(AccountStatus).optional(),
+  status: z.enum(["Active", "Banned"]).optional(),
 });
 
 export const updateUserStatusSchema = z.object({
-  status: z.nativeEnum(AccountStatus),
+  status: z.enum(["Active", "Banned"], {
+    message: "Status phải là Active hoặc Banned",
+  }),
 });
 
 export const updateUserRoleSchema = z.object({

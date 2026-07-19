@@ -17,6 +17,22 @@ export const errorHandler = (
   res: Response,
   _next: NextFunction,
 ) => {
+  // Handle invalid JSON payload
+  if (
+    err instanceof SyntaxError &&
+    "status" in err &&
+    (err as any).status === 400 &&
+    "body" in err
+  ) {
+    return res.status(400).json({
+      success: false,
+      error: {
+        code: "VALIDATION_ERROR",
+        message: `Dữ liệu JSON không đúng định dạng: ${err.message}`,
+      },
+    });
+  }
+
   // Prisma unique constraint
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
     if (err.code === "P2002") {

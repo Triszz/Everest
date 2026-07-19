@@ -1,5 +1,5 @@
 export type Role = "Admin" | "Customer" | "Partner_Owner" | "Partner_Cashier";
-export type AccountStatus = "Active" | "Inactive" | "Banned";
+export type AccountStatus = "Active" | "Banned";
 export type PartnerStatus = "Pending" | "Approved" | "Rejected";
 export type VoucherApprovalStatus =
   | "Draft"
