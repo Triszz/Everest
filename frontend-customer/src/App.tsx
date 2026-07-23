@@ -15,6 +15,7 @@ import { CategoryPage } from './pages/Category';
 import { ProfilePage } from './pages/Profile';
 import { SettingsPage } from './pages/Settings';
 import { EditProfilePage } from './pages/EditProfile';
+import { FeedbackPage } from './pages/Feedback';
 
 function App() {
   return (
@@ -48,6 +49,7 @@ function App() {
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/settings/edit" element={<EditProfilePage />} />
+          <Route path="/feedback" element={<FeedbackPage />} />
         </Routes>
       </main>
       <Footer />
