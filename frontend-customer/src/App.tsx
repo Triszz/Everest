@@ -2,17 +2,27 @@ import { Header, Hero, DanhMucNoiBat, FeaturedVouchers, Newsletter, Footer } fro
 import { Routes, Route } from 'react-router-dom';
 import { LoginPage } from './pages/Login';
 import { RegisterPage } from './pages/Register';
+import { ForgotPasswordPage } from './pages/ForgotPassword';
 import { LogoutSuccessPage } from './pages/LogoutSuccess';
 import { VoucherDetail } from './components/VoucherDetail';
 import { CartPage } from './pages/Cart';
 import { MyVoucher } from './pages/MyVoucher';
 import { Checkout } from './pages/Checkout';
+import { OrderSuccessPage } from './pages/OrderSuccess';
 import { Rewards } from './pages/Rewards';
 import { VouchersPage } from './pages/Vouchers';
 import { CategoryPage } from './pages/Category';
 import { ProfilePage } from './pages/Profile';
 import { SettingsPage } from './pages/Settings';
 import { EditProfilePage } from './pages/EditProfile';
+import { FeedbackPage } from './pages/Feedback';
+import { ChangePasswordPage } from './pages/ChangePassword';
+import { SessionsPage } from './pages/Sessions';
+import { NotificationsPage } from './pages/Notifications';
+import { SecurityPage } from './pages/Security';
+import { HelpPage } from './pages/Help';
+import { TermsPage } from './pages/Terms';
+import { PrivacyPage } from './pages/Privacy';
 
 function App() {
   return (
@@ -33,6 +43,7 @@ function App() {
           />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/logout" element={<LogoutSuccessPage />} />
           <Route path="/voucher/:id" element={<VoucherDetail />} />
           <Route path="/vouchers" element={<VouchersPage />} />
@@ -40,10 +51,19 @@ function App() {
           <Route path="/cart" element={<CartPage />} />
           <Route path="/my-voucher" element={<MyVoucher />} />
           <Route path="/checkout" element={<Checkout />} />
+          <Route path="/checkout/success" element={<OrderSuccessPage />} />
           <Route path="/rewards" element={<Rewards />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/settings/edit" element={<EditProfilePage />} />
+          <Route path="/settings/change-password" element={<ChangePasswordPage />} />
+          <Route path="/settings/sessions" element={<SessionsPage />} />
+          <Route path="/settings/notifications" element={<NotificationsPage />} />
+          <Route path="/settings/security" element={<SecurityPage />} />
+          <Route path="/settings/help" element={<HelpPage />} />
+          <Route path="/terms" element={<TermsPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/feedback" element={<FeedbackPage />} />
         </Routes>
       </main>
       <Footer />

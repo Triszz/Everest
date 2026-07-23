@@ -232,6 +232,57 @@ export function SettingsPage() {
             </button>
 
             <button
+              onClick={() => navigate('/feedback')}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '16px 20px',
+                background: 'white',
+                border: '1px solid #E2E8F0',
+                borderRadius: 12,
+                cursor: 'pointer',
+                transition: 'border-color 0.2s',
+              }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = '#0E76A8'}
+              onMouseLeave={e => e.currentTarget.style.borderColor = '#E2E8F0'}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <div style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 10,
+                  background: '#FEF2F2',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                  </svg>
+                </div>
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{
+                    fontFamily: 'Inter, sans-serif',
+                    fontSize: 15,
+                    fontWeight: 600,
+                    color: '#1E293B',
+                    marginBottom: 4,
+                  }}>Phản hồi & Khiếu nại</div>
+                  <div style={{
+                    fontFamily: 'Inter, sans-serif',
+                    fontSize: 13,
+                    color: '#64748B',
+                  }}>Gửi khiếu nại hoặc góp ý dịch vụ</div>
+                </div>
+              </div>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="2">
+                <path d="M9 18l6-6-6-6"/>
+              </svg>
+            </button>
+
+            <button
               style={{
                 width: '100%',
                 display: 'flex',

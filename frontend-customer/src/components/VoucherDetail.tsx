@@ -1,6 +1,6 @@
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { UtensilsCrossed, Wifi, ShoppingBag, Car } from 'lucide-react';
+import { UtensilsCrossed, Wifi, ShoppingBag, Car, Loader2, CheckCircle2 } from 'lucide-react';
 import { voucherApi, cartApi } from '../services/api';
 import type { Voucher, Review } from '../services/api';
 
@@ -14,6 +14,13 @@ export function VoucherDetail() {
   const [qty, setQty] = useState(1);
   const [addingToCart, setAddingToCart] = useState(false);
   const [addedToCart, setAddedToCart] = useState(false);
+
+  // Review form state
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviewSuccess, setReviewSuccess] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -97,6 +104,42 @@ export function VoucherDetail() {
     } finally {
       setAddingToCart(false);
     }
+  };
+
+  const handleReviewSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      if (confirm('Bạn cần đăng nhập để gửi đánh giá. Đăng nhập ngay?')) {
+        navigate('/login');
+      }
+      return;
+    }
+    if (!reviewComment.trim()) return;
+
+    setSubmittingReview(true);
+    // ── TODO: wire reviewApi.create(...) when backend is ready ──
+    //   const res = await reviewApi.create({ voucherId: voucher.voucherId, rating: reviewRating, comment: reviewComment });
+    //   if (res.success) { setReviewSuccess(true); setTimeout(() => setReviewSuccess(false), 3000); }
+    // Backend: POST /api/customer/vouchers/:id/reviews
+    // ──────────────────────────────────────────────────────────────
+    await new Promise(res => setTimeout(res, 1000));
+    const newReview: Review = {
+      reviewId: Date.now(),
+      voucherId: voucher.voucherId,
+      customerId: 'current-user',
+      rating: reviewRating,
+      comment: reviewComment,
+      createdAt: new Date().toISOString(),
+      customer: JSON.parse(localStorage.getItem('user') || '{}'),
+    };
+    setReviews(prev => [newReview, ...prev]);
+    setReviewComment('');
+    setReviewRating(5);
+    setSubmittingReview(false);
+    setReviewSuccess(true);
+    setShowReviewForm(false);
+    setTimeout(() => setReviewSuccess(false), 3000);
   };
 
   return (
@@ -300,24 +343,105 @@ export function VoucherDetail() {
           <div style={{ padding: 24 }}>
             {activeTab === 'overview' && (
               <div>
+                {/* Review header */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                  <h4 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 16, fontWeight: 800, color: '#1E293B', margin: 0 }}>
+                    Đánh giá từ khách hàng
+                    <span style={{ fontSize: 13, fontWeight: 400, color: '#64748B', marginLeft: 8 }}>({reviews.length})</span>
+                  </h4>
+                  {!showReviewForm && (
+                    <button
+                      onClick={() => setShowReviewForm(!showReviewForm)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: '#0E76A8', color: 'white', border: 'none', borderRadius: 10, fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = '#0A5C87')}
+                      onMouseLeave={e => (e.currentTarget.style.background = '#0E76A8')}
+                    >
+                      Viết đánh giá
+                    </button>
+                  )}
+                </div>
+
+                {/* Review form */}
+                {showReviewForm && (
+                  <form onSubmit={handleReviewSubmit} style={{ background: '#F8FAFC', border: '1.5px solid #BAE6FD', borderRadius: 16, padding: 20, marginBottom: 20 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                      <h5 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 15, fontWeight: 700, color: '#1E293B', margin: 0 }}>Đánh giá của bạn</h5>
+                      <button type="button" onClick={() => setShowReviewForm(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748B', fontSize: 20, lineHeight: 1 }}>×</button>
+                    </div>
+                    {/* Stars */}
+                    <div style={{ display: 'flex', gap: 4, marginBottom: 14, alignItems: 'center' }}>
+                      <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#64748B', marginRight: 4 }}>Điểm:</span>
+                      {[1, 2, 3, 4, 5].map(star => (
+                        <button key={star} type="button" onClick={() => setReviewRating(star)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 28, lineHeight: 1, padding: '2px 0' }}>
+                          <svg width="28" height="28" viewBox="0 0 24 24" fill={star <= reviewRating ? '#F59E0B' : 'none'} stroke={star <= reviewRating ? '#F59E0B' : '#CBD5E1'} strokeWidth="1.5">
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                          </svg>
+                        </button>
+                      ))}
+                      <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700, color: '#F59E0B', marginLeft: 4 }}>{reviewRating}/5</span>
+                    </div>
+                    {/* Textarea */}
+                    <div style={{ marginBottom: 14 }}>
+                      <textarea
+                        value={reviewComment}
+                        onChange={e => setReviewComment(e.target.value)}
+                        placeholder="Chia sẻ trải nghiệm của bạn về voucher này..."
+                        rows={4}
+                        required
+                        style={{ width: '100%', padding: '12px 14px', border: '1.5px solid #E2E8F0', borderRadius: 12, fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#1E293B', background: 'white', outline: 'none', resize: 'vertical', lineHeight: 1.6, boxSizing: 'border-box', transition: 'border-color 0.2s' }}
+                        onFocus={e => (e.currentTarget.style.borderColor = '#0E76A8')}
+                        onBlur={e => (e.currentTarget.style.borderColor = '#E2E8F0')}
+                      />
+                      <p style={{ marginTop: 6, fontSize: 12, color: '#94A3B8', fontFamily: 'Inter, sans-serif' }}>Tối thiểu 10 ký tự. {reviewComment.length} / 500</p>
+                    </div>
+                    {/* Actions */}
+                    <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                      <button type="button" onClick={() => setShowReviewForm(false)} style={{ padding: '9px 20px', background: 'white', color: '#64748B', border: '1.5px solid #E2E8F0', borderRadius: 10, fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Hủy</button>
+                      <button type="submit" disabled={submittingReview || reviewComment.trim().length < 10} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 20px', background: submittingReview || reviewComment.trim().length < 10 ? '#E2E8F0' : '#10B981', color: 'white', border: 'none', borderRadius: 10, fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 700, cursor: submittingReview || reviewComment.trim().length < 10 ? 'not-allowed' : 'pointer', transition: 'background 0.2s' }}>
+                        {submittingReview ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Đang gửi...</> : 'Gửi đánh giá'}
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {/* Success toast */}
+                {reviewSuccess && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', background: '#ECFDF5', border: '1px solid #A7F3D0', borderRadius: 10, marginBottom: 16 }}>
+                    <CheckCircle2 size={18} style={{ color: '#10B981', flexShrink: 0 }} />
+                    <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#065F46', fontWeight: 600 }}>Cảm ơn bạn! Đánh giá đã được gửi thành công.</span>
+                  </div>
+                )}
+
+                {/* Review list */}
                 {reviews.length > 0 ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                    <h4 style={{ fontWeight: 700, marginBottom: 8 }}>Đánh giá từ khách hàng</h4>
-                    {reviews.slice(0, 5).map(review => (
-                      <div key={review.reviewId} style={{ borderBottom: '1px solid #E2E8F0', paddingBottom: 12 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                          <span style={{ fontWeight: 600 }}>{review.customer?.fullName || 'Khách hàng'}</span>
-                          <span style={{ color: '#F59E0B' }}>★ {review.rating}</span>
+                    {reviews.map(review => (
+                      <div key={review.reviewId} style={{ borderBottom: '1px solid #E2E8F0', paddingBottom: 16 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                          <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#0E76A8', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700, flexShrink: 0 }}>
+                            {(review.customer?.fullName || 'K')[0].toUpperCase()}
+                          </div>
+                          <div>
+                            <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, fontWeight: 700, color: '#1E293B' }}>{review.customer?.fullName || 'Khách hàng'}</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 2 }}>
+                              {[1, 2, 3, 4, 5].map(s => (
+                                <svg key={s} width="13" height="13" viewBox="0 0 24 24" fill={s <= review.rating ? '#F59E0B' : 'none'} stroke={s <= review.rating ? '#F59E0B' : '#CBD5E1'} strokeWidth="1.5">
+                                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                                </svg>
+                              ))}
+                            </div>
+                          </div>
+                          <span style={{ marginLeft: 'auto', fontSize: 12, color: '#94A3B8', fontFamily: 'Inter, sans-serif' }}>{new Date(review.createdAt).toLocaleDateString('vi-VN')}</span>
                         </div>
-                        <p style={{ fontSize: 14, color: '#64748B' }}>{review.comment || 'Không có bình luận'}</p>
-                        <span style={{ fontSize: 12, color: '#94A3B8' }}>
-                          {new Date(review.createdAt).toLocaleDateString('vi-VN')}
-                        </span>
+                        <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#334155', lineHeight: 1.6, margin: '4px 0 0 46px' }}>{review.comment || 'Không có bình luận'}</p>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p style={{ color: '#64748B' }}>Chưa có đánh giá nào</p>
+                  <div style={{ textAlign: 'center', padding: '32px 0' }}>
+                    <div style={{ fontSize: 48, marginBottom: 8, opacity: 0.3 }}>★</div>
+                    <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#94A3B8' }}>Chưa có đánh giá nào. Hãy là người đầu tiên!</p>
+                  </div>
                 )}
               </div>
             )}
@@ -344,6 +468,11 @@ export function VoucherDetail() {
           </div>
         </div>
       </div>
+
+      <style>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+      `}</style>
     </div>
   );
 }
