@@ -2,6 +2,7 @@ import { Header, Hero, DanhMucNoiBat, FeaturedVouchers, Newsletter, Footer } fro
 import { Routes, Route } from 'react-router-dom';
 import { LoginPage } from './pages/Login';
 import { RegisterPage } from './pages/Register';
+import { ForgotPasswordPage } from './pages/ForgotPassword';
 import { LogoutSuccessPage } from './pages/LogoutSuccess';
 import { VoucherDetail } from './components/VoucherDetail';
 import { CartPage } from './pages/Cart';
@@ -34,6 +35,7 @@ function App() {
           />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/logout" element={<LogoutSuccessPage />} />
           <Route path="/voucher/:id" element={<VoucherDetail />} />
           <Route path="/vouchers" element={<VouchersPage />} />
