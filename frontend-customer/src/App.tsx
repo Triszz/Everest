@@ -16,6 +16,13 @@ import { ProfilePage } from './pages/Profile';
 import { SettingsPage } from './pages/Settings';
 import { EditProfilePage } from './pages/EditProfile';
 import { FeedbackPage } from './pages/Feedback';
+import { ChangePasswordPage } from './pages/ChangePassword';
+import { SessionsPage } from './pages/Sessions';
+import { NotificationsPage } from './pages/Notifications';
+import { SecurityPage } from './pages/Security';
+import { HelpPage } from './pages/Help';
+import { TermsPage } from './pages/Terms';
+import { PrivacyPage } from './pages/Privacy';
 
 function App() {
   return (
@@ -49,6 +56,13 @@ function App() {
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/settings/edit" element={<EditProfilePage />} />
+          <Route path="/settings/change-password" element={<ChangePasswordPage />} />
+          <Route path="/settings/sessions" element={<SessionsPage />} />
+          <Route path="/settings/notifications" element={<NotificationsPage />} />
+          <Route path="/settings/security" element={<SecurityPage />} />
+          <Route path="/settings/help" element={<HelpPage />} />
+          <Route path="/terms" element={<TermsPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/feedback" element={<FeedbackPage />} />
         </Routes>
       </main>

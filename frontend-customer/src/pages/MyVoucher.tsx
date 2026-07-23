@@ -485,6 +485,11 @@ export function MyVoucher() {
   const [usingMock, setUsingMock] = useState(true);
   const [selectedVoucher, setSelectedVoucher] = useState<IssuedVoucher | null>(null);
 
+  // Fetch from API on mount; fallback to mock if API fails
+  useEffect(() => {
+    fetchVouchers();
+  }, []);
+
   const fetchVouchers = useCallback(async () => {
     try {
       setLoading(true);
