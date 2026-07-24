@@ -15,6 +15,7 @@ import cartRouter from "./modules/customer/cart/cart.routes";
 import profileRouter from "./modules/customer/profile/profile.routes";
 import ordersRouter from "./modules/customer/orders/orders.routes";
 import issuedVouchersRouter from "./modules/customer/issued-vouchers/issued-vouchers.routes";
+import feedbackRouter from "./modules/customer/feedback/feedback.routes";
 
 const app = express();
 
@@ -70,6 +71,7 @@ app.use("/api/cart", cartRouter);
 app.use("/api/customer/profile", profileRouter);
 app.use("/api/customer/orders", ordersRouter);
 app.use("/api/customer/issued-vouchers", issuedVouchersRouter);
+app.use("/api/feedback", feedbackRouter);
 
 // Health check — test kết nối Supabase
 app.get("/api/health", (_req, res) => {

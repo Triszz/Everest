@@ -2,7 +2,7 @@ const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 interface PaginationMeta {
   page: number;
-  limit: number;
+  pageSize: number;
   total: number;
   totalPages: number;
 }
@@ -576,5 +576,39 @@ export const orderApi = {
       data: IssuedVoucher[];
       pagination: PaginationMeta;
     }>(res);
+  },
+};
+
+// ── Feedback API ─────────────────────────────────────────────────────────────────
+
+export interface FeedbackPayload {
+  type: 'general' | 'order' | 'voucher' | 'complaint';
+  subject: string;
+  orderId?: string;
+  voucherCode?: string;
+  message: string;
+  email: string;
+  phone?: string;
+}
+
+export interface FeedbackSubmitResponse {
+  ticketId: string;
+  feedbackId: number;
+  status: string;
+  createdAt: string;
+}
+
+export const feedbackApi = {
+  /**
+   * Submit a feedback/khiếu nại.
+   * POST /api/feedback — public endpoint (guests can also submit).
+   */
+  submit: async (payload: FeedbackPayload) => {
+    const res = await fetch(`${BASE_URL}/feedback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    return handleResponse<{ success: boolean; data: FeedbackSubmitResponse }>(res);
   },
 };

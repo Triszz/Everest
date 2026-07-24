@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { MessageSquareWarning, Loader2, CheckCircle2, Send, ChevronRight } from 'lucide-react';
+import { feedbackApi } from '../services/api';
 
 // ── Feedback / Khiếu nại Page ────────────────────────────────────────────────
 // Flow: Chọn loại → điền thông tin → gửi → success state
@@ -98,19 +99,28 @@ export function FeedbackPage() {
 
     setLoading(true);
 
-    // ── TODO: wire feedbackApi.submit(...) when backend is ready ──
-    //   const res = await feedbackApi.submit(form);
-    //   if (res.success) { setSubmitted(true); setSubmittedId(res.data?.ticketId || '#' + Date.now()); }
-    // Backend expected: POST /api/feedback
-    //   body: { type, subject, message, email, phone, orderId?, voucherCode? }
-    //   response: { success: boolean; data: { ticketId: string } }
-    // ──────────────────────────────────────────────────────────────────
+    try {
+      const res = await feedbackApi.submit({
+        type: form.type,
+        subject: form.subject,
+        orderId: form.orderId || undefined,
+        voucherCode: form.voucherCode || undefined,
+        message: form.message,
+        email: form.email,
+        phone: form.phone || undefined,
+      });
 
-    await new Promise(res => setTimeout(res, 1800));
-    const ticketId = 'FBK' + Date.now().toString().slice(-6);
-    setSubmittedId(ticketId);
-    setLoading(false);
-    setSubmitted(true);
+      if (res.success && res.data?.ticketId) {
+        setSubmittedId(res.data.ticketId);
+        setSubmitted(true);
+      } else {
+        throw new Error(res.error?.message || 'Gửi phản hồi thất bại.');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Đã xảy ra lỗi. Vui lòng thử lại.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // ── Success State ─────────────────────────────────────────────────────────
