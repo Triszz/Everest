@@ -460,58 +460,92 @@ export interface OrderSummary {
 
 // ── Order API ─────────────────────────────────────────────────────────────────
 
+// Input shape for createOrder
+export interface CreateOrderPayload {
+  buyerInfo: { fullName: string; email: string; phone: string };
+  items: { voucherId: number; quantity: number }[];
+  sendAsGift?: boolean;
+}
+
+// Response from POST /customer/orders
+export interface CreateOrderResponse {
+  orderId: number;
+  totalAmount: number;
+  paymentStatus: 'Pending' | 'Paid' | 'Cancelled';
+  isGift: boolean;
+  createdAt: string;
+  orderItems: OrderItem[];
+}
+
+// Response from POST /customer/orders/:id/checkout
+export interface CheckoutResponse {
+  orderId: number;
+  paymentStatus: 'Paid';
+  paymentMethod: string;
+  issuedVouchers: {
+    issuedVoucherId: number;
+    voucherCode: string;
+    status: string;
+    validFrom: string;
+    validTo: string;
+    voucher: {
+      title: string;
+      imageUrl: string | null;
+      expiryDays: number;
+      partner?: string;
+    };
+  }[];
+}
+
 export const orderApi = {
   /**
-   * Tạo đơn hàng từ giỏ hàng.
-   * Backend sẽ tự lấy cart items của user hiện tại.
+   * Tạo đơn hàng (trạng thái Pending).
+   * Body: { buyerInfo, items[], sendAsGift? }
    */
-  create: async (options?: {
-    isGift?: boolean;
-    receiverEmail?: string;
-    giftMessage?: string;
-    paymentMethod?: string;
-  }) => {
+  create: async (payload: CreateOrderPayload) => {
     const res = await authFetch(`${BASE_URL}/customer/orders`, {
       method: 'POST',
       auth: true,
-      body: JSON.stringify(options ?? {}),
+      body: JSON.stringify(payload),
     });
-    return handleResponse<{ success: boolean; data: OrderDetail; message: string }>(res);
+    return handleResponse<{ success: boolean; data: CreateOrderResponse }>(res);
   },
 
   /**
    * Thanh toán đơn hàng (mô phỏng).
-   * Sau khi thanh toán thành công, IssuedVoucher sẽ được sinh ra.
+   * Body: { paymentMethod: "atm" | "momo" | "visa" }
+   * Sau khi thanh toán thành công → sinh IssuedVoucher.
    */
-  checkout: async (orderId: number, paymentMethod: string) => {
+  checkout: async (orderId: number, body: { paymentMethod: string }) => {
     const res = await authFetch(`${BASE_URL}/customer/orders/${orderId}/checkout`, {
       method: 'POST',
       auth: true,
-      body: JSON.stringify({ paymentMethod }),
+      body: JSON.stringify(body),
     });
-    return handleResponse<{ success: boolean; data: OrderDetail; message: string }>(res);
+    return handleResponse<{ success: boolean; data: CheckoutResponse }>(res);
   },
 
   /**
-   * Lấy chi tiết 1 đơn hàng của user hiện tại.
-   * Nếu đơn đã thanh toán → items chứa issuedVouchers.
+   * Lấy chi tiết 1 đơn hàng.
+   * Nếu đã thanh toán → items chứa issuedVouchers.
    */
   getById: async (orderId: number) => {
     const res = await authFetch(`${BASE_URL}/customer/orders/${orderId}`, { auth: true });
-    return handleResponse<{ success: boolean; data: OrderDetail }>(res);
+    return handleResponse<{ success: boolean; data: any }>(res);
   },
 
   /**
    * Lấy lịch sử đơn hàng của user hiện tại.
+   * Query: ?page=1&pageSize=10
    */
-  listMine: async (params?: { page?: number; limit?: number }) => {
+  listMine: async (params?: { page?: number; pageSize?: number }) => {
     const query = new URLSearchParams();
     if (params?.page) query.set('page', String(params.page));
-    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.pageSize) query.set('pageSize', String(params.pageSize));
     const res = await authFetch(`${BASE_URL}/customer/orders?${query}`, { auth: true });
     return handleResponse<{
       success: boolean;
-      orders: OrderSummary[];
+      data: any[];
       pagination: PaginationMeta;
     }>(res);
   },
@@ -524,17 +558,18 @@ export const orderApi = {
       method: 'POST',
       auth: true,
     });
-    return handleResponse<{ success: boolean; data: null; message: string }>(res);
+    return handleResponse<{ success: boolean; data: { orderId: number; paymentStatus: string }; message: string }>(res);
   },
 
   /**
-   * Lấy danh sách voucher đã mua của user hiện tại.
-   * (Tổng hợp tất cả IssuedVoucher qua các order)
+   * Lấy danh sách voucher đã mua (IssuedVoucher).
+   * Query: ?page=1&pageSize=20&status=Unused
    */
-  listIssuedVouchers: async (params?: { page?: number; limit?: number }) => {
+  listIssuedVouchers: async (params?: { page?: number; pageSize?: number; status?: string }) => {
     const query = new URLSearchParams();
     if (params?.page) query.set('page', String(params.page));
-    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.pageSize) query.set('pageSize', String(params.pageSize));
+    if (params?.status) query.set('status', params.status);
     const res = await authFetch(`${BASE_URL}/customer/issued-vouchers?${query}`, { auth: true });
     return handleResponse<{
       success: boolean;

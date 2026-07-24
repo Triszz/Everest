@@ -13,6 +13,8 @@ import categoryRouter from "./modules/customer/categories/categories.routes";
 import bannerRouter from "./modules/customer/banners/banners.routes";
 import cartRouter from "./modules/customer/cart/cart.routes";
 import profileRouter from "./modules/customer/profile/profile.routes";
+import ordersRouter from "./modules/customer/orders/orders.routes";
+import issuedVouchersRouter from "./modules/customer/issued-vouchers/issued-vouchers.routes";
 
 const app = express();
 
@@ -66,6 +68,8 @@ app.use("/api/categories", categoryRouter);
 app.use("/api/banners", bannerRouter);
 app.use("/api/cart", cartRouter);
 app.use("/api/customer/profile", profileRouter);
+app.use("/api/customer/orders", ordersRouter);
+app.use("/api/customer/issued-vouchers", issuedVouchersRouter);
 
 // Health check — test kết nối Supabase
 app.get("/api/health", (_req, res) => {
