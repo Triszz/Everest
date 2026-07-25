@@ -5,8 +5,6 @@ import { feedbackApi } from '../services/api';
 
 // ── Feedback / Khiếu nại Page ────────────────────────────────────────────────
 // Flow: Chọn loại → điền thông tin → gửi → success state
-// API: feedbackApi.submit(data) — wire khi backend sẵn sàng
-//       endpoint: POST /api/feedback
 
 type FeedbackType = 'general' | 'order' | 'voucher' | 'complaint';
 

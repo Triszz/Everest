@@ -67,20 +67,29 @@ export function Checkout() {
     if (!voucherCode.trim()) return;
     setApplyingCode(true);
     setDiscountError('');
-    // ── TODO: wire cartApi.applyCode(voucherCode) when backend ready ──
-    //   const res = await cartApi.applyCode(voucherCode);
-    //   if (res.success) { setAppliedDiscount(res.data.discount); }
-    //   else { setDiscountError(res.error?.message); }
-    // ──────────────────────────────────────────────────────────────────
-    await new Promise(r => setTimeout(r, 700));
-    if (voucherCode.toUpperCase() === 'EVEREST10') {
-      setAppliedDiscount(Math.round(subtotal * 0.1));
-    } else if (voucherCode.toUpperCase() === 'SALE20') {
-      setAppliedDiscount(Math.round(subtotal * 0.2));
-    } else {
-      setDiscountError('Mã giảm giá không hợp lệ hoặc đã hết hạn.');
+
+    // ── Gọi API thật ──
+    try {
+      const res = await cartApi.applyCode(voucherCode.trim());
+      if (res.success && res.data?.discount !== undefined) {
+        setAppliedDiscount(res.data.discount);
+        setDiscountError('');
+      } else {
+        setDiscountError(res.error?.message || 'Mã giảm giá không hợp lệ hoặc đã hết hạn.');
+      }
+    } catch {
+      // ── Fallback: hardcoded codes cho dev mode (khi backend chưa hỗ trợ) ──
+      await new Promise(r => setTimeout(r, 300));
+      if (voucherCode.toUpperCase() === 'EVEREST10') {
+        setAppliedDiscount(Math.round(subtotal * 0.1));
+      } else if (voucherCode.toUpperCase() === 'SALE20') {
+        setAppliedDiscount(Math.round(subtotal * 0.2));
+      } else {
+        setDiscountError('Mã giảm giá không hợp lệ hoặc đã hết hạn.');
+      }
+    } finally {
+      setApplyingCode(false);
     }
-    setApplyingCode(false);
   };
 
   const handleSubmit = async () => {

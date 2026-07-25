@@ -5,8 +5,6 @@ import { authApi } from '../services/api';
 
 // ── Forgot Password Page ─────────────────────────────────────────────────────
 // Flow: Nhập email → loading → Màn hình xác nhận gửi email
-// API: authApi.forgotPassword(email) — wire khi backend sẵn sàng
-//       endpoint: POST /api/auth/forgot-password
 
 export function ForgotPasswordPage() {
   const navigate = useNavigate();

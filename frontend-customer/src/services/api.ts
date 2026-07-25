@@ -334,6 +334,20 @@ export const cartApi = {
     });
     return handleResponse<{ success: boolean; data: { message: string } }>(res);
   },
+
+  /**
+   * Áp mã giảm giá vào đơn hàng.
+   * POST /api/customer/orders/apply-code
+   * Body: { code: string }
+   */
+  applyCode: async (code: string) => {
+    const res = await authFetch(`${BASE_URL}/customer/orders/apply-code`, {
+      method: 'POST',
+      auth: true,
+      body: JSON.stringify({ code }),
+    });
+    return handleResponse<{ success: boolean; data: { discount: number; code: string } }>(res);
+  },
 };
 
 export const authApi = {
