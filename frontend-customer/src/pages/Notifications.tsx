@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, Loader2 } from 'lucide-react';
+import { profileApi } from '../services/api';
 
 const NOTIFICATION_GROUPS = [
   {
@@ -36,6 +37,20 @@ export function NotificationsPage() {
   );
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Load preferences from backend on mount
+  useEffect(() => {
+    profileApi.getNotificationPrefs()
+      .then(res => {
+        if (res.success && res.data) {
+          setState(prev => ({ ...prev, ...res.data as Record<string, boolean> }));
+        }
+      })
+      .catch(() => { /* fallback to defaults */ })
+      .finally(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const toggle = (id: string) => {
     setState(s => ({ ...s, [id]: !s[id] }));
@@ -44,11 +59,15 @@ export function NotificationsPage() {
 
   const handleSave = async () => {
     setSaving(true);
-    // ── TODO: wire profileApi.updateNotificationPrefs(state) ──
-    await new Promise(r => setTimeout(r, 800));
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    try {
+      await profileApi.updateNotificationPrefs(state);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch {
+      alert('Không thể lưu. Vui lòng thử lại.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const Toggle = ({ checked }: { checked: boolean }) => (

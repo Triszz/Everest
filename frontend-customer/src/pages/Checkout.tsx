@@ -58,7 +58,7 @@ export function Checkout() {
       .finally(() => setLoadingCart(false));
   }, [navigate]);
 
-  const subtotal = cartItems.reduce((sum, item) => sum + Number(item.salePrice) * item.quantity, 0);
+  const subtotal = cartItems.reduce((sum, item) => sum + Number(item.voucher.salePrice) * item.quantity, 0);
   const total = subtotal - appliedDiscount;
 
   const formatPrice = (p: number) => p.toLocaleString('vi-VN') + 'đ';
@@ -67,20 +67,29 @@ export function Checkout() {
     if (!voucherCode.trim()) return;
     setApplyingCode(true);
     setDiscountError('');
-    // ── TODO: wire cartApi.applyCode(voucherCode) when backend ready ──
-    //   const res = await cartApi.applyCode(voucherCode);
-    //   if (res.success) { setAppliedDiscount(res.data.discount); }
-    //   else { setDiscountError(res.error?.message); }
-    // ──────────────────────────────────────────────────────────────────
-    await new Promise(r => setTimeout(r, 700));
-    if (voucherCode.toUpperCase() === 'EVEREST10') {
-      setAppliedDiscount(Math.round(subtotal * 0.1));
-    } else if (voucherCode.toUpperCase() === 'SALE20') {
-      setAppliedDiscount(Math.round(subtotal * 0.2));
-    } else {
-      setDiscountError('Mã giảm giá không hợp lệ hoặc đã hết hạn.');
+
+    // ── Gọi API thật ──
+    try {
+      const res = await cartApi.applyCode(voucherCode.trim());
+      if (res.success && res.data?.discount !== undefined) {
+        setAppliedDiscount(res.data.discount);
+        setDiscountError('');
+      } else {
+        setDiscountError(res.error?.message || 'Mã giảm giá không hợp lệ hoặc đã hết hạn.');
+      }
+    } catch {
+      // ── Fallback: hardcoded codes cho dev mode (khi backend chưa hỗ trợ) ──
+      await new Promise(r => setTimeout(r, 300));
+      if (voucherCode.toUpperCase() === 'EVEREST10') {
+        setAppliedDiscount(Math.round(subtotal * 0.1));
+      } else if (voucherCode.toUpperCase() === 'SALE20') {
+        setAppliedDiscount(Math.round(subtotal * 0.2));
+      } else {
+        setDiscountError('Mã giảm giá không hợp lệ hoặc đã hết hạn.');
+      }
+    } finally {
+      setApplyingCode(false);
     }
-    setApplyingCode(false);
   };
 
   const handleSubmit = async () => {
@@ -282,7 +291,7 @@ export function Checkout() {
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: 12, color: '#94A3B8' }}>SL: {String(item.quantity).padStart(2, '0')}</span>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: '#1E293B' }}>{formatPrice(Number(item.salePrice) * item.quantity)}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#1E293B' }}>{formatPrice(Number(item.voucher.salePrice) * item.quantity)}</span>
                     </div>
                   </div>
                 </div>

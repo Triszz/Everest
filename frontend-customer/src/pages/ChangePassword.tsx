@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Loader2, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { profileApi } from '../services/api';
 
 export function ChangePasswordPage() {
   const navigate = useNavigate();
@@ -30,13 +31,18 @@ export function ChangePasswordPage() {
     e.preventDefault();
     if (!validate()) return;
     setLoading(true);
-    // ── TODO: wire profileApi.changePassword(current, next) when backend ready ──
-    //   const res = await profileApi.changePassword(form.current, form.next);
-    //   if (res.success) { setSuccess(true); } else { setErrors({ current: res.error?.message }); }
-    // ─────────────────────────────────────────────────────────────────────────────
-    await new Promise(r => setTimeout(r, 1500));
-    setLoading(false);
-    setSuccess(true);
+    try {
+      const res = await profileApi.changePassword({ currentPassword: form.current, newPassword: form.next });
+      if (res.success) {
+        setSuccess(true);
+      } else {
+        setErrors({ current: res.error?.message || 'Đổi mật khẩu thất bại.' });
+      }
+    } catch (err: any) {
+      setErrors({ current: err.message || 'Đã xảy ra lỗi. Vui lòng thử lại.' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (success) {

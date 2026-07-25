@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, ArrowLeft, Loader2, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { authApi } from '../services/api';
 
 // ── Forgot Password Page ─────────────────────────────────────────────────────
 // Flow: Nhập email → loading → Màn hình xác nhận gửi email
-// API: authApi.forgotPassword(email) — wire khi backend sẵn sàng
-//       endpoint: POST /api/auth/forgot-password
 
 export function ForgotPasswordPage() {
   const navigate = useNavigate();
@@ -32,20 +31,18 @@ export function ForgotPasswordPage() {
 
     setLoading(true);
 
-    // ── TODO: wire authApi.forgotPassword(email) khi backend sẵn sàng ──
-    // Ví dụ:
-    //   const res = await authApi.forgotPassword(email);
-    //   if (res.success) { setSubmitted(true); } else { setError(res.error?.message); }
-    //
-    // Backend expected: POST /api/auth/forgot-password
-    //   body: { email: string }
-    //   response: { success: boolean; message: string }
-    // ───────────────────────────────────────────────────────────────────────
-
-    // Mock: giả lập 1.5s network delay
-    await new Promise(res => setTimeout(res, 1500));
-    setLoading(false);
-    setSubmitted(true);
+    try {
+      const res = await authApi.forgotPassword(email);
+      if (res.success) {
+        setSubmitted(true);
+      } else {
+        setError(res.error?.message || 'Gửi yêu cầu thất bại. Vui lòng thử lại.');
+      }
+    } catch {
+      setError('Đã xảy ra lỗi. Vui lòng thử lại.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // ── Success State ─────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { orderApi } from '../services/api';
 import type { IssuedVoucher } from '../services/api';
@@ -480,12 +480,12 @@ function VoucherModal({ v, onClose }: { v: IssuedVoucher; onClose: () => void })
 
 export function MyVoucher() {
   const [activeTab, setActiveTab] = useState<Tab>('all');
-  const [vouchers, setVouchers] = useState<IssuedVoucher[]>(MOCK_VOUCHERS);
+  const [vouchers, setVouchers] = useState<IssuedVoucher[]>([]);
   const [loading, setLoading] = useState(false);
-  const [usingMock, setUsingMock] = useState(true);
+  const [apiError, setApiError] = useState<string | null>(null);
   const [selectedVoucher, setSelectedVoucher] = useState<IssuedVoucher | null>(null);
 
-  // Fetch from API on mount; fallback to mock if API fails
+  // Fetch from API on mount; fallback to mock only on network/server error
   useEffect(() => {
     fetchVouchers();
   }, []);
@@ -493,15 +493,17 @@ export function MyVoucher() {
   const fetchVouchers = useCallback(async () => {
     try {
       setLoading(true);
+      setApiError(null);
       const res = await orderApi.listIssuedVouchers();
-      if (res.success && res.data?.length) {
-        setVouchers(res.data);
-        setUsingMock(false);
+      if (res.success) {
+        setVouchers(res.data ?? []);
       } else {
-        setUsingMock(true);
+        setApiError(res.error?.message || 'Không thể tải danh sách voucher.');
+        setVouchers(MOCK_VOUCHERS);
       }
     } catch {
-      setUsingMock(true);
+      setApiError('Không thể kết nối server. Hiển thị dữ liệu mẫu.');
+      setVouchers(MOCK_VOUCHERS);
     } finally {
       setLoading(false);
     }
@@ -556,25 +558,25 @@ export function MyVoucher() {
                 style={{
                   display: 'flex', alignItems: 'center', gap: 6,
                   padding: '8px 16px',
-                  background: usingMock ? '#FEF9C3' : '#F0F9FF',
-                  color: usingMock ? '#92400E' : '#0E76A8',
-                  border: `1.5px solid ${usingMock ? '#FDE047' : '#BAE6FD'}`,
+                  background: apiError ? '#FEF9C3' : '#F0F9FF',
+                  color: apiError ? '#92400E' : '#0E76A8',
+                  border: `1.5px solid ${apiError ? '#FDE047' : '#BAE6FD'}`,
                   borderRadius: 10,
                   fontFamily: 'Inter, sans-serif', fontSize: 12, fontWeight: 700,
                   cursor: loading ? 'not-allowed' : 'pointer', transition: 'all 0.2s',
                 }}
               >
                 <RefreshCw size={13} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
-                {usingMock ? 'Mock data' : 'Tải lại'}
+                {apiError ? 'Tải lại' : 'Tải lại'}
               </button>
             </div>
 
-            {/* Mock notice */}
-            {usingMock && (
+            {/* Mock notice — chỉ hiện khi API lỗi */}
+            {apiError && (
               <div style={{ background: '#FEF9C3', border: '1px solid #FDE047', borderRadius: 10, padding: '10px 14px', marginBottom: 16, display: 'flex', gap: 8, alignItems: 'center' }}>
                 <RefreshCw size={14} style={{ color: '#CA8A04', flexShrink: 0 }} />
                 <p style={{ fontSize: 12, color: '#92400E', margin: 0, fontFamily: 'Inter, sans-serif' }}>
-                  Đang hiển thị dữ liệu mẫu. Kết nối backend `GET /customer/issued-vouchers` để xem dữ liệu thật.
+                  {apiError} — Đang hiển thị dữ liệu mẫu.
                 </p>
               </div>
             )}

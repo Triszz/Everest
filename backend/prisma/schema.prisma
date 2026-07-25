@@ -104,6 +104,10 @@ model User {
   orders      Order[]
   reviews     Review[]
   logs        SystemLog[]
+  feedbacks   Feedback[]
+  passwordResets PasswordReset[]
+  notificationPreferences NotificationPreference[]
+  sessions UserSession[]
 
   @@map("users")
 }
@@ -249,6 +253,7 @@ model Order {
 
   customer    User            @relation(fields: [customerId], references: [userId], onDelete: Restrict)
   orderItems  OrderItem[]
+  feedbacks   Feedback[]
 
   @@map("orders")
 }
@@ -299,6 +304,69 @@ model Review {
   issuedVoucher IssuedVoucher? @relation(fields: [issuedVoucherId], references: [issuedVoucherId], onDelete: SetNull)
 
   @@map("reviews")
+}
+
+model Feedback {
+  feedbackId Int      @id @default(autoincrement()) @map("feedback_id")
+  customerId String?  @map("customer_id") @db.Uuid
+  type       String   @map("type") @db.VarChar(50) // general | order | voucher | complaint
+  subject    String   @db.VarChar(255)
+  message   String   @db.Text
+  email     String   @db.VarChar(100)
+  phone     String?  @map("phone") @db.VarChar(15)
+  orderId   Int?     @map("order_id")
+  voucherCode String? @map("voucher_code") @db.VarChar(50)
+  status    String   @default("Open") @map("status") @db.VarChar(30) // Open | InProgress | Resolved | Closed
+  ticketId  String   @unique @map("ticket_id") @db.VarChar(30)
+  ipAddress String?  @map("ip_address") @db.VarChar(45)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  customer User?   @relation(fields: [customerId], references: [userId], onDelete: SetNull)
+  order   Order?  @relation(fields: [orderId], references: [orderId], onDelete: SetNull)
+
+  @@map("feedbacks")
+}
+
+model PasswordReset {
+  resetId   Int       @id @default(autoincrement()) @map("reset_id")
+  userId    String    @map("user_id") @db.Uuid
+  token     String    @unique @map("token") @db.VarChar(255)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz
+  usedAt    DateTime? @map("used_at") @db.Timestamptz
+  ipAddress String?   @map("ip_address") @db.VarChar(45)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@map("password_resets")
+}
+
+model NotificationPreference {
+  prefId   Int      @id @default(autoincrement()) @map("pref_id")
+  userId    String   @unique @map("user_id") @db.Uuid
+  prefs     Json     @default("{}") @map("prefs")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@map("notification_preferences")
+}
+
+model UserSession {
+  sessionId   String   @id @default(uuid()) @map("session_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  deviceType  String?  @map("device_type") @db.VarChar(50)
+  userAgent   String?  @map("user_agent") @db.VarChar(500)
+  ipAddress   String?  @map("ip_address") @db.VarChar(45)
+  expiresAt   DateTime @map("expires_at") @db.Timestamptz
+  revokedAt   DateTime? @map("revoked_at") @db.Timestamptz
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_sessions")
 }
 
 model SystemLog {
