@@ -58,7 +58,7 @@ export function Checkout() {
       .finally(() => setLoadingCart(false));
   }, [navigate]);
 
-  const subtotal = cartItems.reduce((sum, item) => sum + Number(item.salePrice) * item.quantity, 0);
+  const subtotal = cartItems.reduce((sum, item) => sum + Number(item.voucher.salePrice) * item.quantity, 0);
   const total = subtotal - appliedDiscount;
 
   const formatPrice = (p: number) => p.toLocaleString('vi-VN') + 'đ';
@@ -291,7 +291,7 @@ export function Checkout() {
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: 12, color: '#94A3B8' }}>SL: {String(item.quantity).padStart(2, '0')}</span>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: '#1E293B' }}>{formatPrice(Number(item.salePrice) * item.quantity)}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#1E293B' }}>{formatPrice(Number(item.voucher.salePrice) * item.quantity)}</span>
                     </div>
                   </div>
                 </div>
