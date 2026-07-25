@@ -1,7 +1,7 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { UtensilsCrossed, Wifi, ShoppingBag, Car, Loader2, CheckCircle2 } from 'lucide-react';
-import { voucherApi, cartApi } from '../services/api';
+import { voucherApi, cartApi, reviewApi } from '../services/api';
 import type { Voucher, Review } from '../services/api';
 
 export function VoucherDetail() {
@@ -118,28 +118,25 @@ export function VoucherDetail() {
     if (!reviewComment.trim()) return;
 
     setSubmittingReview(true);
-    // ── TODO: wire reviewApi.create(...) when backend is ready ──
-    //   const res = await reviewApi.create({ voucherId: voucher.voucherId, rating: reviewRating, comment: reviewComment });
-    //   if (res.success) { setReviewSuccess(true); setTimeout(() => setReviewSuccess(false), 3000); }
-    // Backend: POST /api/customer/vouchers/:id/reviews
-    // ──────────────────────────────────────────────────────────────
-    await new Promise(res => setTimeout(res, 1000));
-    const newReview: Review = {
-      reviewId: Date.now(),
-      voucherId: voucher.voucherId,
-      customerId: 'current-user',
-      rating: reviewRating,
-      comment: reviewComment,
-      createdAt: new Date().toISOString(),
-      customer: JSON.parse(localStorage.getItem('user') || '{}'),
-    };
-    setReviews(prev => [newReview, ...prev]);
-    setReviewComment('');
-    setReviewRating(5);
-    setSubmittingReview(false);
-    setReviewSuccess(true);
-    setShowReviewForm(false);
-    setTimeout(() => setReviewSuccess(false), 3000);
+    try {
+      const res = await reviewApi.create(voucher.voucherId, {
+        rating: reviewRating,
+        comment: reviewComment,
+      });
+      if (res.success) {
+        setReviewSuccess(true);
+        setReviewComment('');
+        setReviewRating(5);
+        setShowReviewForm(false);
+        setTimeout(() => setReviewSuccess(false), 3000);
+      } else {
+        throw new Error(res.error?.message || 'Gửi đánh giá thất bại.');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Đã xảy ra lỗi. Vui lòng thử lại.');
+    } finally {
+      setSubmittingReview(false);
+    }
   };
 
   return (

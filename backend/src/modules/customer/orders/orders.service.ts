@@ -139,10 +139,23 @@ export const ordersService = {
   async checkoutOrder(customerId: string, orderId: number, input: CheckoutInput) {
     const { paymentMethod } = input;
 
-    // Fetch order
+    // Fetch order with explicit voucher+partner selection
     const order = await prisma.order.findFirst({
       where: { orderId, customerId },
-      include: { orderItems: { include: { voucher: true } } },
+      include: {
+        orderItems: {
+          include: {
+            voucher: {
+              select: {
+                title: true,
+                imageUrl: true,
+                expiryDays: true,
+                partner: { select: { companyName: true } },
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!order) {

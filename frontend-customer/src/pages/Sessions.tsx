@@ -1,59 +1,66 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Monitor, Smartphone, Globe, Clock, Trash2, Loader2, CheckCircle2 } from 'lucide-react';
-
-const now = new Date();
+import { authApi } from '../services/api';
 
 function formatDate(d: Date) {
   return d.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-const MOCK_SESSIONS = [
-  {
-    id: 'sess-001',
-    device: 'Desktop',
-    browser: 'Chrome 136.0 / Windows 11',
-    ip: '113.xxx.xxx.22',
-    location: 'TP. Hồ Chí Minh, Việt Nam',
-    lastActive: new Date(now.getTime() - 5 * 60000),
-    current: true,
-    icon: Monitor,
-  },
-  {
-    id: 'sess-002',
-    device: 'Mobile',
-    browser: 'Safari 18.3 / iOS 18.4',
-    ip: '171.xxx.xxx.89',
-    location: 'TP. Hồ Chí Minh, Việt Nam',
-    lastActive: new Date(now.getTime() - 2 * 3600000),
-    current: false,
-    icon: Smartphone,
-  },
-  {
-    id: 'sess-003',
-    device: 'Desktop',
-    browser: 'Firefox 128.0 / macOS',
-    ip: '14.xxx.xxx.201',
-    location: 'Hà Nội, Việt Nam',
-    lastActive: new Date(now.getTime() - 3 * 86400000),
-    current: false,
-    icon: Monitor,
-  },
-];
+interface Session {
+  id: string;
+  device: string;
+  browser: string;
+  ip: string;
+  location: string;
+  lastActive: string;
+  expiresAt: string;
+  current: boolean;
+}
 
-function timeAgo(d: Date) {
-  const diff = Math.floor((now.getTime() - d.getTime()) / 1000);
+function timeAgo(dateStr: string) {
+  const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
   if (diff < 60) return `${diff} giây trước`;
   if (diff < 3600) return `${Math.floor(diff / 60)} phút trước`;
   if (diff < 86400) return `${Math.floor(diff / 3600)} giờ trước`;
   return `${Math.floor(diff / 86400)} ngày trước`;
 }
 
+function detectDevice(userAgent: string): { label: string; Icon: typeof Monitor } {
+  if (/mobile|android|iphone/i.test(userAgent)) return { label: 'Mobile', Icon: Smartphone };
+  return { label: 'Desktop', Icon: Monitor };
+}
+
 export function SessionsPage() {
   const navigate = useNavigate();
-  const [sessions, setSessions] = useState(MOCK_SESSIONS);
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [loadingSessions, setLoadingSessions] = useState(true);
   const [loading, setLoading] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
+
+  // Load sessions on mount
+  useEffect(() => {
+    authApi.me().then(meRes => {
+      if (!meRes.success) { navigate('/login'); return; }
+      // Fetch sessions list
+      fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/auth/sessions`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` },
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            const currentId = localStorage.getItem('current_session_id');
+            setSessions(data.data.map((s: any) => ({
+              ...s,
+              lastActive: s.lastActive || s.createdAt,
+              current: s.id === currentId,
+            })));
+          }
+        })
+        .catch(() => {})
+        .finally(() => setLoadingSessions(false));
+    });
+  }, [navigate]);
 
   const handleRevoke = async (id: string) => {
     if (sessions.find(s => s.id === id)?.current) {
@@ -61,14 +68,46 @@ export function SessionsPage() {
       return;
     }
     setLoading(id);
-    // ── TODO: wire authApi.revokeSession(id) when backend ready ──
-    // ──────────────────────────────────────────────────────────────
-    await new Promise(r => setTimeout(r, 800));
-    setSessions(prev => prev.filter(s => s.id !== id));
-    setLoading(null);
+    try {
+      const res = await authApi.revokeSession(id);
+      if (res.success) {
+        setSessions(prev => prev.filter(s => s.id !== id));
+      } else {
+        alert(res.error?.message || 'Không thể đăng xuất thiết bị.');
+      }
+    } catch {
+      alert('Đã xảy ra lỗi.');
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const handleRevokeAll = async () => {
+    if (!confirm('Đăng xuất tất cả các thiết bị khác?')) return;
+    setLoading('all');
+    try {
+      const res = await authApi.revokeAllOtherSessions();
+      if (res.success) {
+        setSessions(prev => prev.filter(s => s.current));
+      } else {
+        alert(res.error?.message || 'Không thể đăng xuất.');
+      }
+    } catch {
+      alert('Đã xảy ra lỗi.');
+    } finally {
+      setLoading(null);
+    }
   };
 
   const displayed = showAll ? sessions : sessions.slice(0, 2);
+
+  if (loadingSessions) {
+    return (
+      <div style={{ background: '#F8FAFC', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Loader2 size={32} style={{ animation: 'spin 1s linear infinite', color: '#0E76A8' }} />
+      </div>
+    );
+  }
 
   return (
     <div style={{ background: '#F8FAFC', minHeight: '100vh' }}>
@@ -97,7 +136,7 @@ export function SessionsPage() {
         {/* Session list */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {displayed.map(session => {
-            const Icon = session.icon;
+            const { Icon } = detectDevice(session.browser);
             const isLoading = loading === session.id;
             return (
               <div
@@ -185,16 +224,13 @@ export function SessionsPage() {
             Nếu bạn nghi ngờ tài khoản bị xâm nhập, hãy đăng xuất tất cả các thiết bị khác và đổi mật khẩu ngay.
           </p>
           <button
-            onClick={async () => {
-              if (!confirm('Đăng xuất tất cả các thiết bị khác?')) return;
-              // ── TODO: wire authApi.revokeAllOtherSessions() ──
-              setSessions(prev => prev.filter(s => s.current));
-            }}
-            style={{ padding: '10px 20px', background: '#DC2626', color: 'white', border: 'none', borderRadius: 10, fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s' }}
-            onMouseEnter={e => (e.currentTarget.style.background = '#B91C1C')}
-            onMouseLeave={e => (e.currentTarget.style.background = '#DC2626')}
+            onClick={handleRevokeAll}
+            disabled={loading === 'all'}
+            style={{ padding: '10px 20px', background: loading === 'all' ? '#FCA5A5' : '#DC2626', color: 'white', border: 'none', borderRadius: 10, fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 700, cursor: loading === 'all' ? 'wait' : 'pointer', transition: 'background 0.2s' }}
+            onMouseEnter={e => { if (loading !== 'all') e.currentTarget.style.background = '#B91C1C'; }}
+            onMouseLeave={e => { if (loading !== 'all') e.currentTarget.style.background = '#DC2626'; }}
           >
-            Đăng xuất tất cả thiết bị khác
+            {loading === 'all' ? 'Đang đăng xuất...' : 'Đăng xuất tất cả thiết bị khác'}
           </button>
         </div>
       </div>

@@ -16,6 +16,7 @@ import { ProfilePage } from './pages/Profile';
 import { SettingsPage } from './pages/Settings';
 import { EditProfilePage } from './pages/EditProfile';
 import { FeedbackPage } from './pages/Feedback';
+import { ResetPasswordPage } from './pages/ResetPassword';
 import { ChangePasswordPage } from './pages/ChangePassword';
 import { SessionsPage } from './pages/Sessions';
 import { NotificationsPage } from './pages/Notifications';
@@ -44,6 +45,7 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/logout" element={<LogoutSuccessPage />} />
           <Route path="/voucher/:id" element={<VoucherDetail />} />
           <Route path="/vouchers" element={<VouchersPage />} />

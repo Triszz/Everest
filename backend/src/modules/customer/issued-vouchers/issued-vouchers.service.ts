@@ -6,15 +6,15 @@ export const issuedVouchersService = {
     const { status, page, pageSize } = query;
     const skip = (page - 1) * pageSize;
 
-    const where = {
+    const where: Record<string, unknown> = {
       orderItem: {
         order: {
           customerId,
-          paymentStatus: "Paid", // only paid orders
+          paymentStatus: "Paid",
         },
       },
-      ...(status ? { status } : {}),
     };
+    if (status) where.status = status;
 
     const [vouchers, total] = await Promise.all([
       prisma.issuedVoucher.findMany({

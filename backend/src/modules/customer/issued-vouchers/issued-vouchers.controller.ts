@@ -8,7 +8,7 @@ export const issuedVouchersController = {
       const customerId = req.user!.userId;
       const query = req.query;
 
-      const status = query.status as string | undefined;
+      const status = query.status as "Unused" | "Used" | "Expired" | "Locked" | undefined;
       const page = Number(query.page) || 1;
       const pageSize = Number(query.pageSize) || 20;
 

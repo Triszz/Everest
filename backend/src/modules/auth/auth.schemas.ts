@@ -43,3 +43,17 @@ export const changePasswordSchema = z.object({
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterCustomerInput = z.infer<typeof registerCustomerSchema>;
 export type RegisterPartnerInput = z.infer<typeof registerPartnerSchema>;
+
+export interface AuthResponse {
+  accessToken: string;
+  refreshToken: string;
+  sessionId?: string;
+  user: {
+    userId: string;
+    email: string;
+    fullName: string;
+    role: string;
+    status: string;
+    partnerId?: number | null;
+  };
+}

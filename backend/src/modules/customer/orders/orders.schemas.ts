@@ -31,9 +31,7 @@ export const createOrderSchema = z.object({
 // ── Checkout ───────────────────────────────────────────────────────────────────
 
 export const checkoutSchema = z.object({
-  paymentMethod: z.enum(["atm", "momo", "visa"], {
-    errorMap: () => ({ message: "Phương thức thanh toán không hợp lệ" }),
-  }),
+  paymentMethod: z.enum(["atm", "momo", "visa"]),
   // Trong tương lai: thêm OTP verification, payment gateway response...
 });
 

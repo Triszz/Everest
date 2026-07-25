@@ -223,6 +223,7 @@ export interface AuthResponse {
   user: User;
   accessToken: string;
   refreshToken: string;
+  sessionId?: string;
 }
 
 export interface MeResponse {
@@ -372,6 +373,41 @@ export const authApi = {
     });
     return handleResponse<{ success: boolean; data: AuthResponse }>(res);
   },
+
+  /**
+   * B4: POST /api/auth/forgot-password
+   * Luôn trả về success=true (tránh user enumeration)
+   */
+  forgotPassword: async (email: string) => {
+    const res = await fetch(`${BASE_URL}/auth/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    return handleResponse<{ success: boolean; message?: string }>(res);
+  },
+
+  /**
+   * B9: POST /api/auth/sessions/:sessionId/revoke — Đăng xuất 1 phiên
+   */
+  revokeSession: async (sessionId: string) => {
+    const res = await authFetch(`${BASE_URL}/auth/sessions/${sessionId}/revoke`, {
+      method: 'POST',
+      auth: true,
+    });
+    return handleResponse<{ success: boolean; message?: string }>(res);
+  },
+
+  /**
+   * B9: POST /api/auth/sessions/revoke-all — Đăng xuất tất cả phiên khác
+   */
+  revokeAllOtherSessions: async () => {
+    const res = await authFetch(`${BASE_URL}/auth/sessions/revoke-all`, {
+      method: 'POST',
+      auth: true,
+    });
+    return handleResponse<{ success: boolean; message?: string }>(res);
+  },
 };
 
 export const profileApi = {
@@ -396,6 +432,27 @@ export const profileApi = {
       body: JSON.stringify(data),
     });
     return handleResponse<{ success: boolean; data: null; message: string }>(res);
+  },
+
+  /**
+   * B10: PUT /api/customer/notifications/preferences
+   * Body: { n1?: boolean, n2?: boolean, ..., n9?: boolean }
+   */
+  updateNotificationPrefs: async (prefs: Record<string, boolean>) => {
+    const res = await authFetch(`${BASE_URL}/customer/notifications/preferences`, {
+      method: 'PUT',
+      auth: true,
+      body: JSON.stringify(prefs),
+    });
+    return handleResponse<{ success: boolean; data: Record<string, boolean>; message: string }>(res);
+  },
+
+  /**
+   * B10: GET /api/customer/notifications/preferences
+   */
+  getNotificationPrefs: async () => {
+    const res = await authFetch(`${BASE_URL}/customer/notifications/preferences`, { auth: true });
+    return handleResponse<{ success: boolean; data: Record<string, boolean> }>(res);
   },
 };
 
@@ -610,5 +667,31 @@ export const feedbackApi = {
       body: JSON.stringify(payload),
     });
     return handleResponse<{ success: boolean; data: FeedbackSubmitResponse }>(res);
+  },
+};
+
+// ── Review API ─────────────────────────────────────────────────────────────────
+
+export interface ReviewPayload {
+  rating: number;
+  comment: string;
+  issuedVoucherId?: number;
+}
+
+export const reviewApi = {
+  /**
+   * B6: POST /api/vouchers/:id/reviews
+   * Tạo / cập nhật đánh giá voucher.
+   */
+  create: async (voucherId: number, payload: ReviewPayload) => {
+    const res = await authFetch(`${BASE_URL}/vouchers/${voucherId}/reviews`, {
+      method: 'POST',
+      auth: true,
+      body: JSON.stringify(payload),
+    });
+    return handleResponse<{
+      success: boolean;
+      data: { reviewId: number; rating: number; comment: string; updated: boolean };
+    }>(res);
   },
 };

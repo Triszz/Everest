@@ -6,9 +6,7 @@ const STATUS_VALUES = ["Open", "InProgress", "Resolved", "Closed"] as const;
 // ── Submit feedback ─────────────────────────────────────────────────────────────
 
 export const submitFeedbackSchema = z.object({
-  type: z.enum(FEEDBACK_TYPES, {
-    errorMap: () => ({ message: "Loại phản hồi không hợp lệ" }),
-  }),
+  type: z.enum(["general", "order", "voucher", "complaint"]),
   subject: z
     .string()
     .min(10, "Tiêu đề phải có ít nhất 10 ký tự")
