@@ -25,7 +25,12 @@ import type {
   ListPoliciesInput,
   GetPolicyByTypeInput,
   UpsertPolicyInput,
+  ListBannersInput,
+  CreateBannerInput,
+  UpdateBannerInput,
+  UpdateBannerStatusInput,
 } from "./admin.schemas";
+import type { BannerStatus } from "../../generated/prisma/enums";
 import { buildPaginated, getPagination } from "../../shared/utils/paginate";
 
 export const adminService = {
@@ -759,5 +764,138 @@ export const adminService = {
         updatedAt: true,
       },
     });
+  },
+
+  async deletePolicy(policyId: number) {
+    await prisma.policy.delete({ where: { policyId } });
+    return { deleted: true, policyId };
+  },
+
+  // ─── Banner Management ────────────────────────────────────────────────────
+
+  async listBanners(input: ListBannersInput) {
+    const { page, limit, skip } = getPagination({ page: input.page, limit: input.limit });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const where: any = {};
+    if (input.status) where.status = input.status as BannerStatus;
+    if (input.search) {
+      where.OR = [
+        { title: { contains: input.search, mode: "insensitive" } },
+        { imageUrl: { contains: input.search, mode: "insensitive" } },
+      ];
+    }
+
+    const [banners, total] = await Promise.all([
+      prisma.banner.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: [{ status: "desc" }, { createdAt: "desc" }],
+        select: {
+          bannerId: true,
+          title: true,
+          imageUrl: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
+      prisma.banner.count({ where }),
+    ]);
+
+    return buildPaginated(banners, total, page, limit);
+  },
+
+  async getBannerById(bannerId: number) {
+    const banner = await prisma.banner.findUnique({
+      where: { bannerId },
+      select: {
+        bannerId: true,
+        title: true,
+        imageUrl: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    if (!banner) throw new AppError("Banner không tồn tại", 404, "NOT_FOUND");
+    return banner;
+  },
+
+  async createBanner(input: CreateBannerInput) {
+    return prisma.banner.create({
+      data: {
+        title: input.title,
+        imageUrl: input.imageUrl,
+        status: (input.status ?? "Hidden") as BannerStatus,
+      },
+      select: {
+        bannerId: true,
+        title: true,
+        imageUrl: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  },
+
+  async updateBanner(bannerId: number, input: UpdateBannerInput) {
+    const banner = await prisma.banner.findUnique({ where: { bannerId } });
+    if (!banner) throw new AppError("Banner không tồn tại", 404, "NOT_FOUND");
+
+    return prisma.banner.update({
+      where: { bannerId },
+      data: {
+        ...(input.title !== undefined ? { title: input.title } : {}),
+        ...(input.imageUrl !== undefined ? { imageUrl: input.imageUrl } : {}),
+      },
+      select: {
+        bannerId: true,
+        title: true,
+        imageUrl: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  },
+
+  async updateBannerStatus(bannerId: number, input: UpdateBannerStatusInput) {
+    const banner = await prisma.banner.findUnique({ where: { bannerId } });
+    if (!banner) throw new AppError("Banner không tồn tại", 404, "NOT_FOUND");
+
+    const nextStatus = input.status as BannerStatus;
+
+    // Visibility is a single-active-banner constraint:
+    // - Switching to Visible => every other banner must be Hidden.
+    // - Switching to Hidden  => leave the others untouched.
+    if (nextStatus === "Visible") {
+      await prisma.banner.updateMany({
+        where: { bannerId: { not: bannerId } },
+        data: { status: "Hidden" },
+      });
+    }
+
+    return prisma.banner.update({
+      where: { bannerId },
+      data: { status: nextStatus },
+      select: {
+        bannerId: true,
+        title: true,
+        imageUrl: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  },
+
+  async deleteBanner(bannerId: number) {
+    const banner = await prisma.banner.findUnique({ where: { bannerId } });
+    if (!banner) throw new AppError("Banner không tồn tại", 404, "NOT_FOUND");
+    await prisma.banner.delete({ where: { bannerId } });
+    return { deleted: true, bannerId, deletedAt: new Date() };
   },
 };

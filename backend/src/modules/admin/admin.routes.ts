@@ -40,5 +40,13 @@ router.patch("/vouchers/:voucherId/display", adminController.setVoucherDisplaySt
 router.get("/policies", adminController.listPolicies);
 router.get("/policies/:policyId", adminController.getPolicyById);
 router.put("/policies", adminController.upsertPolicy);
+router.delete("/policies", adminController.deletePolicy);
+
+router.get("/banners", adminController.listBanners);
+router.get("/banners/:bannerId", adminController.getBannerById);
+router.post("/banners", adminController.createBanner);
+router.patch("/banners/:bannerId", adminController.updateBanner);
+router.patch("/banners/:bannerId/status", adminController.updateBannerStatus);
+router.delete("/banners/:bannerId", adminController.deleteBanner);
 
 export default router;

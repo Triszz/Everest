@@ -31,6 +31,12 @@ import {
   listPoliciesSchema,
   getPolicyByIdSchema,
   upsertPolicySchema,
+  deletePolicySchema,
+  listBannersSchema,
+  getBannerByIdSchema,
+  createBannerSchema,
+  updateBannerSchema,
+  updateBannerStatusSchema,
 } from "./admin.schemas";
 
 const parseQuery = <T>(schema: { parse: (v: unknown) => T }, value: unknown): T => {
@@ -247,5 +253,55 @@ export const adminController = {
     const input = parseBody(upsertPolicySchema, req.body);
     const data = await adminService.upsertPolicy(input);
     res.json({ success: true, data, message: "Lưu chính sách thành công" });
+  }),
+
+  deletePolicy: asyncHandler(async (req: Request, res: Response) => {
+    const input = parseBody(deletePolicySchema, req.body);
+    await adminService.deletePolicy(input.policyId);
+    res.json({ success: true, message: "Xóa chính sách thành công" });
+  }),
+
+  // ─── Banner Management ───────────────────────────────────────────────────
+
+  listBanners: asyncHandler(async (req: Request, res: Response) => {
+    const input = parseQuery(listBannersSchema, req.query);
+    const data = await adminService.listBanners(input);
+    res.json({ success: true, data });
+  }),
+
+  getBannerById: asyncHandler(async (req: Request, res: Response) => {
+    const { bannerId } = parseQuery(getBannerByIdSchema, req.params);
+    const data = await adminService.getBannerById(bannerId);
+    res.json({ success: true, data });
+  }),
+
+  createBanner: asyncHandler(async (req: Request, res: Response) => {
+    const input = parseBody(createBannerSchema, req.body);
+    const data = await adminService.createBanner(input);
+    res.json({ success: true, data, message: "Tạo banner thành công" });
+  }),
+
+  updateBanner: asyncHandler(async (req: Request, res: Response) => {
+    const { bannerId } = parseQuery(getBannerByIdSchema, req.params);
+    const input = parseBody(updateBannerSchema, req.body);
+    const data = await adminService.updateBanner(bannerId, input);
+    res.json({ success: true, data, message: "Cập nhật banner thành công" });
+  }),
+
+  updateBannerStatus: asyncHandler(async (req: Request, res: Response) => {
+    const { bannerId } = parseQuery(getBannerByIdSchema, req.params);
+    const input = parseBody(updateBannerStatusSchema, req.body);
+    const data = await adminService.updateBannerStatus(bannerId, input);
+    const msg =
+      input.status === "Visible"
+        ? "Hiển thị banner thành công (các banner khác đã được ẩn)"
+        : "Ẩn banner thành công";
+    res.json({ success: true, data, message: msg });
+  }),
+
+  deleteBanner: asyncHandler(async (req: Request, res: Response) => {
+    const { bannerId } = parseQuery(getBannerByIdSchema, req.params);
+    await adminService.deleteBanner(bannerId);
+    res.json({ success: true, message: "Xóa banner thành công" });
   }),
 };

@@ -409,4 +409,88 @@ export const adminPoliciesApi = {
   upsert(body: { title: string; content: string }): Promise<PolicyResponse> {
     return put<PolicyResponse>(`/api/admin/policies`, body, { auth: true }).then((res) => res.data);
   },
+
+  delete(policyId: number): Promise<void> {
+    return del<void>(`/api/admin/policies`, { policyId }, { auth: true }).then((res) => res as unknown as void);
+  },
+};
+
+// ─── Banner API ──────────────────────────────────────────────────────────────────
+
+export type BannerStatus = "Visible" | "Hidden";
+
+export interface BannerResponse {
+  bannerId: number;
+  title: string;
+  imageUrl: string;
+  status: BannerStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const adminBannersApi = {
+  list(params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: BannerStatus;
+  }): Promise<PaginatedList<BannerResponse>> {
+    return get<{
+      data: BannerResponse[];
+      pagination: { page: number; limit: number; total: number; totalPages: number };
+    }>(`/api/admin/banners${buildQueryString(params)}`, {
+      auth: true,
+    }).then((res) => ({
+      list: res.data.data,
+      total: res.data.pagination.total,
+      page: res.data.pagination.page,
+      limit: res.data.pagination.limit,
+      totalPages: res.data.pagination.totalPages,
+    }));
+  },
+
+  getById(bannerId: number): Promise<BannerResponse> {
+    return get<BannerResponse>(`/api/admin/banners/${bannerId}`, {
+      auth: true,
+    }).then((res) => res.data);
+  },
+
+  create(body: {
+    title: string;
+    imageUrl: string;
+    status?: BannerStatus;
+  }): Promise<BannerResponse> {
+    return post<BannerResponse>(`/api/admin/banners`, body, {
+      auth: true,
+    }).then((res) => res.data);
+  },
+
+  update(
+    bannerId: number,
+    body: {
+      title?: string;
+      imageUrl?: string;
+    },
+  ): Promise<BannerResponse> {
+    return patch<BannerResponse>(`/api/admin/banners/${bannerId}`, body, {
+      auth: true,
+    }).then((res) => res.data);
+  },
+
+  updateStatus(
+    bannerId: number,
+    body: { status: BannerStatus },
+  ): Promise<BannerResponse> {
+    return patch<BannerResponse>(
+      `/api/admin/banners/${bannerId}/status`,
+      body,
+      { auth: true },
+    ).then((res) => res.data);
+  },
+
+  delete(bannerId: number): Promise<null> {
+    return del<null>(`/api/admin/banners/${bannerId}`, {
+      auth: true,
+    }).then((res) => res.data);
+  },
 };

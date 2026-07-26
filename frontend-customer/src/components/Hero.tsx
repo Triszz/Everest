@@ -58,7 +58,7 @@ export function Hero() {
         {/* Banner Carousel */}
         <div style={{ position: 'relative', borderRadius: 16, overflow: 'hidden', marginBottom: 24 }}>
           <Link
-            to={currentBanner.targetUrl || '/vouchers'}
+            to="/vouchers"
             style={{ display: 'block', textDecoration: 'none' }}
           >
             <div style={{

@@ -165,8 +165,7 @@ export interface Banner {
   bannerId: number;
   title: string;
   imageUrl: string;
-  targetUrl: string | null;
-  displayOrder: number;
+  status: "Visible" | "Hidden";
 }
 
 // Cart Types

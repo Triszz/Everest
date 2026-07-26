@@ -69,6 +69,21 @@ export function usePolicyManagement() {
     }
   }, []);
 
+  const deletePolicy = useCallback(async (policyId: number) => {
+    setIsSaving(true);
+    setError(null);
+    try {
+      await adminPoliciesApi.delete(policyId);
+      setPolicies((prev) => prev.filter((p) => p.policyId !== policyId));
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Xóa chính sách thất bại.';
+      setError(msg);
+      throw err;
+    } finally {
+      setIsSaving(false);
+    }
+  }, []);
+
   return {
     policies,
     currentPolicy,
@@ -78,6 +93,7 @@ export function usePolicyManagement() {
     fetchPolicies,
     fetchPolicyById,
     savePolicy,
+    deletePolicy,
     setCurrentPolicy,
     setError,
   };

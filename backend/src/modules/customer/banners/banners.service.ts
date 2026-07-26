@@ -7,14 +7,13 @@ export const bannersService = {
         status: "Visible",
       },
       orderBy: {
-        displayOrder: "asc",
+        createdAt: "desc",
       },
       select: {
         bannerId: true,
         title: true,
         imageUrl: true,
-        targetUrl: true,
-        displayOrder: true,
+        status: true,
       },
     });
 
