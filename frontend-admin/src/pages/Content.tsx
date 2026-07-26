@@ -5,6 +5,8 @@ import { usePolicyManagement } from '../hooks/usePolicyManagement'
 import { useBannerManagement } from '../hooks/useBannerManagement'
 import type { CategoryResponse } from '../services/admin.service'
 import type { BannerResponse } from '../services/admin.service'
+import PopupManagement from './PopupManagement'
+import PostManagement from './PostManagement'
 
 interface Article {
   id: string
@@ -31,7 +33,7 @@ const mockArticles: Article[] = [
   { id: 'ART-004', title: 'Giới thiệu đối tác California Fitness', category: 'Tin tức', status: 'PUBLISHED', createdAt: '15/05/2024', author: 'Admin Le' },
 ]
 
-type ContentTab = 'categories' | 'banners' | 'articles' | 'policies'
+type ContentTab = 'categories' | 'banners' | 'popups' | 'posts' | 'policies'
 
 export default function Content() {
   const { showToast } = useToast()
@@ -118,7 +120,8 @@ export default function Content() {
   const tabs: { id: ContentTab; label: string; icon: string }[] = [
     { id: 'categories', label: 'Danh mục', icon: 'category' },
     { id: 'banners', label: 'Banner', icon: 'image' },
-    { id: 'articles', label: 'Bài viết', icon: 'article' },
+    { id: 'popups', label: 'Popup', icon: 'campaign' },
+    { id: 'posts', label: 'Bài viết', icon: 'article' },
     { id: 'policies', label: 'Chính sách', icon: 'policy' },
   ]
 
@@ -438,56 +441,11 @@ export default function Content() {
         </div>
       )}
 
-      {/* Articles Tab */}
-      {activeTab === 'articles' && (
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
-            <button className="admin-btn admin-btn-primary">
-              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
-              Tạo bài viết
-            </button>
-          </div>
-          <div className="admin-card" style={{ overflow: 'hidden' }}>
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>Tiêu đề</th>
-                  <th>Danh mục</th>
-                  <th>Tác giả</th>
-                  <th>Ngày tạo</th>
-                  <th>Trạng thái</th>
-                  <th style={{ textAlign: 'right' }}>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mockArticles.map((article) => (
-                  <tr key={article.id}>
-                    <td><span className="font-body-sm" style={{ fontWeight: 600 }}>{article.title}</span></td>
-                    <td><span className="font-body-sm">{article.category}</span></td>
-                    <td><span className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)' }}>{article.author}</span></td>
-                    <td><span className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)' }}>{article.createdAt}</span></td>
-                    <td>
-                      <span className={`badge ${article.status === 'PUBLISHED' ? 'badge-active' : 'badge-info'}`}>
-                        {article.status === 'PUBLISHED' ? 'Đã đăng' : 'Nháp'}
-                      </span>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'flex-end' }}>
-                        <button className="admin-btn admin-btn-ghost" style={{ padding: '0.25rem', fontSize: '0.7rem' }}>
-                          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>edit</span>
-                        </button>
-                        <button className="admin-btn admin-btn-danger" style={{ padding: '0.25rem', fontSize: '0.7rem' }}>
-                          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>delete</span>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      {/* Popups Tab */}
+      {activeTab === 'popups' && <PopupManagement />}
+
+      {/* Posts Tab */}
+      {activeTab === 'posts' && <PostManagement />}
 
       {/* Policies Tab */}
       {activeTab === 'policies' && (

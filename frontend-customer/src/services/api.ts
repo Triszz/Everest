@@ -168,6 +168,29 @@ export interface Banner {
   status: "Visible" | "Hidden";
 }
 
+export interface Popup {
+  popupId: number;
+  title: string;
+  body: string;
+  imageUrl: string | null;
+  ctaLabel: string | null;
+  ctaTargetUrl: string | null;
+  status: "Visible" | "Hidden";
+}
+
+export interface Post {
+  postId: number;
+  title: string;
+  content: string;
+  imageUrl: string | null;
+  publishedAt: string | null;
+  author: {
+    userId: string;
+    fullName: string;
+    avatar: string | null;
+  };
+}
+
 // Cart Types
 export interface CartVoucher {
   voucherId: number;
@@ -291,6 +314,33 @@ export const bannerApi = {
   list: async () => {
     const res = await fetch(`${BASE_URL}/banners`);
     return handleResponse<{ success: boolean; data: Banner[] }>(res);
+  },
+};
+
+export const popupApi = {
+  getActive: async () => {
+    const res = await fetch(`${BASE_URL}/popups/active`);
+    return handleResponse<{ success: boolean; data: Popup | null }>(res);
+  },
+};
+
+export const postApi = {
+  list: async (params?: { page?: number; limit?: number }) => {
+    const qs = params
+      ? '?' + Object.entries(params)
+          .filter(([, v]) => v !== undefined && v !== null)
+          .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+          .join('&')
+      : '';
+    const res = await fetch(`${BASE_URL}/posts${qs}`);
+    return handleResponse<{
+      success: boolean;
+      data: { items: Post[]; total: number; page: number; limit: number; totalPages: number };
+    }>(res);
+  },
+  getById: async (postId: number) => {
+    const res = await fetch(`${BASE_URL}/posts/${postId}`);
+    return handleResponse<{ success: boolean; data: Post }>(res);
   },
 };
 

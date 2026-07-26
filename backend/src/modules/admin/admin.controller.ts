@@ -37,6 +37,16 @@ import {
   createBannerSchema,
   updateBannerSchema,
   updateBannerStatusSchema,
+  listPopupsSchema,
+  getPopupByIdSchema,
+  createPopupSchema,
+  updatePopupSchema,
+  updatePopupStatusSchema,
+  listPostsSchema,
+  getPostByIdSchema,
+  createPostSchema,
+  updatePostSchema,
+  updatePostStatusSchema,
 } from "./admin.schemas";
 
 const parseQuery = <T>(schema: { parse: (v: unknown) => T }, value: unknown): T => {
@@ -303,5 +313,93 @@ export const adminController = {
     const { bannerId } = parseQuery(getBannerByIdSchema, req.params);
     await adminService.deleteBanner(bannerId);
     res.json({ success: true, message: "Xóa banner thành công" });
+  }),
+
+  // ─── Popup ───────────────────────────────────────────────────────────────
+
+  listPopups: asyncHandler(async (req: Request, res: Response) => {
+    const input = parseQuery(listPopupsSchema, req.query);
+    const data = await adminService.listPopups(input);
+    res.json({ success: true, data });
+  }),
+
+  getPopupById: asyncHandler(async (req: Request, res: Response) => {
+    const { popupId } = parseQuery(getPopupByIdSchema, req.params);
+    const data = await adminService.getPopupById(popupId);
+    res.json({ success: true, data });
+  }),
+
+  createPopup: asyncHandler(async (req: Request, res: Response) => {
+    const input = parseBody(createPopupSchema, req.body);
+    const data = await adminService.createPopup(input);
+    res.json({ success: true, data, message: "Tạo popup thành công" });
+  }),
+
+  updatePopup: asyncHandler(async (req: Request, res: Response) => {
+    const { popupId } = parseQuery(getPopupByIdSchema, req.params);
+    const input = parseBody(updatePopupSchema, req.body);
+    const data = await adminService.updatePopup(popupId, input);
+    res.json({ success: true, data, message: "Cập nhật popup thành công" });
+  }),
+
+  updatePopupStatus: asyncHandler(async (req: Request, res: Response) => {
+    const { popupId } = parseQuery(getPopupByIdSchema, req.params);
+    const input = parseBody(updatePopupStatusSchema, req.body);
+    const data = await adminService.updatePopupStatus(popupId, input);
+    const msg =
+      input.status === "Visible"
+        ? "Hiển thị popup thành công (các popup khác đã được ẩn)"
+        : "Ẩn popup thành công";
+    res.json({ success: true, data, message: msg });
+  }),
+
+  deletePopup: asyncHandler(async (req: Request, res: Response) => {
+    const { popupId } = parseQuery(getPopupByIdSchema, req.params);
+    await adminService.deletePopup(popupId);
+    res.json({ success: true, message: "Xóa popup thành công" });
+  }),
+
+  // ─── Post ────────────────────────────────────────────────────────────────
+
+  listPosts: asyncHandler(async (req: Request, res: Response) => {
+    const input = parseQuery(listPostsSchema, req.query);
+    const data = await adminService.listPosts(input);
+    res.json({ success: true, data });
+  }),
+
+  getPostById: asyncHandler(async (req: Request, res: Response) => {
+    const { postId } = parseQuery(getPostByIdSchema, req.params);
+    const data = await adminService.getPostById(postId);
+    res.json({ success: true, data });
+  }),
+
+  createPost: asyncHandler(async (req: Request, res: Response) => {
+    const input = parseBody(createPostSchema, req.body);
+    const data = await adminService.createPost(req.user!.userId, input);
+    res.json({ success: true, data, message: "Tạo bài viết thành công" });
+  }),
+
+  updatePost: asyncHandler(async (req: Request, res: Response) => {
+    const { postId } = parseQuery(getPostByIdSchema, req.params);
+    const input = parseBody(updatePostSchema, req.body);
+    const data = await adminService.updatePost(postId, input);
+    res.json({ success: true, data, message: "Cập nhật bài viết thành công" });
+  }),
+
+  updatePostStatus: asyncHandler(async (req: Request, res: Response) => {
+    const { postId } = parseQuery(getPostByIdSchema, req.params);
+    const input = parseBody(updatePostStatusSchema, req.body);
+    const data = await adminService.updatePostStatus(postId, input);
+    const msg =
+      input.status === "Visible"
+        ? "Đã đăng bài viết"
+        : "Đã ẩn bài viết";
+    res.json({ success: true, data, message: msg });
+  }),
+
+  deletePost: asyncHandler(async (req: Request, res: Response) => {
+    const { postId } = parseQuery(getPostByIdSchema, req.params);
+    await adminService.deletePost(postId);
+    res.json({ success: true, message: "Xóa bài viết thành công" });
   }),
 };
