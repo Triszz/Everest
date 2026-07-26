@@ -32,12 +32,13 @@ async function buildPayload(user: {
   email: string;
   role: string;
   partnerId: number | null;
-}): Promise<JwtPayload> {
+}, sessionId?: string): Promise<JwtPayload> {
   const payload: JwtPayload = {
     userId: user.userId,
     email: user.email,
     role: user.role as Role,
     ...(user.partnerId != null && { partnerId: user.partnerId }),
+    ...(sessionId && { sessionId }),
   };
 
   if (user.role === "Partner_Cashier") {
@@ -88,11 +89,19 @@ export const authService = {
       }
     }
 
-    const payload = await buildPayload(user);
+    const session = await prisma.userSession.create({
+      data: {
+        userId: user.userId,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    const payload = await buildPayload(user, session.sessionId);
 
     return {
       accessToken: signAccessToken(payload),
       refreshToken: signRefreshToken(user.userId),
+      sessionId: session.sessionId,
       user: {
         userId: user.userId,
         email: user.email,
@@ -315,5 +324,60 @@ export const authService = {
         updatedAt: true,
       },
     });
+  },
+
+  async listSessions(userId: string) {
+    const sessions = await prisma.userSession.findMany({
+      where: { userId, revokedAt: null },
+      orderBy: { createdAt: "desc" },
+      select: {
+        sessionId: true,
+        deviceType: true,
+        userAgent: true,
+        ipAddress: true,
+        createdAt: true,
+        expiresAt: true,
+      },
+    });
+
+    return sessions.map((s) => ({
+      id: s.sessionId,
+      device: s.deviceType || "Unknown",
+      browser: s.userAgent || "Unknown",
+      ip: s.ipAddress || "Unknown",
+      location: s.ipAddress ? "Việt Nam" : "Unknown",
+      lastActive: s.createdAt,
+      expiresAt: s.expiresAt,
+    }));
+  },
+
+  async revokeSession(userId: string, sessionId: string) {
+    const session = await prisma.userSession.findFirst({
+      where: { sessionId, userId, revokedAt: null },
+    });
+
+    if (!session) {
+      throw new AppError("Phiên không tồn tại", 404, "SESSION_NOT_FOUND");
+    }
+
+    await prisma.userSession.update({
+      where: { sessionId },
+      data: { revokedAt: new Date() },
+    });
+
+    return { message: "Đăng xuất thiết bị thành công" };
+  },
+
+  async revokeAllOtherSessions(userId: string, exceptSessionId?: string) {
+    await prisma.userSession.updateMany({
+      where: {
+        userId,
+        revokedAt: null,
+        ...(exceptSessionId ? { sessionId: { not: exceptSessionId } } : {}),
+      },
+      data: { revokedAt: new Date() },
+    });
+
+    return { message: "Đăng xuất tất cả thiết bị khác thành công" };
   },
 };

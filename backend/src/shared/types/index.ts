@@ -16,6 +16,7 @@ export interface JwtPayload {
   role: Role;
   partnerId?: number; // Partner_Owner và Partner_Cashier
   branchId?: number; // Partner_Cashier only
+  sessionId?: string; // current session ID (UUID)
 }
 
 export interface ApiSuccess<T = unknown> {

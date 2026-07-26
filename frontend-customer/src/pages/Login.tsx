@@ -22,6 +22,9 @@ export function LoginPage() {
         localStorage.setItem('access_token', response.data.accessToken);
         localStorage.setItem('refresh_token', response.data.refreshToken);
         localStorage.setItem('user', JSON.stringify(response.data.user));
+        if (response.data.sessionId) {
+          localStorage.setItem('current_session_id', response.data.sessionId);
+        }
 
         // Chuyển hướng về trang chủ
         navigate('/');

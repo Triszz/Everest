@@ -22,6 +22,9 @@ import type {
   ListVouchersInput,
   ApproveVoucherInput,
   RejectVoucherInput,
+  ListPoliciesInput,
+  GetPolicyByTypeInput,
+  UpsertPolicyInput,
 } from "./admin.schemas";
 import { buildPaginated, getPagination } from "../../shared/utils/paginate";
 
@@ -710,6 +713,49 @@ export const adminService = {
         title: true,
         approvalStatus: true,
         displayStatus: true,
+        updatedAt: true,
+      },
+    });
+  },
+
+  // ─── Policy Management ───────────────────────────────────────────────────────
+
+  async listPolicies(_input: ListPoliciesInput) {
+    const policies = await prisma.policy.findMany({
+      orderBy: { policyId: "asc" },
+      select: {
+        policyId: true,
+        title: true,
+        content: true,
+        updatedAt: true,
+      },
+    });
+    return policies;
+  },
+
+  async getPolicyById(policyId: number) {
+    const policy = await prisma.policy.findUnique({
+      where: { policyId },
+      select: {
+        policyId: true,
+        title: true,
+        content: true,
+        updatedAt: true,
+      },
+    });
+    if (!policy) throw new AppError("Chính sách không tồn tại", 404, "NOT_FOUND");
+    return policy;
+  },
+
+  async upsertPolicy(input: UpsertPolicyInput) {
+    return prisma.policy.upsert({
+      where: { title: input.title },
+      create: { title: input.title, content: input.content },
+      update: { title: input.title, content: input.content },
+      select: {
+        policyId: true,
+        title: true,
+        content: true,
         updatedAt: true,
       },
     });

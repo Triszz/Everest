@@ -1,4 +1,4 @@
-import { get, post, patch, del } from './api-client';
+import { get, post, patch, del, put } from './api-client';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 const buildQueryString = (params?: Record<string, any>): string => {
@@ -148,10 +148,16 @@ export const adminPartnersApi = {
     search?: string;
     status?: PartnerStatus;
   }): Promise<PaginatedList<PartnerResponse>> {
-    return get<PaginatedList<PartnerResponse>>(
+    return get<{ data: PartnerResponse[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>(
       `/api/admin/partners${buildQueryString(params)}`,
       { auth: true },
-    ).then((res) => res.data);
+    ).then((res) => ({
+      list: res.data.data,
+      total: res.data.pagination.total,
+      page: res.data.pagination.page,
+      limit: res.data.pagination.limit,
+      totalPages: res.data.pagination.totalPages,
+    }));
   },
 
   getById(partnerId: number): Promise<PartnerResponse> {
@@ -199,10 +205,16 @@ export const adminBranchesApi = {
       isLocked?: boolean;
     },
   ): Promise<PaginatedList<BranchResponse>> {
-    return get<PaginatedList<BranchResponse>>(
+    return get<{ data: BranchResponse[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>(
       `/api/admin/partners/${partnerId}/branches${buildQueryString(params)}`,
       { auth: true },
-    ).then((res) => res.data);
+    ).then((res) => ({
+      list: res.data.data,
+      total: res.data.pagination.total,
+      page: res.data.pagination.page,
+      limit: res.data.pagination.limit,
+      totalPages: res.data.pagination.totalPages,
+    }));
   },
 
   getById(partnerId: number, branchId: number): Promise<BranchResponse> {
@@ -266,10 +278,16 @@ export const adminCategoriesApi = {
     limit?: number;
     search?: string;
   }): Promise<PaginatedList<CategoryResponse>> {
-    return get<PaginatedList<CategoryResponse>>(
+    return get<{ data: CategoryResponse[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>(
       `/api/admin/categories${buildQueryString(params)}`,
       { auth: true },
-    ).then((res) => res.data);
+    ).then((res) => ({
+      list: res.data.data,
+      total: res.data.pagination.total,
+      page: res.data.pagination.page,
+      limit: res.data.pagination.limit,
+      totalPages: res.data.pagination.totalPages,
+    }));
   },
 
   getById(categoryId: number): Promise<CategoryResponse> {
@@ -367,5 +385,28 @@ export const adminVouchersApi = {
       body,
       { auth: true },
     ).then((res) => res.data);
+  },
+};
+
+// ─── Policy API ─────────────────────────────────────────────────────────────────
+
+export interface PolicyResponse {
+  policyId: number;
+  title: string;
+  content: string;
+  updatedAt: string;
+}
+
+export const adminPoliciesApi = {
+  list(): Promise<PolicyResponse[]> {
+    return get<PolicyResponse[]>(`/api/admin/policies`, { auth: true }).then((res) => res.data);
+  },
+
+  getById(policyId: number): Promise<PolicyResponse> {
+    return get<PolicyResponse>(`/api/admin/policies/${policyId}`, { auth: true }).then((res) => res.data);
+  },
+
+  upsert(body: { title: string; content: string }): Promise<PolicyResponse> {
+    return put<PolicyResponse>(`/api/admin/policies`, body, { auth: true }).then((res) => res.data);
   },
 };
