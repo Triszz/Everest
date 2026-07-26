@@ -1,5 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useToast } from '../components/shared/Toast'
+import { useCategoryManagement } from '../hooks/useCategoryManagement'
+import { usePolicyManagement } from '../hooks/usePolicyManagement'
+import type { CategoryResponse } from '../services/admin.service'
 
 interface Banner {
   id: string
@@ -10,16 +13,6 @@ interface Banner {
   endDate: string
   status: 'ACTIVE' | 'INACTIVE'
   order: number
-}
-
-interface Category {
-  id: string
-  name: string
-  description: string
-  imageUrl: string
-  status: 'VISIBLE' | 'HIDDEN'
-  order: number
-  voucherCount: number
 }
 
 interface Article {
@@ -33,7 +26,6 @@ interface Article {
 
 interface Policy {
   id: string
-  key: string
   title: string
   content: string
   updatedAt: string
@@ -47,26 +39,11 @@ const mockBanners: Banner[] = [
   { id: 'BNR-003', title: 'Hướng dẫn sử dụng voucher', imageUrl: '', link: '/guides/how-to-use', startDate: '01/04/2024', endDate: '31/12/2024', status: 'INACTIVE', order: 3 },
 ]
 
-const mockCategories: Category[] = [
-  { id: 'CAT-001', name: 'Ẩm thực', description: 'Nhà hàng, quán ăn, cafe, bar', imageUrl: '', status: 'VISIBLE', order: 1, voucherCount: 245 },
-  { id: 'CAT-002', name: 'Làm đẹp & Spa', description: 'Spa, salon, thẩm mỹ viện', imageUrl: '', status: 'VISIBLE', order: 2, voucherCount: 128 },
-  { id: 'CAT-003', name: 'Giải trí', description: 'Rạp chiếu phim, bowling, game', imageUrl: '', status: 'VISIBLE', order: 3, voucherCount: 89 },
-  { id: 'CAT-004', name: 'Thể hình & Yoga', description: 'Gym, yoga, bể bơi', imageUrl: '', status: 'VISIBLE', order: 4, voucherCount: 67 },
-  { id: 'CAT-005', name: 'Du lịch', description: 'Khách sạn, tour, vé máy bay', imageUrl: '', status: 'HIDDEN', order: 5, voucherCount: 12 },
-]
-
 const mockArticles: Article[] = [
   { id: 'ART-001', title: 'Hướng dẫn mua voucher', category: 'Hướng dẫn', status: 'PUBLISHED', createdAt: '10/05/2024', author: 'Admin Le' },
   { id: 'ART-002', title: 'Chính sách đổi trả voucher', category: 'Chính sách', status: 'PUBLISHED', createdAt: '08/05/2024', author: 'Admin Le' },
   { id: 'ART-003', title: 'Cách sử dụng voucher tại nhà hàng', category: 'Hướng dẫn', status: 'DRAFT', createdAt: '20/06/2024', author: 'Admin Minh' },
   { id: 'ART-004', title: 'Giới thiệu đối tác California Fitness', category: 'Tin tức', status: 'PUBLISHED', createdAt: '15/05/2024', author: 'Admin Le' },
-]
-
-const mockPolicies: Policy[] = [
-  { id: 'POL-001', key: 'terms_of_service', title: 'Điều khoản sử dụng', content: 'Nội dung điều khoản sử dụng...', updatedAt: '15/05/2024', updatedBy: 'Admin Le', version: 3 },
-  { id: 'POL-002', key: 'privacy_policy', title: 'Chính sách bảo mật', content: 'Nội dung chính sách bảo mật...', updatedAt: '15/05/2024', updatedBy: 'Admin Le', version: 2 },
-  { id: 'POL-003', key: 'cancellation_policy', title: 'Chính sách hủy và hoàn tiền', content: 'Nội dung chính sách hủy...', updatedAt: '20/06/2024', updatedBy: 'Admin Minh', version: 5 },
-  { id: 'POL-004', key: 'voucher_usage', title: 'Chính sách sử dụng voucher', content: 'Nội dung chính sách sử dụng...', updatedAt: '10/04/2024', updatedBy: 'Admin Le', version: 1 },
 ]
 
 type ContentTab = 'categories' | 'banners' | 'articles' | 'policies'
@@ -75,13 +52,70 @@ export default function Content() {
   const { showToast } = useToast()
   const [activeTab, setActiveTab] = useState<ContentTab>('categories')
   const [banners, setBanners] = useState<Banner[]>(mockBanners)
-  const [categories, setCategories] = useState<Category[]>(mockCategories)
+  const {
+    categories: rawCategories,
+    total,
+    isLoading,
+    error,
+    fetchCategories,
+    createCategory,
+    updateCategory,
+    deleteCategory,
+    updateFilters,
+  } = useCategoryManagement()
+  const {
+    policies: rawPolicies,
+    isLoading: isLoadingPolicies,
+    fetchPolicies,
+    savePolicy,
+    setCurrentPolicy,
+  } = usePolicyManagement()
+  const categories: CategoryResponse[] = rawCategories ?? []
+  const policies: Policy[] = rawPolicies.map((p) => ({ id: String(p.policyId), title: p.title, content: p.content, updatedAt: p.updatedAt, updatedBy: '', version: 1 }))
+
+  useEffect(() => {
+    if (activeTab === 'policies') fetchPolicies()
+  }, [activeTab])
+  const [catFormName, setCatFormName] = useState('')
+  const [catFormDesc, setCatFormDesc] = useState('')
+  const [isSavingCat, setIsSavingCat] = useState(false)
   const [showCategoryModal, setShowCategoryModal] = useState(false)
   const [showBannerModal, setShowBannerModal] = useState(false)
   const [showPolicyModal, setShowPolicyModal] = useState(false)
-  const [editCategory, setEditCategory] = useState<Category | null>(null)
+  const [editCategory, setEditCategory] = useState<CategoryResponse | null>(null)
+
+  const openCategoryModal = (cat: CategoryResponse | null) => {
+    setEditCategory(cat)
+    setCatFormName(cat?.categoryName ?? '')
+    setCatFormDesc(cat?.description ?? '')
+    setShowCategoryModal(true)
+  }
+
+  const handleSaveCategory = async () => {
+    if (!catFormName.trim()) { showToast('Tên danh mục không được để trống', 'error'); return }
+    setIsSavingCat(true)
+    try {
+      if (editCategory) {
+        await updateCategory(editCategory.categoryId, { categoryName: catFormName.trim(), description: catFormDesc.trim() || undefined })
+        showToast('Đã cập nhật danh mục!', 'success')
+      } else {
+        await createCategory({ categoryName: catFormName.trim(), description: catFormDesc.trim() || undefined })
+        showToast('Đã tạo danh mục mới!', 'success')
+      }
+      setShowCategoryModal(false)
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : 'Lỗi khi lưu danh mục', 'error')
+    } finally {
+      setIsSavingCat(false)
+    }
+  }
   const [editBanner, setEditBanner] = useState<Banner | null>(null)
   const [editPolicy, setEditPolicy] = useState<Policy | null>(null)
+  const [expandedPolicyId, setExpandedPolicyId] = useState<string | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'category' | 'banner' | 'policy'; item: any } | null>(null)
+  const [isSavingPolicy, setIsSavingPolicy] = useState(false)
+  const policyContentRef = useRef<HTMLTextAreaElement>(null)
+  const policyTitleRef = useRef<HTMLInputElement>(null)
 
   const tabs: { id: ContentTab; label: string; icon: string }[] = [
     { id: 'categories', label: 'Danh mục', icon: 'category' },
@@ -90,21 +124,49 @@ export default function Content() {
     { id: 'policies', label: 'Chính sách', icon: 'policy' },
   ]
 
-  const handleDeleteCategory = (cat: Category) => {
-    setCategories((prev) => prev.filter((c) => c.id !== cat.id))
-    showToast(`Đã xóa danh mục "${cat.name}"`, 'success')
+  const handleDeleteCategory = (cat: CategoryResponse) => {
+    setDeleteConfirm({ type: 'category', item: cat })
   }
 
-  const handleToggleCategory = (cat: Category) => {
-    setCategories((prev) =>
-      prev.map((c) =>
-        c.id === cat.id
-          ? { ...c, status: c.status === 'VISIBLE' ? 'HIDDEN' : 'VISIBLE' }
-          : c
-      )
-    )
-    const newStatus = cat.status === 'VISIBLE' ? 'ẩn' : 'hiển thị'
-    showToast(`Đã ${newStatus} danh mục "${cat.name}"`, 'success')
+  const handleDeleteBanner = (banner: Banner) => {
+    setDeleteConfirm({ type: 'banner', item: banner })
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm) return
+    const { type, item } = deleteConfirm
+    try {
+      if (type === 'category') {
+        await deleteCategory(item.categoryId)
+        showToast(`Đã xóa danh mục "${item.categoryName}"`, 'success')
+      } else if (type === 'banner') {
+        setBanners((prev) => prev.filter((b) => b.id !== item.id))
+        showToast(`Đã xóa banner "${item.title}"`, 'success')
+      }
+    } catch {
+      showToast(`Không thể xóa`, 'error')
+    } finally {
+      setDeleteConfirm(null)
+    }
+  }
+
+  const handleSavePolicy = async () => {
+    const content = policyContentRef.current?.value ?? ''
+    const title = policyTitleRef.current?.value ?? ''
+    if (!title.trim() || !content.trim()) {
+      showToast('Tiêu đề và nội dung không được để trống', 'error')
+      return
+    }
+    setIsSavingPolicy(true)
+    try {
+      await savePolicy({ title: title.trim(), content: content.trim() })
+      showToast('Đã lưu chính sách!', 'success')
+      setShowPolicyModal(false)
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : 'Lưu chính sách thất bại', 'error')
+    } finally {
+      setIsSavingPolicy(false)
+    }
   }
 
   const handleToggleBanner = (banner: Banner) => {
@@ -160,71 +222,76 @@ export default function Content() {
       {/* Categories Tab */}
       {activeTab === 'categories' && (
         <div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
-            <button
-              className="admin-btn admin-btn-primary"
-              onClick={() => { setEditCategory(null); setShowCategoryModal(true) }}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
-              Thêm danh mục
-            </button>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            {total > 0 && <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)' }}>{total} danh mục</p>}
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <div style={{ position: 'relative' }}>
+                <span className="material-symbols-outlined" style={{ position: 'absolute', left: '0.625rem', top: '50%', transform: 'translateY(-50%)', fontSize: '18px', color: 'var(--color-outline)' }}>search</span>
+                <input
+                  className="admin-input"
+                  style={{ paddingLeft: '2.25rem', width: '220px' }}
+                  placeholder="Tìm kiếm..."
+                  defaultValue=""
+                  onChange={(e) => updateFilters({ search: e.target.value })}
+                />
+              </div>
+              <button
+                className="admin-btn admin-btn-primary"
+                onClick={() => openCategoryModal(null)}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
+                Thêm danh mục
+              </button>
+            </div>
           </div>
           <div className="admin-card" style={{ overflow: 'hidden' }}>
             <table className="admin-table">
               <thead>
                 <tr>
-                  <th style={{ width: '3rem' }}>#</th>
+                  <th>ID</th>
                   <th>Tên danh mục</th>
                   <th>Mô tả</th>
-                  <th>Voucher</th>
-                  <th>Trạng thái</th>
                   <th style={{ textAlign: 'right' }}>Thao tác</th>
                 </tr>
               </thead>
               <tbody>
-                {categories.map((cat) => (
-                  <tr key={cat.id}>
-                    <td><span className="font-label-sm" style={{ color: 'var(--color-outline)' }}>{cat.order}</span></td>
-                    <td>
-                      <p className="font-body-sm" style={{ fontWeight: 600 }}>{cat.name}</p>
-                    </td>
-                    <td><span className="font-body-sm" style={{ color: 'var(--color-on-surface-variant)' }}>{cat.description}</span></td>
-                    <td><span className="font-label-md">{cat.voucherCount}</span></td>
-                    <td>
-                      <span className={`badge ${cat.status === 'VISIBLE' ? 'badge-active' : 'badge-info'}`}>
-                        {cat.status === 'VISIBLE' ? 'Hiển thị' : 'Ẩn'}
-                      </span>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'flex-end' }}>
-                        <button
-                          className="admin-btn admin-btn-ghost"
-                          style={{ padding: '0.25rem', fontSize: '0.7rem' }}
-                          onClick={() => handleToggleCategory(cat)}
-                          title={cat.status === 'VISIBLE' ? 'Ẩn' : 'Hiển thị'}
-                        >
-                          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>{cat.status === 'VISIBLE' ? 'visibility_off' : 'visibility'}</span>
-                        </button>
-                        <button
-                          className="admin-btn admin-btn-ghost"
-                          style={{ padding: '0.25rem', fontSize: '0.7rem' }}
-                          onClick={() => { setEditCategory(cat); setShowCategoryModal(true) }}
-                          title="Sửa"
-                        >
-                          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>edit</span>
-                        </button>
-                        <button
-                          className="admin-btn admin-btn-danger"
-                          style={{ padding: '0.25rem', fontSize: '0.7rem' }}
-                          onClick={() => handleDeleteCategory(cat)}
-                          title="Xóa"
-                        >
-                          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>delete</span>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {isLoading ? (
+                  <tr><td colSpan={4} style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-outline)' }}>Đang tải...</td></tr>
+                ) : error ? (
+                  <tr><td colSpan={4} style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-error)' }}>{error}</td></tr>
+                ) : categories.length === 0 ? (
+                  <tr><td colSpan={4} style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-outline)' }}>Chưa có danh mục nào.</td></tr>
+                ) : (
+                  categories.map((cat, index) => (
+                    <tr key={cat.categoryId}>
+                      <td><span className="font-label-sm" style={{ color: 'var(--color-outline)' }}>{index + 1}</span></td>
+                      <td>
+                        <p className="font-body-sm" style={{ fontWeight: 600 }}>{cat.categoryName}</p>
+                      </td>
+                      <td><span className="font-body-sm" style={{ color: 'var(--color-on-surface-variant)' }}>{cat.description || '—'}</span></td>
+                      <td>
+                        <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'flex-end' }}>
+                          <button
+                            className="admin-btn admin-btn-ghost"
+                            style={{ padding: '0.25rem', fontSize: '0.7rem' }}
+                            onClick={() => openCategoryModal(cat)}
+                            title="Sửa"
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>edit</span>
+                          </button>
+                          <button
+                            className="admin-btn admin-btn-danger"
+                            style={{ padding: '0.25rem', fontSize: '0.7rem' }}
+                            onClick={() => handleDeleteCategory(cat)}
+                            title="Xóa"
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>delete</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -281,7 +348,7 @@ export default function Content() {
                     <button
                       className="admin-btn admin-btn-danger"
                       style={{ flex: 1, fontSize: '0.7rem', padding: '0.375rem' }}
-                      onClick={() => { setBanners((p) => p.filter((b) => b.id !== banner.id)); showToast(`Đã xóa banner "${banner.title}"`, 'success') }}
+                      onClick={() => handleDeleteBanner(banner)}
                     >
                       <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>delete</span>
                     </button>
@@ -357,25 +424,46 @@ export default function Content() {
             </button>
           </div>
           <div className="admin-card" style={{ overflow: 'hidden' }}>
+            {isLoadingPolicies ? (
+              <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--color-on-surface-variant)' }}>
+                Đang tải...
+              </div>
+            ) : policies.length === 0 ? (
+              <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--color-on-surface-variant)' }}>
+                Chưa có chính sách nào.
+              </div>
+            ) : (
             <table className="admin-table">
               <thead>
                 <tr>
                   <th>Tiêu đề</th>
-                  <th>Khóa</th>
-                  <th>Phiên bản</th>
+                  <th>Nội dung</th>
                   <th>Cập nhật lần cuối</th>
-                  <th>Người cập nhật</th>
                   <th style={{ textAlign: 'right' }}>Thao tác</th>
                 </tr>
               </thead>
               <tbody>
-                {mockPolicies.map((policy) => (
+                {policies.map((policy) => {
+                  const isExpanded = expandedPolicyId === policy.id
+                  const preview = policy.content.length > 120 ? policy.content.slice(0, 120) + '…' : policy.content
+                  return (
                   <tr key={policy.id}>
                     <td><span className="font-body-sm" style={{ fontWeight: 600 }}>{policy.title}</span></td>
-                    <td><span className="font-label-sm" style={{ color: 'var(--color-outline)' }}>{policy.key}</span></td>
-                    <td><span className="badge badge-info">v{policy.version}</span></td>
-                    <td><span className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)' }}>{policy.updatedAt}</span></td>
-                    <td><span className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)' }}>{policy.updatedBy}</span></td>
+                    <td>
+                      <div
+                        className="policy-content-preview"
+                        style={{ fontSize: '0.8rem', color: 'var(--color-on-surface-variant)', maxWidth: '28rem', cursor: 'pointer' }}
+                        onClick={() => setExpandedPolicyId(isExpanded ? null : policy.id)}
+                        title={isExpanded ? 'Thu gọn' : 'Mở rộng'}
+                      >
+                        <span
+                          className="font-label-sm"
+                          style={{ color: isExpanded ? 'var(--color-on-surface)' : 'var(--color-outline)' }}
+                          dangerouslySetInnerHTML={{ __html: isExpanded ? policy.content : preview }}
+                        />
+                      </div>
+                    </td>
+                    <td><span className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)', whiteSpace: 'nowrap' }}>{policy.updatedAt}</span></td>
                     <td>
                       <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'flex-end' }}>
                         <button
@@ -427,19 +515,11 @@ export default function Content() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <div>
                   <label className="font-label-sm" style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--color-on-surface-variant)' }}>Tên danh mục</label>
-                  <input className="admin-input" defaultValue={editCategory?.name || ''} placeholder="VD: Ẩm thực" />
+                  <input className="admin-input" value={catFormName} onChange={e => setCatFormName(e.target.value)} placeholder="VD: Ẩm thực" />
                 </div>
                 <div>
                   <label className="font-label-sm" style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--color-on-surface-variant)' }}>Mô tả</label>
-                  <textarea className="admin-input" style={{ resize: 'vertical', minHeight: '80px' }} defaultValue={editCategory?.description || ''} placeholder="Mô tả danh mục..." />
-                </div>
-                <div>
-                  <label className="font-label-sm" style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--color-on-surface-variant)' }}>Hình ảnh đại diện</label>
-                  <div style={{ border: '2px dashed var(--color-outline-variant)', borderRadius: '0.5rem', padding: '2rem', textAlign: 'center', cursor: 'pointer', color: 'var(--color-on-surface-variant)' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '32px', display: 'block', marginBottom: '0.5rem' }}>upload</span>
-                    <p className="font-label-sm">Kéo thả hoặc nhấn để tải lên</p>
-                    <p className="font-label-sm" style={{ color: 'var(--color-outline)', fontSize: '0.65rem' }}>JPG, PNG, WebP — Tối đa 5MB</p>
-                  </div>
+                  <textarea className="admin-input" style={{ resize: 'vertical', minHeight: '80px' }} value={catFormDesc} onChange={e => setCatFormDesc(e.target.value)} placeholder="Mô tả danh mục..." />
                 </div>
               </div>
             </div>
@@ -450,9 +530,10 @@ export default function Content() {
               <button
                 className="admin-btn admin-btn-primary"
                 style={{ flex: 2 }}
-                onClick={() => { showToast(editCategory ? 'Đã cập nhật danh mục!' : 'Đã tạo danh mục mới!', 'success'); setShowCategoryModal(false) }}
+                disabled={isSavingCat || !catFormName.trim()}
+                onClick={handleSaveCategory}
               >
-                {editCategory ? 'Lưu thay đổi' : 'Tạo danh mục'}
+                {isSavingCat ? 'Đang lưu...' : editCategory ? 'Lưu thay đổi' : 'Tạo danh mục'}
               </button>
             </div>
           </div>
@@ -529,28 +610,53 @@ export default function Content() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <div>
                   <label className="font-label-sm" style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--color-on-surface-variant)' }}>Tiêu đề</label>
-                  <input className="admin-input" defaultValue={editPolicy?.title || ''} placeholder="VD: Chính sách hủy và hoàn tiền" />
+                  <input
+                    ref={policyTitleRef}
+                    className="admin-input"
+                    defaultValue={editPolicy?.title || ''}
+                    placeholder="VD: Chính sách hủy và hoàn tiền"
+                  />
                 </div>
                 <div>
-                  <label className="font-label-sm" style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--color-on-surface-variant)' }}>Khóa chính sách</label>
-                  <input className="admin-input" defaultValue={editPolicy?.key || ''} placeholder="VD: cancellation_policy" />
-                </div>
-                <div>
-                  <label className="font-label-sm" style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--color-on-surface-variant)' }}>Nội dung (HTML)</label>
+                  <label className="font-label-sm" style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--color-on-surface-variant)' }}>Nội dung</label>
                   <textarea
+                    ref={policyContentRef}
                     className="admin-input"
                     style={{ resize: 'vertical', minHeight: '250px', fontFamily: '"JetBrains Mono", monospace', fontSize: '0.8rem' }}
                     defaultValue={editPolicy?.content || ''}
-                    placeholder="Nhập nội dung HTML..."
+                    placeholder="Nhập nội dung..."
                   />
                 </div>
               </div>
             </div>
             <div style={{ padding: '1.5rem', borderTop: '1px solid var(--color-outline-variant)', display: 'flex', gap: '0.75rem' }}>
               <button className="admin-btn admin-btn-ghost" style={{ flex: 1 }} onClick={() => setShowPolicyModal(false)}>Hủy</button>
-              <button className="admin-btn admin-btn-primary" style={{ flex: 2 }} onClick={() => { showToast('Đã lưu chính sách!', 'success'); setShowPolicyModal(false) }}>
-                Lưu chính sách
+              <button className="admin-btn admin-btn-primary" style={{ flex: 2 }} disabled={isSavingPolicy} onClick={handleSavePolicy}>
+                {isSavingPolicy ? 'Đang lưu...' : 'Lưu chính sách'}
               </button>
+            </div>
+          </div>
+        </>
+      )}
+      {/* Delete Confirm Modal */}
+      {deleteConfirm && (
+        <>
+          <div style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }} onClick={() => setDeleteConfirm(null)} />
+          <div style={{
+            position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
+            background: 'var(--color-surface)', borderRadius: '12px', padding: '1.5rem',
+            zIndex: 1001, minWidth: '340px', boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+          }}>
+            <h3 style={{ marginBottom: '0.5rem', fontSize: '1.1rem' }}>Xác nhận xóa</h3>
+            <p style={{ color: 'var(--color-on-surface-variant)', marginBottom: '1.25rem', fontSize: '0.9rem' }}>
+              Bạn có chắc muốn xóa <strong>{deleteConfirm.type === 'category' ? deleteConfirm.item.categoryName : deleteConfirm.item.title}</strong>? Hành động này không thể hoàn tác.
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button className="admin-btn admin-btn-ghost" onClick={() => setDeleteConfirm(null)}>Hủy</button>
+              <button className="admin-btn admin-btn-danger" onClick={confirmDelete}>Xóa</button>
             </div>
           </div>
         </>

@@ -43,14 +43,6 @@ enum BannerStatus {
   @@map("banner_status")
 }
 
-enum PolicyType {
-  Terms_Of_Service
-  Privacy_Policy
-  Refund_Policy
-
-  @@map("policy_type")
-}
-
 enum VoucherApprovalStatus {
   Draft
   Pending
@@ -175,10 +167,10 @@ model Banner {
 }
 
 model Policy {
-  policyId   Int        @id @default(autoincrement()) @map("policy_id")
-  policyType PolicyType @unique @map("policy_type")
-  content    String
-  updatedAt  DateTime   @default(now()) @map("updated_at") @db.Timestamptz
+  policyId  Int      @id @default(autoincrement()) @map("policy_id")
+  title     String   @unique @map("title") @db.VarChar(255)
+  content   String   @map("content") @db.Text
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz
 
   @@map("policies")
 }

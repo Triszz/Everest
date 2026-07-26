@@ -48,7 +48,6 @@ export function useCategoryManagement() {
       setIsLoading(false);
     }
   }, [filters, limit]);
-
   // Fetch category details
   const fetchCategoryDetail = useCallback(async (categoryId: number) => {
     setIsFetchingDetail(true);
@@ -56,7 +55,6 @@ export function useCategoryManagement() {
     try {
       const category = await adminCategoriesApi.getById(categoryId);
       setSelectedCategory(category);
-      return category;
     } catch (err: any) {
       console.error('Failed to fetch category details:', err);
       setError(err.message || 'Không thể tải chi tiết danh mục.');

@@ -28,6 +28,9 @@ import {
   approveVoucherSchema,
   rejectVoucherSchema,
   toggleVoucherDisplaySchema,
+  listPoliciesSchema,
+  getPolicyByIdSchema,
+  upsertPolicySchema,
 } from "./admin.schemas";
 
 const parseQuery = <T>(schema: { parse: (v: unknown) => T }, value: unknown): T => {
@@ -224,5 +227,25 @@ export const adminController = {
   getVoucherStats: asyncHandler(async (_req: Request, res: Response) => {
     const data = await adminService.getVoucherStats();
     res.json({ success: true, data });
+  }),
+
+  // ─── Policy Management ─────────────────────────────────────────────────────
+
+  listPolicies: asyncHandler(async (req: Request, res: Response) => {
+    const input = parseQuery(listPoliciesSchema, req.query);
+    const data = await adminService.listPolicies(input);
+    res.json({ success: true, data });
+  }),
+
+  getPolicyById: asyncHandler(async (req: Request, res: Response) => {
+    const input = parseQuery(getPolicyByIdSchema, req.params);
+    const data = await adminService.getPolicyById(input.policyId);
+    res.json({ success: true, data });
+  }),
+
+  upsertPolicy: asyncHandler(async (req: Request, res: Response) => {
+    const input = parseBody(upsertPolicySchema, req.body);
+    const data = await adminService.upsertPolicy(input);
+    res.json({ success: true, data, message: "Lưu chính sách thành công" });
   }),
 };

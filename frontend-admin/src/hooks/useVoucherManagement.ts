@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { adminVouchersApi, VoucherResponse } from '../services/admin.service';
+import { adminVouchersApi } from '../services/admin.service';
 import { useToast } from '../components/shared/Toast';
 
 export type VoucherListItem = {
@@ -101,7 +101,7 @@ export function useVoucherManagement() {
   const approveVoucher = useCallback(
     async (voucherId: number, note?: string) => {
       try {
-        const updated = await adminVouchersApi.approve(voucherId, { note });
+        await adminVouchersApi.approve(voucherId, { note });
         showToast('Phê duyệt voucher thành công', 'success');
         setVouchers(prev => prev.map(v => v.voucherId === voucherId ? { ...v, approvalStatus: 'Approved' } : v));
         await fetchStats();
@@ -116,7 +116,7 @@ export function useVoucherManagement() {
   const rejectVoucher = useCallback(
     async (voucherId: number, reason: string) => {
       try {
-        const updated = await adminVouchersApi.reject(voucherId, { reason });
+        await adminVouchersApi.reject(voucherId, { reason });
         showToast('Từ chối voucher thành công', 'warning');
         setVouchers(prev => prev.map(v => v.voucherId === voucherId ? { ...v, approvalStatus: 'Rejected' } : v));
         await fetchStats();
