@@ -23,9 +23,22 @@ import type {
   ApproveVoucherInput,
   RejectVoucherInput,
   ListPoliciesInput,
-  GetPolicyByTypeInput,
+  GetPolicyByIdInput,
   UpsertPolicyInput,
+  ListBannersInput,
+  CreateBannerInput,
+  UpdateBannerInput,
+  UpdateBannerStatusInput,
+  ListPopupsInput,
+  CreatePopupInput,
+  UpdatePopupInput,
+  UpdatePopupStatusInput,
+  ListPostsInput,
+  CreatePostInput,
+  UpdatePostInput,
+  UpdatePostStatusInput,
 } from "./admin.schemas";
+import type { BannerStatus, PostStatus, PopupStatus } from "../../generated/prisma/enums";
 import { buildPaginated, getPagination } from "../../shared/utils/paginate";
 
 export const adminService = {
@@ -759,5 +772,474 @@ export const adminService = {
         updatedAt: true,
       },
     });
+  },
+
+  async deletePolicy(policyId: number) {
+    await prisma.policy.delete({ where: { policyId } });
+    return { deleted: true, policyId };
+  },
+
+  // ─── Banner Management ────────────────────────────────────────────────────
+
+  async listBanners(input: ListBannersInput) {
+    const { page, limit, skip } = getPagination({ page: input.page, limit: input.limit });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const where: any = {};
+    if (input.status) where.status = input.status as BannerStatus;
+    if (input.search) {
+      where.OR = [
+        { title: { contains: input.search, mode: "insensitive" } },
+        { imageUrl: { contains: input.search, mode: "insensitive" } },
+      ];
+    }
+
+    const [banners, total] = await Promise.all([
+      prisma.banner.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: [{ status: "desc" }, { createdAt: "desc" }],
+        select: {
+          bannerId: true,
+          title: true,
+          imageUrl: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
+      prisma.banner.count({ where }),
+    ]);
+
+    return buildPaginated(banners, total, page, limit);
+  },
+
+  async getBannerById(bannerId: number) {
+    const banner = await prisma.banner.findUnique({
+      where: { bannerId },
+      select: {
+        bannerId: true,
+        title: true,
+        imageUrl: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    if (!banner) throw new AppError("Banner không tồn tại", 404, "NOT_FOUND");
+    return banner;
+  },
+
+  async createBanner(input: CreateBannerInput) {
+    return prisma.banner.create({
+      data: {
+        title: input.title,
+        imageUrl: input.imageUrl,
+        status: (input.status ?? "Hidden") as BannerStatus,
+      },
+      select: {
+        bannerId: true,
+        title: true,
+        imageUrl: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  },
+
+  async updateBanner(bannerId: number, input: UpdateBannerInput) {
+    const banner = await prisma.banner.findUnique({ where: { bannerId } });
+    if (!banner) throw new AppError("Banner không tồn tại", 404, "NOT_FOUND");
+
+    return prisma.banner.update({
+      where: { bannerId },
+      data: {
+        ...(input.title !== undefined ? { title: input.title } : {}),
+        ...(input.imageUrl !== undefined ? { imageUrl: input.imageUrl } : {}),
+      },
+      select: {
+        bannerId: true,
+        title: true,
+        imageUrl: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  },
+
+  async updateBannerStatus(bannerId: number, input: UpdateBannerStatusInput) {
+    const banner = await prisma.banner.findUnique({ where: { bannerId } });
+    if (!banner) throw new AppError("Banner không tồn tại", 404, "NOT_FOUND");
+
+    const nextStatus = input.status as BannerStatus;
+
+    // Visibility is a single-active-banner constraint:
+    // - Switching to Visible => every other banner must be Hidden.
+    // - Switching to Hidden  => leave the others untouched.
+    if (nextStatus === "Visible") {
+      await prisma.banner.updateMany({
+        where: { bannerId: { not: bannerId } },
+        data: { status: "Hidden" },
+      });
+    }
+
+    return prisma.banner.update({
+      where: { bannerId },
+      data: { status: nextStatus },
+      select: {
+        bannerId: true,
+        title: true,
+        imageUrl: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  },
+
+  async deleteBanner(bannerId: number) {
+    const banner = await prisma.banner.findUnique({ where: { bannerId } });
+    if (!banner) throw new AppError("Banner không tồn tại", 404, "NOT_FOUND");
+    await prisma.banner.delete({ where: { bannerId } });
+    return { deleted: true, bannerId, deletedAt: new Date() };
+  },
+
+  // ─── Popup Management ────────────────────────────────────────────────────
+
+  async listPopups(input: ListPopupsInput) {
+    const { page, limit, skip } = getPagination({
+      page: input.page,
+      limit: input.limit,
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const where: any = {};
+    if (input.status) where.status = input.status;
+    if (input.search) {
+      where.OR = [
+        { title: { contains: input.search, mode: "insensitive" } },
+        { body: { contains: input.search, mode: "insensitive" } },
+      ];
+    }
+
+    const [popups, total] = await Promise.all([
+      prisma.popup.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: [{ status: "asc" }, { updatedAt: "desc" }],
+        select: {
+          popupId: true,
+          title: true,
+          body: true,
+          imageUrl: true,
+          ctaLabel: true,
+          ctaTargetUrl: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
+      prisma.popup.count({ where }),
+    ]);
+
+    return buildPaginated(popups, total, page, limit);
+  },
+
+  async getPopupById(popupId: number) {
+    const popup = await prisma.popup.findUnique({
+      where: { popupId },
+      select: {
+        popupId: true,
+        title: true,
+        body: true,
+        imageUrl: true,
+        ctaLabel: true,
+        ctaTargetUrl: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    if (!popup) throw new AppError("Popup không tồn tại", 404, "NOT_FOUND");
+    return popup;
+  },
+
+  async createPopup(input: CreatePopupInput) {
+    return prisma.popup.create({
+      data: {
+        title: input.title,
+        body: input.body,
+        imageUrl: input.imageUrl ?? null,
+        ctaLabel: input.ctaLabel ?? null,
+        ctaTargetUrl: input.ctaTargetUrl ?? null,
+        status: (input.status ?? "Hidden") as PopupStatus,
+      },
+      select: {
+        popupId: true,
+        title: true,
+        body: true,
+        imageUrl: true,
+        ctaLabel: true,
+        ctaTargetUrl: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  },
+
+  async updatePopup(popupId: number, input: UpdatePopupInput) {
+    const popup = await prisma.popup.findUnique({ where: { popupId } });
+    if (!popup) throw new AppError("Popup không tồn tại", 404, "NOT_FOUND");
+
+    return prisma.popup.update({
+      where: { popupId },
+      data: {
+        ...(input.title !== undefined ? { title: input.title } : {}),
+        ...(input.body !== undefined ? { body: input.body } : {}),
+        ...(input.imageUrl !== undefined ? { imageUrl: input.imageUrl } : {}),
+        ...(input.ctaLabel !== undefined ? { ctaLabel: input.ctaLabel } : {}),
+        ...(input.ctaTargetUrl !== undefined ? { ctaTargetUrl: input.ctaTargetUrl } : {}),
+      },
+      select: {
+        popupId: true,
+        title: true,
+        body: true,
+        imageUrl: true,
+        ctaLabel: true,
+        ctaTargetUrl: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  },
+
+  async updatePopupStatus(popupId: number, input: UpdatePopupStatusInput) {
+    const popup = await prisma.popup.findUnique({ where: { popupId } });
+    if (!popup) throw new AppError("Popup không tồn tại", 404, "NOT_FOUND");
+
+    const nextStatus = input.status as PopupStatus;
+
+    // Single-active-popup pattern (same as banner).
+    if (nextStatus === "Visible") {
+      await prisma.popup.updateMany({
+        where: { popupId: { not: popupId } },
+        data: { status: "Hidden" },
+      });
+    }
+
+    return prisma.popup.update({
+      where: { popupId },
+      data: { status: nextStatus },
+      select: {
+        popupId: true,
+        title: true,
+        body: true,
+        imageUrl: true,
+        ctaLabel: true,
+        ctaTargetUrl: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  },
+
+  async deletePopup(popupId: number) {
+    const popup = await prisma.popup.findUnique({ where: { popupId } });
+    if (!popup) throw new AppError("Popup không tồn tại", 404, "NOT_FOUND");
+    await prisma.popup.delete({ where: { popupId } });
+    return { deleted: true, popupId, deletedAt: new Date() };
+  },
+
+  // ─── Post Management ─────────────────────────────────────────────────────
+
+  async listPosts(input: ListPostsInput) {
+    const { page, limit, skip } = getPagination({
+      page: input.page,
+      limit: input.limit,
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const where: any = {};
+    if (input.status) where.status = input.status;
+    if (input.search) {
+      where.OR = [
+        { title: { contains: input.search, mode: "insensitive" } },
+        { content: { contains: input.search, mode: "insensitive" } },
+      ];
+    }
+
+    const [posts, total] = await Promise.all([
+      prisma.post.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: [{ status: "asc" }, { publishedAt: "desc" }, { updatedAt: "desc" }],
+        select: {
+          postId: true,
+          authorId: true,
+          title: true,
+          content: true,
+          imageUrl: true,
+          status: true,
+          publishedAt: true,
+          createdAt: true,
+          updatedAt: true,
+          author: {
+            select: {
+              userId: true,
+              fullName: true,
+              email: true,
+              avatar: true,
+            },
+          },
+        },
+      }),
+      prisma.post.count({ where }),
+    ]);
+
+    return buildPaginated(posts, total, page, limit);
+  },
+
+  async getPostById(postId: number) {
+    const post = await prisma.post.findUnique({
+      where: { postId },
+      select: {
+        postId: true,
+        authorId: true,
+        title: true,
+        content: true,
+        imageUrl: true,
+        status: true,
+        publishedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        author: {
+          select: {
+            userId: true,
+            fullName: true,
+            email: true,
+            avatar: true,
+          },
+        },
+      },
+    });
+    if (!post) throw new AppError("Bài viết không tồn tại", 404, "NOT_FOUND");
+    return post;
+  },
+
+  async createPost(authorId: string, input: CreatePostInput) {
+    const status = (input.status ?? "Hidden") as PostStatus;
+    return prisma.post.create({
+      data: {
+        authorId,
+        title: input.title,
+        content: input.content,
+        imageUrl: input.imageUrl ?? null,
+        status,
+        publishedAt: status === "Visible" ? new Date() : null,
+      },
+      select: {
+        postId: true,
+        authorId: true,
+        title: true,
+        content: true,
+        imageUrl: true,
+        status: true,
+        publishedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        author: {
+          select: {
+            userId: true,
+            fullName: true,
+            email: true,
+            avatar: true,
+          },
+        },
+      },
+    });
+  },
+
+  async updatePost(postId: number, input: UpdatePostInput) {
+    const post = await prisma.post.findUnique({ where: { postId } });
+    if (!post) throw new AppError("Bài viết không tồn tại", 404, "NOT_FOUND");
+
+    return prisma.post.update({
+      where: { postId },
+      data: {
+        ...(input.title !== undefined ? { title: input.title } : {}),
+        ...(input.content !== undefined ? { content: input.content } : {}),
+        ...(input.imageUrl !== undefined ? { imageUrl: input.imageUrl } : {}),
+      },
+      select: {
+        postId: true,
+        authorId: true,
+        title: true,
+        content: true,
+        imageUrl: true,
+        status: true,
+        publishedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        author: {
+          select: {
+            userId: true,
+            fullName: true,
+            email: true,
+            avatar: true,
+          },
+        },
+      },
+    });
+  },
+
+  async updatePostStatus(postId: number, input: UpdatePostStatusInput) {
+    const post = await prisma.post.findUnique({ where: { postId } });
+    if (!post) throw new AppError("Bài viết không tồn tại", 404, "NOT_FOUND");
+
+    const nextStatus = input.status as PostStatus;
+    const shouldStampPublishedAt =
+      nextStatus === "Visible" && post.publishedAt === null;
+
+    return prisma.post.update({
+      where: { postId },
+      data: {
+        status: nextStatus,
+        ...(shouldStampPublishedAt ? { publishedAt: new Date() } : {}),
+      },
+      select: {
+        postId: true,
+        authorId: true,
+        title: true,
+        content: true,
+        imageUrl: true,
+        status: true,
+        publishedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        author: {
+          select: {
+            userId: true,
+            fullName: true,
+            email: true,
+            avatar: true,
+          },
+        },
+      },
+    });
+  },
+
+  async deletePost(postId: number) {
+    const post = await prisma.post.findUnique({ where: { postId } });
+    if (!post) throw new AppError("Bài viết không tồn tại", 404, "NOT_FOUND");
+    await prisma.post.delete({ where: { postId } });
+    return { deleted: true, postId, deletedAt: new Date() };
   },
 };

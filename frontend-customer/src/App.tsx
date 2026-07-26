@@ -1,5 +1,6 @@
 import { Header, Hero, DanhMucNoiBat, FeaturedVouchers, Newsletter, Footer } from './components';
 import { Routes, Route } from 'react-router-dom';
+import PopupBanner from './components/PopupBanner';
 import { LoginPage } from './pages/Login';
 import { RegisterPage } from './pages/Register';
 import { ForgotPasswordPage } from './pages/ForgotPassword';
@@ -35,6 +36,7 @@ function App() {
             path="/"
             element={
               <>
+                <PopupBanner />
                 <Hero />
                 <DanhMucNoiBat />
                 <FeaturedVouchers />

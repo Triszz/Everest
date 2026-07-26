@@ -180,6 +180,6 @@ export function patch<T>(path: string, body?: unknown, options?: RequestOptions)
   return request<T>('PATCH', path, body, options);
 }
 
-export function del<T = null>(path: string, options?: RequestOptions): Promise<ApiSuccess<T>> {
-  return request<T>('DELETE', path, undefined, options);
+export function del<T = null>(path: string, body?: unknown, options?: RequestOptions): Promise<ApiSuccess<T>> {
+  return request<T>('DELETE', path, body, options);
 }

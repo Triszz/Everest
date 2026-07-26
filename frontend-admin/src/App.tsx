@@ -11,6 +11,7 @@ import Partners from './pages/Partners'
 import Vouchers from './pages/Vouchers'
 import Orders from './pages/Orders'
 import Content from './pages/Content'
+import PostEditor from './pages/PostEditor'
 import AuditLogs from './pages/AuditLogs'
 
 export default function App() {
@@ -38,6 +39,8 @@ export default function App() {
               <Route path="/vouchers" element={<Vouchers />} />
               <Route path="/orders" element={<Orders />} />
               <Route path="/content" element={<Content />} />
+              <Route path="/content/posts/new" element={<PostEditor />} />
+              <Route path="/content/posts/:postId" element={<PostEditor />} />
               <Route path="/audit-logs" element={<AuditLogs />} />
             </Route>
           </Routes>

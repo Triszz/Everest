@@ -20,23 +20,17 @@ async function main() {
     {
       title: 'Summer Sale - Giảm Đến 50%',
       imageUrl: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=1200&h=400&fit=crop',
-      targetUrl: '/vouchers?category=sale',
-      displayOrder: 1,
       status: 'Visible' as const,
     },
     {
       title: 'Ưu Đãi Du Lịch Mùa Hè',
       imageUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200&h=400&fit=crop',
-      targetUrl: '/category/2',
-      displayOrder: 2,
-      status: 'Visible' as const,
+      status: 'Hidden' as const,
     },
     {
       title: 'Voucher Ăn Uống Giới Hạn',
       imageUrl: 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=1200&h=400&fit=crop',
-      targetUrl: '/category/1',
-      displayOrder: 3,
-      status: 'Visible' as const,
+      status: 'Hidden' as const,
     },
   ];
 

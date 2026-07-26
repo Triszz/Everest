@@ -40,5 +40,27 @@ router.patch("/vouchers/:voucherId/display", adminController.setVoucherDisplaySt
 router.get("/policies", adminController.listPolicies);
 router.get("/policies/:policyId", adminController.getPolicyById);
 router.put("/policies", adminController.upsertPolicy);
+router.delete("/policies", adminController.deletePolicy);
+
+router.get("/banners", adminController.listBanners);
+router.get("/banners/:bannerId", adminController.getBannerById);
+router.post("/banners", adminController.createBanner);
+router.patch("/banners/:bannerId", adminController.updateBanner);
+router.patch("/banners/:bannerId/status", adminController.updateBannerStatus);
+router.delete("/banners/:bannerId", adminController.deleteBanner);
+
+router.get("/popups", adminController.listPopups);
+router.get("/popups/:popupId", adminController.getPopupById);
+router.post("/popups", adminController.createPopup);
+router.patch("/popups/:popupId", adminController.updatePopup);
+router.patch("/popups/:popupId/status", adminController.updatePopupStatus);
+router.delete("/popups/:popupId", adminController.deletePopup);
+
+router.get("/posts", adminController.listPosts);
+router.get("/posts/:postId", adminController.getPostById);
+router.post("/posts", adminController.createPost);
+router.patch("/posts/:postId", adminController.updatePost);
+router.patch("/posts/:postId/status", adminController.updatePostStatus);
+router.delete("/posts/:postId", adminController.deletePost);
 
 export default router;

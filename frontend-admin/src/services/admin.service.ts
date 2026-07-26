@@ -409,4 +409,270 @@ export const adminPoliciesApi = {
   upsert(body: { title: string; content: string }): Promise<PolicyResponse> {
     return put<PolicyResponse>(`/api/admin/policies`, body, { auth: true }).then((res) => res.data);
   },
+
+  delete(policyId: number): Promise<void> {
+    return del<void>(`/api/admin/policies`, { policyId }, { auth: true }).then((res) => res as unknown as void);
+  },
+};
+
+// ─── Banner API ──────────────────────────────────────────────────────────────────
+
+export type BannerStatus = "Visible" | "Hidden";
+
+export interface BannerResponse {
+  bannerId: number;
+  title: string;
+  imageUrl: string;
+  status: BannerStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const adminBannersApi = {
+  list(params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: BannerStatus;
+  }): Promise<PaginatedList<BannerResponse>> {
+    return get<{
+      data: BannerResponse[];
+      pagination: { page: number; limit: number; total: number; totalPages: number };
+    }>(`/api/admin/banners${buildQueryString(params)}`, {
+      auth: true,
+    }).then((res) => ({
+      list: res.data.data,
+      total: res.data.pagination.total,
+      page: res.data.pagination.page,
+      limit: res.data.pagination.limit,
+      totalPages: res.data.pagination.totalPages,
+    }));
+  },
+
+  getById(bannerId: number): Promise<BannerResponse> {
+    return get<BannerResponse>(`/api/admin/banners/${bannerId}`, {
+      auth: true,
+    }).then((res) => res.data);
+  },
+
+  create(body: {
+    title: string;
+    imageUrl: string;
+    status?: BannerStatus;
+  }): Promise<BannerResponse> {
+    return post<BannerResponse>(`/api/admin/banners`, body, {
+      auth: true,
+    }).then((res) => res.data);
+  },
+
+  update(
+    bannerId: number,
+    body: {
+      title?: string;
+      imageUrl?: string;
+    },
+  ): Promise<BannerResponse> {
+    return patch<BannerResponse>(`/api/admin/banners/${bannerId}`, body, {
+      auth: true,
+    }).then((res) => res.data);
+  },
+
+  updateStatus(
+    bannerId: number,
+    body: { status: BannerStatus },
+  ): Promise<BannerResponse> {
+    return patch<BannerResponse>(
+      `/api/admin/banners/${bannerId}/status`,
+      body,
+      { auth: true },
+    ).then((res) => res.data);
+  },
+
+  delete(bannerId: number): Promise<null> {
+    return del<null>(`/api/admin/banners/${bannerId}`, {
+      auth: true,
+    }).then((res) => res.data);
+  },
+};
+
+// ─── Popup API ────────────────────────────────────────────────────────────────
+
+export type PopupStatus = "Visible" | "Hidden";
+
+export interface PopupResponse {
+  popupId: number;
+  title: string;
+  body: string;
+  imageUrl: string | null;
+  ctaLabel: string | null;
+  ctaTargetUrl: string | null;
+  status: PopupStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const adminPopupsApi = {
+  list(params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: PopupStatus;
+  }): Promise<PaginatedList<PopupResponse>> {
+    return get<{
+      data: PopupResponse[];
+      pagination: { page: number; limit: number; total: number; totalPages: number };
+    }>(`/api/admin/popups${buildQueryString(params)}`, {
+      auth: true,
+    }).then((res) => ({
+      list: res.data.data,
+      total: res.data.pagination.total,
+      page: res.data.pagination.page,
+      limit: res.data.pagination.limit,
+      totalPages: res.data.pagination.totalPages,
+    }));
+  },
+
+  getById(popupId: number): Promise<PopupResponse> {
+    return get<PopupResponse>(`/api/admin/popups/${popupId}`, {
+      auth: true,
+    }).then((res) => res.data);
+  },
+
+  create(body: {
+    title: string;
+    body: string;
+    imageUrl?: string | null;
+    ctaLabel?: string | null;
+    ctaTargetUrl?: string | null;
+    status?: PopupStatus;
+  }): Promise<PopupResponse> {
+    return post<PopupResponse>(`/api/admin/popups`, body, {
+      auth: true,
+    }).then((res) => res.data);
+  },
+
+  update(
+    popupId: number,
+    body: {
+      title?: string;
+      body?: string;
+      imageUrl?: string | null;
+      ctaLabel?: string | null;
+      ctaTargetUrl?: string | null;
+    },
+  ): Promise<PopupResponse> {
+    return patch<PopupResponse>(`/api/admin/popups/${popupId}`, body, {
+      auth: true,
+    }).then((res) => res.data);
+  },
+
+  updateStatus(
+    popupId: number,
+    body: { status: PopupStatus },
+  ): Promise<PopupResponse> {
+    return patch<PopupResponse>(
+      `/api/admin/popups/${popupId}/status`,
+      body,
+      { auth: true },
+    ).then((res) => res.data);
+  },
+
+  delete(popupId: number): Promise<null> {
+    return del<null>(`/api/admin/popups/${popupId}`, {
+      auth: true,
+    }).then((res) => res.data);
+  },
+};
+
+// ─── Post API ─────────────────────────────────────────────────────────────────
+
+export type PostStatus = "Visible" | "Hidden";
+
+export interface PostAuthor {
+  userId: string;
+  fullName: string;
+  email: string;
+  avatar: string | null;
+}
+
+export interface PostResponse {
+  postId: number;
+  authorId: string;
+  title: string;
+  content: string;
+  imageUrl: string | null;
+  status: PostStatus;
+  publishedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  author: PostAuthor;
+}
+
+export const adminPostsApi = {
+  list(params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: PostStatus;
+  }): Promise<PaginatedList<PostResponse>> {
+    return get<{
+      data: PostResponse[];
+      pagination: { page: number; limit: number; total: number; totalPages: number };
+    }>(`/api/admin/posts${buildQueryString(params)}`, {
+      auth: true,
+    }).then((res) => ({
+      list: res.data.data,
+      total: res.data.pagination.total,
+      page: res.data.pagination.page,
+      limit: res.data.pagination.limit,
+      totalPages: res.data.pagination.totalPages,
+    }));
+  },
+
+  getById(postId: number): Promise<PostResponse> {
+    return get<PostResponse>(`/api/admin/posts/${postId}`, {
+      auth: true,
+    }).then((res) => res.data);
+  },
+
+  create(body: {
+    title: string;
+    content: string;
+    imageUrl?: string | null;
+    status?: PostStatus;
+  }): Promise<PostResponse> {
+    return post<PostResponse>(`/api/admin/posts`, body, {
+      auth: true,
+    }).then((res) => res.data);
+  },
+
+  update(
+    postId: number,
+    body: {
+      title?: string;
+      content?: string;
+      imageUrl?: string | null;
+    },
+  ): Promise<PostResponse> {
+    return patch<PostResponse>(`/api/admin/posts/${postId}`, body, {
+      auth: true,
+    }).then((res) => res.data);
+  },
+
+  updateStatus(
+    postId: number,
+    body: { status: PostStatus },
+  ): Promise<PostResponse> {
+    return patch<PostResponse>(
+      `/api/admin/posts/${postId}/status`,
+      body,
+      { auth: true },
+    ).then((res) => res.data);
+  },
+
+  delete(postId: number): Promise<null> {
+    return del<null>(`/api/admin/posts/${postId}`, {
+      auth: true,
+    }).then((res) => res.data);
+  },
 };
