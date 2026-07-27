@@ -63,4 +63,9 @@ router.patch("/posts/:postId", adminController.updatePost);
 router.patch("/posts/:postId/status", adminController.updatePostStatus);
 router.delete("/posts/:postId", adminController.deletePost);
 
+router.get("/orders", adminController.listOrders);
+router.get("/orders/:orderId", adminController.getOrderById);
+router.post("/orders/:orderId/cancel", adminController.cancelOrder);
+router.post("/orders/:orderId/refund", adminController.refundOrder);
+
 export default router;

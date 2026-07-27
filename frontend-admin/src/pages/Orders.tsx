@@ -1,122 +1,130 @@
-import { useState } from 'react'
-import { useToast } from '../components/shared/Toast'
+import { useState, useEffect } from 'react';
+import { useToast } from '../components/shared/Toast';
+import { useOrderManagement } from '../hooks/useOrderManagement';
+import { adminOrdersApi } from '../services/admin.service';
+import type { OrderResponse, OrderPaymentStatus } from '../services/admin.service';
 
-type OrderStatus = 'PENDING' | 'PAID' | 'COMPLETED' | 'CANCELLED' | 'REFUND_PENDING' | 'REFUNDED'
-type PaymentStatus = 'UNPAID' | 'PAID' | 'REFUNDED' | 'FAILED'
-type PaymentMethod = 'WALLET' | 'BANK_TRANSFER' | 'COD'
+const paymentStatusConfig: Record<OrderPaymentStatus, { label: string; cls: string }> = {
+  Pending: { label: 'Chờ thanh toán', cls: 'badge-pending' },
+  Paid: { label: 'Đã thanh toán', cls: 'badge-active' },
+  Cancelled: { label: 'Đã hủy', cls: 'badge-locked' },
+};
 
-interface Order {
-  id: string
-  code: string
-  customerName: string
-  customerEmail: string
-  customerPhone: string
-  items: { name: string; qty: number; price: number }[]
-  totalAmount: number
-  paymentMethod: PaymentMethod
-  paymentStatus: PaymentStatus
-  orderStatus: OrderStatus
-  createdAt: string
-  note?: string
-}
+const fmtVnd = (n: string | number) => {
+  const num = typeof n === 'string' ? Number(n) : n;
+  return new Intl.NumberFormat('vi-VN').format(num) + ' đ';
+};
 
-const mockOrders: Order[] = [
-  { id: 'ORD-12842', code: 'ORD-2024-001', customerName: 'Nguyễn Văn A', customerEmail: 'vana.nguyen@email.com', customerPhone: '0901234567', items: [{ name: 'Combo Buffet Nướng Cao Cấp', qty: 1, price: 599000 }], totalAmount: 599000, paymentMethod: 'WALLET', paymentStatus: 'PAID', orderStatus: 'COMPLETED', createdAt: '20/06/2024 14:30' },
-  { id: 'ORD-12841', code: 'ORD-2024-002', customerName: 'Lê Thị B', customerEmail: 'lethib@email.com', customerPhone: '0902345678', items: [{ name: 'Gói Gym 1 tháng', qty: 1, price: 1200000 }, { name: 'Combo Cafe Signature', qty: 2, price: 300000 }], totalAmount: 1800000, paymentMethod: 'BANK_TRANSFER', paymentStatus: 'PAID', orderStatus: 'PAID', createdAt: '21/06/2024 09:15' },
-  { id: 'ORD-12840', code: 'ORD-2024-003', customerName: 'Trần Danh', customerEmail: 'danhtran@shop.com', customerPhone: '0903456789', items: [{ name: 'Tai Nghe ANC Pro', qty: 1, price: 2450000 }], totalAmount: 2450000, paymentMethod: 'COD', paymentStatus: 'UNPAID', orderStatus: 'PENDING', createdAt: '21/06/2024 11:45' },
-  { id: 'ORD-12839', code: 'ORD-2024-004', customerName: 'Phạm Lan', customerEmail: 'lanpham@email.com', customerPhone: '0904567890', items: [{ name: 'Liệu trình Spa 90p', qty: 1, price: 899000 }], totalAmount: 899000, paymentMethod: 'WALLET', paymentStatus: 'REFUNDED', orderStatus: 'REFUNDED', createdAt: '18/06/2024 16:20', note: 'Khách hàng yêu cầu hủy do trùng lịch' },
-  { id: 'ORD-12838', code: 'ORD-2024-005', customerName: 'Hoàng Minh', customerEmail: 'minhhoang@gmail.com', customerPhone: '0905678901', items: [{ name: 'Cặp vé IMAX', qty: 2, price: 450000 }], totalAmount: 900000, paymentMethod: 'BANK_TRANSFER', paymentStatus: 'PAID', orderStatus: 'COMPLETED', createdAt: '21/06/2024 08:00' },
-  { id: 'ORD-12837', code: 'ORD-2024-006', customerName: 'Đỗ Thu Hà', customerEmail: 'thuha.do@email.com', customerPhone: '0906789012', items: [{ name: 'Combo Buffet Hải Sản', qty: 1, price: 1299000 }], totalAmount: 1299000, paymentMethod: 'WALLET', paymentStatus: 'FAILED', orderStatus: 'PENDING', createdAt: '21/06/2024 07:50' },
-]
-
-const orderStatusConfig: Record<OrderStatus, { label: string; cls: string }> = {
-  PENDING: { label: 'Chờ xử lý', cls: 'badge-pending' },
-  PAID: { label: 'Đã thanh toán', cls: 'badge-info' },
-  COMPLETED: { label: 'Hoàn tất', cls: 'badge-active' },
-  CANCELLED: { label: 'Đã hủy', cls: 'badge-locked' },
-  REFUND_PENDING: { label: 'Chờ hoàn tiền', cls: 'badge-pending' },
-  REFUNDED: { label: 'Đã hoàn tiền', cls: 'badge-locked' },
-}
-
-const paymentStatusConfig: Record<PaymentStatus, { label: string; cls: string }> = {
-  UNPAID: { label: 'Chưa thanh toán', cls: 'badge-pending' },
-  PAID: { label: 'Đã thanh toán', cls: 'badge-active' },
-  REFUNDED: { label: 'Đã hoàn tiền', cls: 'badge-locked' },
-  FAILED: { label: 'Thanh toán lỗi', cls: 'badge-locked' },
-}
-
-const paymentMethodLabel: Record<PaymentMethod, string> = {
-  WALLET: 'Ví điện tử',
-  BANK_TRANSFER: 'Chuyển khoản',
-  COD: 'COD',
-}
-
-const fmt = (n: number) => new Intl.NumberFormat('vi-VN').format(n) + ' đ'
+const formatDate = (iso: string | null): string => {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
 
 export default function Orders() {
-  const { showToast } = useToast()
-  const [search, setSearch] = useState('')
-  const [orderStatusFilter, setOrderStatusFilter] = useState('all')
-  const [paymentStatusFilter, setPaymentStatusFilter] = useState('all')
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
-  const [showRefundModal, setShowRefundModal] = useState(false)
-  const [showCancelModal, setShowCancelModal] = useState(false)
-  const [refundAmount, setRefundAmount] = useState('')
-  const [cancelReason, setCancelReason] = useState('')
-  const [targetOrder, setTargetOrder] = useState<Order | null>(null)
+  const { showToast } = useToast();
+  const {
+    orders,
+    isLoading,
+    isSaving,
+    error,
+    fetchOrders,
+    cancelOrder,
+    refundOrder,
+  } = useOrderManagement();
 
-  const filtered = mockOrders.filter((o) => {
-    const matchSearch =
-      o.code.toLowerCase().includes(search.toLowerCase()) ||
-      o.customerName.toLowerCase().includes(search.toLowerCase()) ||
-      o.customerPhone.includes(search)
-    const matchOrderStatus = orderStatusFilter === 'all' || o.orderStatus === orderStatusFilter
-    const matchPaymentStatus = paymentStatusFilter === 'all' || o.paymentStatus === paymentStatusFilter
-    return matchSearch && matchOrderStatus && matchPaymentStatus
-  })
+  const [search, setSearch] = useState('');
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<'all' | OrderPaymentStatus>('all');
+  const [selectedOrder, setSelectedOrder] = useState<OrderResponse | null>(null);
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [refundAmount, setRefundAmount] = useState('');
+  const [refundReason, setRefundReason] = useState('');
+  const [cancelReason, setCancelReason] = useState('');
+  const [targetOrder, setTargetOrder] = useState<OrderResponse | null>(null);
 
-  const totalRevenue = mockOrders.filter((o) => o.paymentStatus === 'PAID' || o.paymentStatus === 'REFUNDED').reduce((sum, o) => sum + (o.paymentStatus === 'REFUNDED' ? 0 : o.totalAmount), 0)
-  const totalOrders = mockOrders.length
-  const pendingOrders = mockOrders.filter((o) => o.orderStatus === 'PENDING').length
-  const cancelledOrders = mockOrders.filter((o) => o.orderStatus === 'CANCELLED' || o.orderStatus === 'REFUNDED').length
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
-  const openRefund = (order: Order) => {
-    setTargetOrder(order)
-    setRefundAmount(order.totalAmount.toString())
-    setShowRefundModal(true)
-  }
+  const handleSearch = () => {
+    fetchOrders(1);
+  };
 
-  const openCancel = (order: Order) => {
-    setTargetOrder(order)
-    setCancelReason('')
-    setShowCancelModal(true)
-  }
+  const openRefund = (order: OrderResponse) => {
+    setTargetOrder(order);
+    setRefundAmount(order.totalAmount);
+    setRefundReason('');
+    setShowRefundModal(true);
+  };
 
-  const handleConfirmPayment = (order: Order) => {
-    showToast(`Đã xác nhận thanh toán thủ công cho đơn ${order.code}.`, 'success')
-  }
+  const openCancel = (order: OrderResponse) => {
+    setTargetOrder(order);
+    setCancelReason('');
+    setShowCancelModal(true);
+  };
 
-  const handleRefund = () => {
-    if (!targetOrder || !refundAmount) return
-    showToast(`Đã hoàn tiền ${fmt(Number(refundAmount))} cho đơn ${targetOrder.code}.`, 'success')
-    setShowRefundModal(false)
-    setTargetOrder(null)
-    setRefundAmount('')
-  }
-
-  const handleCancel = () => {
-    if (!targetOrder || !cancelReason.trim()) return
-    if (targetOrder.paymentStatus === 'PAID' && targetOrder.orderStatus !== 'CANCELLED') {
-      showToast(`Đơn đã thanh toán. Cần xử lý hoàn tiền trước khi hủy.`, 'warning')
-      setShowCancelModal(false)
-      openRefund(targetOrder)
-      return
+  const handleCancel = async () => {
+    if (!targetOrder || !cancelReason.trim()) return;
+    try {
+      await cancelOrder(targetOrder.orderId, { reason: cancelReason.trim() });
+      showToast(`Đã hủy đơn #${targetOrder.orderId}`, 'success');
+      setShowCancelModal(false);
+      setTargetOrder(null);
+      setCancelReason('');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Lỗi khi hủy đơn', 'error');
     }
-    showToast(`Đã hủy đơn ${targetOrder.code} — ${cancelReason}`, 'warning')
-    setShowCancelModal(false)
-    setTargetOrder(null)
-    setCancelReason('')
-  }
+  };
+
+  const handleRefund = async () => {
+    if (!targetOrder || !refundReason.trim()) {
+      showToast('Vui lòng nhập lý do hoàn tiền', 'error');
+      return;
+    }
+    const amount = Number(refundAmount);
+    if (!amount || amount <= 0) {
+      showToast('Số tiền hoàn phải lớn hơn 0', 'error');
+      return;
+    }
+    try {
+      await refundOrder(targetOrder.orderId, {
+        reason: refundReason.trim(),
+        amount,
+      });
+      showToast(
+        `Đã ghi nhận hoàn tiền (giả lập) ${fmtVnd(amount)} cho đơn #${targetOrder.orderId}`,
+        'success',
+      );
+      setShowRefundModal(false);
+      setTargetOrder(null);
+      setRefundAmount('');
+      setRefundReason('');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Lỗi khi hoàn tiền', 'error');
+    }
+  };
+
+  const openDetail = async (order: OrderResponse) => {
+    try {
+      const detail = await adminOrdersApi.getById(order.orderId);
+      setSelectedOrder(detail);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Không thể tải chi tiết', 'error');
+    }
+  };
+
+  const totalRevenue = orders
+    .filter((o) => o.paymentStatus === 'Paid' && !o.refundedAt)
+    .reduce((sum, o) => sum + Number(o.totalAmount), 0);
+  const totalOrders = orders.length;
+  const pendingOrders = orders.filter((o) => o.paymentStatus === 'Pending').length;
+  const cancelledOrders = orders.filter((o) => o.paymentStatus === 'Cancelled').length;
 
   return (
     <div>
@@ -128,70 +136,78 @@ export default function Orders() {
             Tra cứu, giám sát và xử lý đơn hàng trên hệ thống.
           </p>
         </div>
-        <button className="admin-btn admin-btn-ghost">
-          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>file_download</span>
-          Xuất báo cáo
-        </button>
       </div>
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
-        {[
-          { label: 'Tổng đơn hàng', value: totalOrders, color: '#3B82F6' },
-          { label: 'Đơn chờ xử lý', value: pendingOrders, color: '#F59E0B' },
-          { label: 'Đơn đã hủy', value: cancelledOrders, color: '#EF4444' },
-          { label: 'Tổng doanh thu', value: fmt(totalRevenue), color: '#10B981', isText: true },
-        ].map((s) => (
-          <div key={s.label} className="admin-card" style={{ padding: '1rem', textAlign: 'center' }}>
-            <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)', marginBottom: '0.25rem', fontSize: '0.65rem' }}>{s.label}</p>
-            <p className="font-headline-md" style={{ fontSize: '1.5rem', color: s.color }}>{s.value}</p>
-          </div>
-        ))}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+        <div className="admin-card" style={{ padding: '1.25rem' }}>
+          <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)', marginBottom: '0.5rem' }}>Tổng đơn</p>
+          <p className="font-headline-md" style={{ fontSize: '1.75rem', fontWeight: 700 }}>{totalOrders}</p>
+        </div>
+        <div className="admin-card" style={{ padding: '1.25rem' }}>
+          <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)', marginBottom: '0.5rem' }}>Chờ thanh toán</p>
+          <p className="font-headline-md" style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--color-tertiary, #f59e0b)' }}>{pendingOrders}</p>
+        </div>
+        <div className="admin-card" style={{ padding: '1.25rem' }}>
+          <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)', marginBottom: '0.5rem' }}>Đã hủy</p>
+          <p className="font-headline-md" style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--color-error, #b91c1c)' }}>{cancelledOrders}</p>
+        </div>
+        <div className="admin-card" style={{ padding: '1.25rem' }}>
+          <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)', marginBottom: '0.5rem' }}>Doanh thu (chưa hoàn)</p>
+          <p className="font-headline-md" style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--color-primary)' }}>{fmtVnd(totalRevenue)}</p>
+        </div>
       </div>
 
       {/* Filters */}
-      <div className="admin-card" style={{ padding: '1rem', marginBottom: '1rem' }}>
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <div style={{ position: 'relative', flex: 1, minWidth: 250 }}>
-            <span className="material-symbols-outlined" style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-on-surface-variant)', fontSize: '18px' }}>
-              search
-            </span>
+      <div className="admin-card" style={{ padding: '1rem', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: '240px', position: 'relative' }}>
+            <span className="material-symbols-outlined" style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-on-surface-variant)', fontSize: '20px' }}>search</span>
             <input
               className="admin-input"
-              style={{ paddingLeft: '2.5rem' }}
-              placeholder="Tìm mã đơn, tên khách hàng, SĐT..."
+              style={{ paddingLeft: '2.5rem', width: '100%' }}
+              placeholder="Tìm theo mã đơn, tên, email khách..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
             />
           </div>
-          <select className="admin-input admin-select" style={{ width: 'auto' }} value={orderStatusFilter} onChange={(e) => setOrderStatusFilter(e.target.value)}>
-            <option value="all">Trạng thái: Tất cả</option>
-            <option value="PENDING">Chờ xử lý</option>
-            <option value="PAID">Đã thanh toán</option>
-            <option value="COMPLETED">Hoàn tất</option>
-            <option value="CANCELLED">Đã hủy</option>
-            <option value="REFUNDED">Đã hoàn tiền</option>
+          <select
+            className="admin-input"
+            style={{ width: 'auto', minWidth: '180px' }}
+            value={paymentStatusFilter}
+            onChange={(e) => {
+              setPaymentStatusFilter(e.target.value as 'all' | OrderPaymentStatus);
+            }}
+          >
+            <option value="all">Tất cả thanh toán</option>
+            <option value="Pending">Chờ thanh toán</option>
+            <option value="Paid">Đã thanh toán</option>
+            <option value="Cancelled">Đã hủy</option>
           </select>
-          <select className="admin-input admin-select" style={{ width: 'auto' }} value={paymentStatusFilter} onChange={(e) => setPaymentStatusFilter(e.target.value)}>
-            <option value="all">Thanh toán: Tất cả</option>
-            <option value="UNPAID">Chưa thanh toán</option>
-            <option value="PAID">Đã thanh toán</option>
-            <option value="REFUNDED">Đã hoàn tiền</option>
-            <option value="FAILED">Thanh toán lỗi</option>
-          </select>
+          <button className="admin-btn admin-btn-primary" onClick={handleSearch}>
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>filter_list</span>
+            Lọc
+          </button>
         </div>
       </div>
 
       {/* Table */}
       <div className="admin-card" style={{ overflow: 'hidden' }}>
-        <div style={{ overflowX: 'auto' }}>
+        {isLoading ? (
+          <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--color-on-surface-variant)' }}>Đang tải...</div>
+        ) : error ? (
+          <div style={{ padding: '1.5rem', color: 'var(--color-error)' }}>{error}</div>
+        ) : orders.length === 0 ? (
+          <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--color-on-surface-variant)' }}>Chưa có đơn hàng nào.</div>
+        ) : (
           <table className="admin-table">
             <thead>
               <tr>
                 <th>Mã đơn</th>
                 <th>Khách hàng</th>
-                <th>Đơn hàng</th>
-                <th style={{ textAlign: 'right' }}>Tổng tiền</th>
+                <th>Voucher</th>
+                <th>Số tiền</th>
                 <th>Thanh toán</th>
                 <th>Trạng thái</th>
                 <th>Ngày tạo</th>
@@ -199,88 +215,89 @@ export default function Orders() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((order) => {
-                const osc = orderStatusConfig[order.orderStatus]
-                const psc = paymentStatusConfig[order.paymentStatus]
-                return (
-                  <tr key={order.id}>
-                    <td><span className="font-label-sm" style={{ color: 'var(--color-outline)', fontSize: '0.7rem' }}>{order.code}</span></td>
-                    <td>
-                      <p className="font-body-sm" style={{ fontWeight: 600 }}>{order.customerName}</p>
-                      <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)', fontSize: '0.65rem' }}>{order.customerPhone}</p>
-                    </td>
-                    <td>
-                      {order.items.map((item, i) => (
-                        <p key={i} className="font-body-sm" style={{ fontSize: '0.75rem' }}>
-                          {item.qty}x {item.name}
-                        </p>
-                      ))}
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <span className="font-label-md" style={{ fontWeight: 700, color: 'var(--color-primary)' }}>{fmt(order.totalAmount)}</span>
-                    </td>
-                    <td>
-                      <p className="font-body-sm" style={{ fontSize: '0.75rem' }}>{paymentMethodLabel[order.paymentMethod]}</p>
-                      <span className={`badge ${psc.cls}`} style={{ fontSize: '0.6rem' }}>{psc.label}</span>
-                    </td>
-                    <td><span className={`badge ${osc.cls}`}>{osc.label}</span></td>
-                    <td><span className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)', fontSize: '0.7rem' }}>{order.createdAt}</span></td>
-                    <td>
-                      <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'flex-end' }}>
-                        <button
-                          className="admin-btn admin-btn-ghost"
-                          style={{ padding: '0.25rem', fontSize: '0.7rem' }}
-                          onClick={() => setSelectedOrder(order)}
-                          title="Xem chi tiết"
-                        >
-                          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>visibility</span>
-                        </button>
-                        {(order.orderStatus === 'PENDING' && order.paymentStatus === 'UNPAID') && (
-                          <button
-                            className="admin-btn admin-btn-primary"
-                            style={{ padding: '0.25rem', fontSize: '0.7rem' }}
-                            onClick={() => handleConfirmPayment(order)}
-                            title="Xác nhận thanh toán"
-                          >
-                            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>payments</span>
-                          </button>
-                        )}
-                        {(order.paymentStatus === 'PAID') && (
-                          <button
-                            className="admin-btn admin-btn-danger"
-                            style={{ padding: '0.25rem', fontSize: '0.7rem' }}
-                            onClick={() => openCancel(order)}
-                            title="Hủy đơn"
-                          >
-                            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>cancel</span>
-                          </button>
-                        )}
-                        {(order.paymentStatus === 'PAID' || order.paymentStatus === 'UNPAID') && (
+              {orders.map((order) => (
+                <tr key={order.orderId}>
+                  <td>
+                    <span className="font-body-sm" style={{ fontWeight: 600 }}>#{order.orderId}</span>
+                    {order.isGift && (
+                      <span className="badge badge-info" style={{ marginLeft: '0.5rem' }}>Quà tặng</span>
+                    )}
+                  </td>
+                  <td>
+                    <div className="font-body-sm" style={{ fontWeight: 600 }}>{order.customer?.fullName ?? '—'}</div>
+                    <div className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)' }}>{order.customer?.email ?? order.receiverEmail ?? '—'}</div>
+                  </td>
+                  <td>
+                    <div className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)' }}>
+                      {order.orderItems?.length ?? 0} sản phẩm
+                    </div>
+                  </td>
+                  <td>
+                    <span className="font-body-sm" style={{ fontWeight: 600 }}>{fmtVnd(order.totalAmount)}</span>
+                    {order.refundedAt && (
+                      <div className="font-label-sm" style={{ color: 'var(--color-error, #b91c1c)' }}>
+                        - Hoàn: {fmtVnd(order.refundAmount ?? 0)}
+                      </div>
+                    )}
+                  </td>
+                  <td>
+                    <span className={`badge ${paymentStatusConfig[order.paymentStatus].cls}`}>
+                      {paymentStatusConfig[order.paymentStatus].label}
+                    </span>
+                  </td>
+                  <td>
+                    {order.refundedAt ? (
+                      <span className="badge badge-locked">Đã hoàn tiền</span>
+                    ) : order.cancelledAt ? (
+                      <span className="badge badge-locked">Đã hủy</span>
+                    ) : order.paymentStatus === 'Paid' ? (
+                      <span className="badge badge-active">Hoạt động</span>
+                    ) : (
+                      <span className="badge badge-pending">Chờ</span>
+                    )}
+                  </td>
+                  <td>
+                    <span className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)' }}>{formatDate(order.createdAt)}</span>
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'flex-end' }}>
+                      <button
+                        className="admin-btn admin-btn-ghost"
+                        style={{ padding: '0.25rem', fontSize: '0.7rem' }}
+                        onClick={() => openDetail(order)}
+                        title="Xem chi tiết"
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>visibility</span>
+                      </button>
+                      {order.paymentStatus === 'Paid' && !order.refundedAt && (
+                        <>
                           <button
                             className="admin-btn admin-btn-ghost"
                             style={{ padding: '0.25rem', fontSize: '0.7rem', color: '#F59E0B' }}
                             onClick={() => openRefund(order)}
                             title="Hoàn tiền"
+                            disabled={isSaving}
                           >
                             <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>attach_money</span>
                           </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
+                          <button
+                            className="admin-btn admin-btn-danger"
+                            style={{ padding: '0.25rem', fontSize: '0.7rem' }}
+                            onClick={() => openCancel(order)}
+                            title="Hủy đơn"
+                            disabled={isSaving}
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>cancel</span>
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
-        </div>
-        <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--color-outline-variant)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <p className="font-body-sm" style={{ color: 'var(--color-on-surface-variant)' }}>Hiển thị 1-{Math.min(10, filtered.length)} trên {mockOrders.length} đơn hàng</p>
-          <div className="pagination">
-            <button className="pagination-btn" disabled><span className="material-symbols-outlined" style={{ fontSize: '16px' }}>chevron_left</span></button>
-            <button className="pagination-btn active">1</button>
-            <button className="pagination-btn"><span className="material-symbols-outlined" style={{ fontSize: '16px' }}>chevron_right</span></button>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Order Detail Panel */}
@@ -291,10 +308,12 @@ export default function Orders() {
             <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--color-outline-variant)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <p className="font-label-sm" style={{ color: 'var(--color-outline)', marginBottom: '0.25rem' }}>MÃ ĐƠN HÀNG</p>
-                <h3 className="font-headline-md" style={{ fontSize: '1.25rem' }}>{selectedOrder.code}</h3>
+                <h3 className="font-headline-md" style={{ fontSize: '1.25rem' }}>#{selectedOrder.orderId}</h3>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span className={`badge ${orderStatusConfig[selectedOrder.orderStatus].cls}`}>{orderStatusConfig[selectedOrder.orderStatus].label}</span>
+                <span className={`badge ${paymentStatusConfig[selectedOrder.paymentStatus].cls}`}>
+                  {paymentStatusConfig[selectedOrder.paymentStatus].label}
+                </span>
                 <button onClick={() => setSelectedOrder(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-on-surface-variant)' }}>
                   <span className="material-symbols-outlined">close</span>
                 </button>
@@ -302,7 +321,6 @@ export default function Orders() {
             </div>
 
             <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1 }}>
-              {/* Customer info */}
               <div style={{ marginBottom: '1.5rem' }}>
                 <h4 className="font-label-md" style={{ marginBottom: '0.75rem', color: 'var(--color-primary)', borderBottom: '1px solid rgba(0,92,134,0.2)', paddingBottom: '0.5rem' }}>
                   THÔNG TIN KHÁCH HÀNG
@@ -310,90 +328,71 @@ export default function Orders() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                   <div>
                     <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)', fontSize: '0.65rem', marginBottom: '0.125rem' }}>Tên</p>
-                    <p className="font-body-sm" style={{ fontWeight: 600 }}>{selectedOrder.customerName}</p>
+                    <p className="font-body-sm" style={{ fontWeight: 600 }}>{selectedOrder.customer?.fullName ?? '—'}</p>
                   </div>
                   <div>
                     <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)', fontSize: '0.65rem', marginBottom: '0.125rem' }}>SĐT</p>
-                    <p className="font-body-sm">{selectedOrder.customerPhone}</p>
+                    <p className="font-body-sm">{selectedOrder.customer?.phoneNumber ?? '—'}</p>
                   </div>
                   <div style={{ gridColumn: '1 / -1' }}>
                     <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)', fontSize: '0.65rem', marginBottom: '0.125rem' }}>Email</p>
-                    <p className="font-body-sm">{selectedOrder.customerEmail}</p>
+                    <p className="font-body-sm">{selectedOrder.customer?.email ?? selectedOrder.receiverEmail ?? '—'}</p>
                   </div>
                 </div>
               </div>
 
-              {/* Items */}
               <div style={{ marginBottom: '1.5rem' }}>
                 <h4 className="font-label-md" style={{ marginBottom: '0.75rem', color: 'var(--color-primary)', borderBottom: '1px solid rgba(0,92,134,0.2)', paddingBottom: '0.5rem' }}>
                   SẢN PHẨM TRONG ĐƠN
                 </h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  {selectedOrder.items.map((item, i) => (
-                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', background: 'var(--color-surface-container-low)', borderRadius: '0.5rem' }}>
-                      <div>
-                        <p className="font-body-sm" style={{ fontWeight: 600 }}>{item.name}</p>
-                        <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)', fontSize: '0.65rem' }}>SL: {item.qty}</p>
-                      </div>
-                      <span className="font-label-md" style={{ fontWeight: 700 }}>{fmt(item.price)}</span>
+                {(selectedOrder.orderItems ?? []).map((oi) => (
+                  <div key={oi.orderItemId} style={{ display: 'flex', gap: '0.75rem', padding: '0.5rem 0', borderBottom: '1px solid var(--color-outline-variant)' }}>
+                    <div style={{ flex: 1 }}>
+                      <p className="font-body-sm" style={{ fontWeight: 600 }}>{oi.voucher?.title ?? `Voucher #${oi.voucherId}`}</p>
+                      <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)' }}>SL: {oi.quantity} × {fmtVnd(oi.price)}</p>
+                      {(oi.issuedVouchers ?? []).length > 0 && (
+                        <div className="font-label-sm" style={{ marginTop: '0.25rem', color: 'var(--color-on-surface-variant)' }}>
+                          Mã: {oi.issuedVouchers!.map((iv) => iv.voucherCode).join(', ')}
+                        </div>
+                      )}
                     </div>
-                  ))}
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '0.75rem', background: 'var(--color-primary-container)', borderRadius: '0.5rem', marginTop: '0.5rem' }}>
-                  <span className="font-label-md" style={{ fontWeight: 700, color: 'var(--color-on-primary-container)' }}>
-                    Tổng cộng: {fmt(selectedOrder.totalAmount)}
-                  </span>
+                    <div className="font-body-sm" style={{ fontWeight: 600, alignSelf: 'center' }}>
+                      {fmtVnd(Number(oi.price) * oi.quantity)}
+                    </div>
+                  </div>
+                ))}
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '2px solid var(--color-primary)' }}>
+                  <span className="font-label-md" style={{ fontWeight: 700 }}>Tổng cộng</span>
+                  <span className="font-headline-sm" style={{ color: 'var(--color-primary)', fontWeight: 700 }}>{fmtVnd(selectedOrder.totalAmount)}</span>
                 </div>
               </div>
 
-              {/* Payment */}
-              <div style={{ marginBottom: '1.5rem' }}>
-                <h4 className="font-label-md" style={{ marginBottom: '0.75rem', color: 'var(--color-primary)', borderBottom: '1px solid rgba(0,92,134,0.2)', paddingBottom: '0.5rem' }}>
-                  THANH TOÁN
-                </h4>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                  <div style={{ padding: '0.75rem', background: 'var(--color-surface-container-low)', borderRadius: '0.5rem' }}>
-                    <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)', fontSize: '0.65rem', marginBottom: '0.25rem' }}>Phương thức</p>
-                    <p className="font-body-sm" style={{ fontWeight: 600 }}>{paymentMethodLabel[selectedOrder.paymentMethod]}</p>
-                  </div>
-                  <div style={{ padding: '0.75rem', background: 'var(--color-surface-container-low)', borderRadius: '0.5rem' }}>
-                    <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)', fontSize: '0.65rem', marginBottom: '0.25rem' }}>Trạng thái TT</p>
-                    <span className={`badge ${paymentStatusConfig[selectedOrder.paymentStatus].cls}`}>
-                      {paymentStatusConfig[selectedOrder.paymentStatus].label}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Note */}
-              {selectedOrder.note && (
-                <div style={{ padding: '0.75rem', background: 'var(--color-surface-container-low)', borderRadius: '0.5rem', borderLeft: '3px solid var(--color-outline)' }}>
-                  <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)', fontSize: '0.65rem', marginBottom: '0.25rem' }}>GHI CHÚ</p>
-                  <p className="font-body-sm">{selectedOrder.note}</p>
+              {(selectedOrder.cancelledAt || selectedOrder.refundedAt) && (
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <h4 className="font-label-md" style={{ marginBottom: '0.75rem', color: 'var(--color-primary)', borderBottom: '1px solid rgba(0,92,134,0.2)', paddingBottom: '0.5rem' }}>
+                    LỊCH SỬ
+                  </h4>
+                  {selectedOrder.cancelledAt && (
+                    <div style={{ padding: '0.75rem', background: 'var(--color-error-container, #fee2e2)', borderRadius: '0.5rem', marginBottom: '0.5rem' }}>
+                      <p className="font-body-sm" style={{ fontWeight: 600 }}>Đã hủy lúc {formatDate(selectedOrder.cancelledAt)}</p>
+                      {selectedOrder.cancelReason && (
+                        <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)' }}>Lý do: {selectedOrder.cancelReason}</p>
+                      )}
+                    </div>
+                  )}
+                  {selectedOrder.refundedAt && (
+                    <div style={{ padding: '0.75rem', background: 'var(--color-tertiary-container, #fef3c7)', borderRadius: '0.5rem' }}>
+                      <p className="font-body-sm" style={{ fontWeight: 600 }}>Đã hoàn tiền lúc {formatDate(selectedOrder.refundedAt)}</p>
+                      <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)' }}>
+                        Số tiền: {fmtVnd(selectedOrder.refundAmount ?? 0)}
+                      </p>
+                      {selectedOrder.refundReason && (
+                        <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)' }}>Lý do: {selectedOrder.refundReason}</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
-
-            {/* Actions */}
-            <div style={{ padding: '1.5rem', borderTop: '1px solid var(--color-outline-variant)', display: 'flex', gap: '0.75rem' }}>
-              {(selectedOrder.orderStatus === 'PENDING' && selectedOrder.paymentStatus === 'UNPAID') && (
-                <button
-                  className="admin-btn admin-btn-primary"
-                  style={{ flex: 1 }}
-                  onClick={() => { handleConfirmPayment(selectedOrder); setSelectedOrder(null) }}
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>payments</span>
-                  Xác nhận thanh toán
-                </button>
-              )}
-              <button
-                className="admin-btn admin-btn-danger"
-                style={{ flex: 1 }}
-                onClick={() => { setSelectedOrder(null); openCancel(selectedOrder) }}
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>cancel</span>
-                Hủy đơn hàng
-              </button>
             </div>
           </div>
         </>
@@ -411,17 +410,23 @@ export default function Orders() {
               </button>
             </div>
             <div style={{ padding: '1.5rem', flex: 1 }}>
-              <div style={{ padding: '1rem', background: targetOrder.paymentStatus === 'PAID' ? 'var(--color-error-container)' : 'var(--color-surface-container-low)', borderRadius: '0.75rem', marginBottom: '1rem', border: `1px solid ${targetOrder.paymentStatus === 'PAID' ? 'rgba(239,68,68,0.2)' : 'var(--color-outline-variant)'}` }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <span className="material-symbols-outlined" style={{ color: targetOrder.paymentStatus === 'PAID' ? 'var(--color-error-danger)' : 'var(--color-on-surface-variant)', fontSize: '20px' }}>
-                    {targetOrder.paymentStatus === 'PAID' ? 'warning' : 'info'}
-                  </span>
-                  <p className="font-body-sm" style={{ color: targetOrder.paymentStatus === 'PAID' ? 'var(--color-on-error-container)' : 'var(--color-on-surface-variant)' }}>
-                    {targetOrder.paymentStatus === 'PAID'
-                      ? `Đơn đã thanh toán ${fmt(targetOrder.totalAmount)}. Cần xử lý hoàn tiền trước.`
-                      : `Đơn chưa thanh toán. Có thể hủy trực tiếp.`}
-                  </p>
-                </div>
+              <div className="admin-card" style={{ padding: '1rem', marginBottom: '1rem' }}>
+                <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)' }}>Đơn hàng</p>
+                <p className="font-body-sm" style={{ fontWeight: 600 }}>#{targetOrder.orderId} · {fmtVnd(targetOrder.totalAmount)}</p>
+                <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)' }}>Khách: {targetOrder.customer?.fullName}</p>
+              </div>
+              <div style={{ padding: '0.75rem', background: 'var(--color-tertiary-container, #fef3c7)', borderRadius: '0.5rem', marginBottom: '1rem' }}>
+                <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)' }}>
+                  ⚠️ Hủy đơn sẽ tự động:
+                  <br />• Chuyển trạng thái thanh toán thành <strong>Cancelled</strong>
+                  <br />• Đánh dấu các mã voucher đã phát hành là <strong>Expired</strong>
+                  <br />• Hoàn lại số lượng voucher vào kho đối tác
+                  {targetOrder.paymentStatus === 'Paid' && (
+                    <>
+                      <br />• Đơn này đang ở trạng thái <strong>Đã thanh toán</strong> — bạn nên <strong>hoàn tiền</strong> trước khi hủy.
+                    </>
+                  )}
+                </p>
               </div>
               <div>
                 <label className="font-label-sm" style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--color-on-surface-variant)' }}>
@@ -429,7 +434,7 @@ export default function Orders() {
                 </label>
                 <textarea
                   className="admin-input"
-                  style={{ resize: 'vertical', minHeight: '100px' }}
+                  style={{ resize: 'vertical', minHeight: '100px', width: '100%' }}
                   placeholder="Nhập lý do hủy đơn hàng..."
                   value={cancelReason}
                   onChange={(e) => setCancelReason(e.target.value)}
@@ -444,7 +449,7 @@ export default function Orders() {
                 className="admin-btn admin-btn-danger"
                 style={{ flex: 2 }}
                 onClick={handleCancel}
-                disabled={!cancelReason.trim()}
+                disabled={!cancelReason.trim() || isSaving}
               >
                 Xác nhận hủy đơn
               </button>
@@ -459,24 +464,49 @@ export default function Orders() {
           <div className="side-panel-overlay" onClick={() => { setShowRefundModal(false); setTargetOrder(null) }} />
           <div className="side-panel" style={{ width: '28rem' }}>
             <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--color-outline-variant)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 className="font-headline-md" style={{ fontSize: '1.25rem' }}>Hoàn tiền</h3>
+              <h3 className="font-headline-md" style={{ fontSize: '1.25rem' }}>Hoàn tiền (giả lập)</h3>
               <button onClick={() => { setShowRefundModal(false); setTargetOrder(null) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-on-surface-variant)' }}>
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
             <div style={{ padding: '1.5rem', flex: 1 }}>
+              <div className="admin-card" style={{ padding: '1rem', marginBottom: '1rem' }}>
+                <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)' }}>Đơn hàng</p>
+                <p className="font-body-sm" style={{ fontWeight: 600 }}>#{targetOrder.orderId} · {fmtVnd(targetOrder.totalAmount)}</p>
+                <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)' }}>Khách: {targetOrder.customer?.fullName}</p>
+              </div>
+              <div style={{ padding: '0.75rem', background: 'var(--color-tertiary-container, #fef3c7)', borderRadius: '0.5rem', marginBottom: '1rem' }}>
+                <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)' }}>
+                  ℹ️ Đây là <strong>giả lập</strong>: hệ thống chỉ ghi nhận thời gian, số tiền và lý do hoàn tiền. Không tích hợp cổng thanh toán thực.
+                </p>
+              </div>
               <div style={{ marginBottom: '1rem' }}>
-                <p className="font-label-sm" style={{ marginBottom: '0.5rem', color: 'var(--color-on-surface-variant)' }}>Số tiền hoàn (đ)</p>
+                <label className="font-label-sm" style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--color-on-surface-variant)' }}>
+                  Số tiền hoàn (đ) <span style={{ color: 'var(--color-error-danger)' }}>*</span>
+                </label>
                 <input
                   className="admin-input"
+                  style={{ width: '100%' }}
                   type="number"
-                  placeholder={targetOrder.totalAmount.toString()}
+                  placeholder={targetOrder.totalAmount}
                   value={refundAmount}
                   onChange={(e) => setRefundAmount(e.target.value)}
                 />
-                <p className="font-label-sm" style={{ marginTop: '0.25rem', color: 'var(--color-on-surface-variant)', fontSize: '0.65rem' }}>
-                  Tối đa: {fmt(targetOrder.totalAmount)}
+                <p className="font-label-sm" style={{ marginTop: '0.25rem', color: 'var(--color-on-surface-variant)' }}>
+                  Tối đa: {fmtVnd(targetOrder.totalAmount)}
                 </p>
+              </div>
+              <div>
+                <label className="font-label-sm" style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--color-on-surface-variant)' }}>
+                  Lý do hoàn tiền <span style={{ color: 'var(--color-error-danger)' }}>*</span>
+                </label>
+                <textarea
+                  className="admin-input"
+                  style={{ resize: 'vertical', minHeight: '80px', width: '100%' }}
+                  placeholder="Nhập lý do hoàn tiền..."
+                  value={refundReason}
+                  onChange={(e) => setRefundReason(e.target.value)}
+                />
               </div>
             </div>
             <div style={{ padding: '1.5rem', borderTop: '1px solid var(--color-outline-variant)', display: 'flex', gap: '0.75rem' }}>
@@ -484,10 +514,10 @@ export default function Orders() {
                 Hủy
               </button>
               <button
-                className="admin-btn admin-btn-success"
+                className="admin-btn admin-btn-primary"
                 style={{ flex: 2 }}
                 onClick={handleRefund}
-                disabled={!refundAmount || Number(refundAmount) <= 0}
+                disabled={!refundAmount || Number(refundAmount) <= 0 || !refundReason.trim() || isSaving}
               >
                 <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>attach_money</span>
                 Xác nhận hoàn tiền

@@ -676,3 +676,109 @@ export const adminPostsApi = {
     }).then((res) => res.data);
   },
 };
+
+// ─── Order API ────────────────────────────────────────────────────────────────
+
+export type OrderPaymentStatus = "Pending" | "Paid" | "Cancelled";
+
+export interface OrderItemResponse {
+  orderItemId: number;
+  voucherId: number;
+  quantity: number;
+  price: string;
+  voucher?: {
+    voucherId: number;
+    title: string;
+    imageUrl: string | null;
+  };
+  issuedVouchers?: {
+    issuedVoucherId: number;
+    voucherCode: string;
+    status: "Unused" | "Used" | "Expired" | "Locked";
+    validFrom: string;
+    validTo: string;
+    usedAt: string | null;
+  }[];
+}
+
+export interface OrderResponse {
+  orderId: number;
+  customerId: string;
+  totalAmount: string;
+  paymentMethod: string | null;
+  paymentStatus: OrderPaymentStatus;
+  isGift: boolean;
+  receiverEmail: string | null;
+  giftMessage: string | null;
+  cancelledAt: string | null;
+  cancelReason: string | null;
+  refundedAt: string | null;
+  refundAmount: string | null;
+  refundReason?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  customer?: {
+    userId: string;
+    fullName: string;
+    email: string;
+    phoneNumber: string | null;
+    avatar?: string | null;
+  };
+  orderItems?: OrderItemResponse[];
+}
+
+export const adminOrdersApi = {
+  list(params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    paymentStatus?: OrderPaymentStatus;
+    customerId?: string;
+  }): Promise<PaginatedList<OrderResponse>> {
+    return get<{
+      data: OrderResponse[];
+      pagination: { page: number; limit: number; total: number; totalPages: number };
+    }>(`/api/admin/orders${buildQueryString(params)}`, {
+      auth: true,
+    }).then((res) => ({
+      list: res.data.data,
+      total: res.data.pagination.total,
+      page: res.data.pagination.page,
+      limit: res.data.pagination.limit,
+      totalPages: res.data.pagination.totalPages,
+    }));
+  },
+
+  getById(orderId: number): Promise<OrderResponse> {
+    return get<OrderResponse>(`/api/admin/orders/${orderId}`, {
+      auth: true,
+    }).then((res) => res.data);
+  },
+
+  cancel(orderId: number, body: { reason: string }) {
+    return post<{
+      orderId: number;
+      paymentStatus: OrderPaymentStatus;
+      cancelledAt: string;
+      cancelledBy: string;
+      cancelReason: string;
+      updatedAt: string;
+    }>(`/api/admin/orders/${orderId}/cancel`, body, {
+      auth: true,
+    }).then((res) => res.data);
+  },
+
+  refund(orderId: number, body: { reason: string; amount?: number }) {
+    return post<{
+      orderId: number;
+      paymentStatus: OrderPaymentStatus;
+      refundedAt: string;
+      refundedBy: string;
+      refundReason: string;
+      refundAmount: string;
+      updatedAt: string;
+    }>(`/api/admin/orders/${orderId}/refund`, body, {
+      auth: true,
+    }).then((res) => res.data);
+  },
+};

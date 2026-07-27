@@ -47,6 +47,10 @@ import {
   createPostSchema,
   updatePostSchema,
   updatePostStatusSchema,
+  listOrdersSchema,
+  getOrderByIdSchema,
+  cancelOrderSchema,
+  refundOrderSchema,
 } from "./admin.schemas";
 
 const parseQuery = <T>(schema: { parse: (v: unknown) => T }, value: unknown): T => {
@@ -401,5 +405,37 @@ export const adminController = {
     const { postId } = parseQuery(getPostByIdSchema, req.params);
     await adminService.deletePost(postId);
     res.json({ success: true, message: "Xóa bài viết thành công" });
+  }),
+
+  // ─── Order ────────────────────────────────────────────────────────────
+
+  listOrders: asyncHandler(async (req: Request, res: Response) => {
+    const input = parseQuery(listOrdersSchema, req.query);
+    const data = await adminService.listOrders(input);
+    res.json({ success: true, data });
+  }),
+
+  getOrderById: asyncHandler(async (req: Request, res: Response) => {
+    const { orderId } = parseQuery(getOrderByIdSchema, req.params);
+    const data = await adminService.getOrderById(orderId);
+    res.json({ success: true, data });
+  }),
+
+  cancelOrder: asyncHandler(async (req: Request, res: Response) => {
+    const { orderId } = parseQuery(getOrderByIdSchema, req.params);
+    const input = parseBody(cancelOrderSchema, req.body);
+    const data = await adminService.cancelOrder(req.user!.userId, orderId, input);
+    res.json({ success: true, data, message: "Đã hủy đơn hàng" });
+  }),
+
+  refundOrder: asyncHandler(async (req: Request, res: Response) => {
+    const { orderId } = parseQuery(getOrderByIdSchema, req.params);
+    const input = parseBody(refundOrderSchema, req.body);
+    const data = await adminService.refundOrder(req.user!.userId, orderId, input);
+    res.json({
+      success: true,
+      data,
+      message: `Đã ghi nhận hoàn tiền (giả lập) ${input.amount?.toLocaleString('vi-VN') ?? ''}đ`,
+    });
   }),
 };

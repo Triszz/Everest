@@ -37,6 +37,9 @@ import type {
   CreatePostInput,
   UpdatePostInput,
   UpdatePostStatusInput,
+  ListOrdersInput,
+  CancelOrderInput,
+  RefundOrderInput,
 } from "./admin.schemas";
 import type { BannerStatus, PostStatus, PopupStatus } from "../../generated/prisma/enums";
 import { buildPaginated, getPagination } from "../../shared/utils/paginate";
@@ -1241,5 +1244,222 @@ export const adminService = {
     if (!post) throw new AppError("Bài viết không tồn tại", 404, "NOT_FOUND");
     await prisma.post.delete({ where: { postId } });
     return { deleted: true, postId, deletedAt: new Date() };
+  },
+
+  // ─── Order Management ──────────────────────────────────────────────────
+
+  async listOrders(input: ListOrdersInput) {
+    const { page, limit, skip } = getPagination({
+      page: input.page,
+      limit: input.limit,
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const where: any = {};
+    if (input.paymentStatus) where.paymentStatus = input.paymentStatus;
+    if (input.customerId) where.customerId = input.customerId;
+    if (input.fromDate || input.toDate) {
+      where.createdAt = {};
+      if (input.fromDate) where.createdAt.gte = input.fromDate;
+      if (input.toDate) where.createdAt.lte = input.toDate;
+    }
+    if (input.search) {
+      where.OR = [
+        { receiverEmail: { contains: input.search, mode: "insensitive" } },
+        { customer: { email: { contains: input.search, mode: "insensitive" } } },
+        { customer: { fullName: { contains: input.search, mode: "insensitive" } } },
+        { orderItems: { some: { voucher: { title: { contains: input.search, mode: "insensitive" } } } } },
+      ];
+    }
+
+    const [orders, total] = await Promise.all([
+      prisma.order.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: "desc" },
+        select: {
+          orderId: true,
+          customerId: true,
+          totalAmount: true,
+          paymentMethod: true,
+          paymentStatus: true,
+          isGift: true,
+          receiverEmail: true,
+          giftMessage: true,
+          cancelledAt: true,
+          cancelReason: true,
+          refundedAt: true,
+          refundAmount: true,
+          createdAt: true,
+          updatedAt: true,
+          customer: {
+            select: {
+              userId: true,
+              fullName: true,
+              email: true,
+              phoneNumber: true,
+            },
+          },
+          orderItems: {
+            select: {
+              orderItemId: true,
+              voucherId: true,
+              quantity: true,
+              price: true,
+              voucher: {
+                select: { voucherId: true, title: true, imageUrl: true },
+              },
+            },
+          },
+        },
+      }),
+      prisma.order.count({ where }),
+    ]);
+
+    return buildPaginated(orders, total, page, limit);
+  },
+
+  async getOrderById(orderId: number) {
+    const order = await prisma.order.findUnique({
+      where: { orderId },
+      include: {
+        customer: {
+          select: {
+            userId: true,
+            fullName: true,
+            email: true,
+            phoneNumber: true,
+            avatar: true,
+          },
+        },
+        orderItems: {
+          include: {
+            voucher: {
+              select: { voucherId: true, title: true, imageUrl: true, salePrice: true },
+            },
+            issuedVouchers: {
+              select: {
+                issuedVoucherId: true,
+                voucherCode: true,
+                status: true,
+                validFrom: true,
+                validTo: true,
+                usedAt: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!order) throw new AppError("Đơn hàng không tồn tại", 404, "NOT_FOUND");
+    return order;
+  },
+
+  async cancelOrder(actorId: string, orderId: number, input: CancelOrderInput) {
+    const order = await prisma.order.findUnique({
+      where: { orderId },
+      include: { orderItems: { include: { issuedVouchers: true } } },
+    });
+    if (!order) throw new AppError("Đơn hàng không tồn tại", 404, "NOT_FOUND");
+    if (order.paymentStatus === "Cancelled") {
+      throw new AppError("Đơn hàng đã được hủy trước đó", 400, "ALREADY_CANCELLED");
+    }
+    if (order.refundedAt) {
+      throw new AppError("Đơn đã được hoàn tiền, không thể hủy", 400, "ALREADY_REFUNDED");
+    }
+
+    // If any issued voucher has been used, do not allow cancellation.
+    const usedVouchers = order.orderItems.flatMap((oi) =>
+      oi.issuedVouchers.filter((iv) => iv.status === "Used"),
+    );
+    if (usedVouchers.length > 0) {
+      throw new AppError(
+        "Đơn có voucher đã sử dụng, không thể hủy",
+        400,
+        "VOUCHER_ALREADY_USED",
+      );
+    }
+
+    const now = new Date();
+    return prisma.$transaction(async (tx) => {
+      // Mark issued vouchers as Expired
+      await tx.issuedVoucher.updateMany({
+        where: {
+          orderItemId: { in: order.orderItems.map((oi) => oi.orderItemId) },
+          status: { in: ["Unused", "Locked"] },
+        },
+        data: { status: "Expired" },
+      });
+
+      // Return available quantity back to voucher pool
+      for (const oi of order.orderItems) {
+        await tx.voucher.update({
+          where: { voucherId: oi.voucherId },
+          data: { availableQuantity: { increment: oi.quantity } },
+        });
+      }
+
+      return tx.order.update({
+        where: { orderId },
+        data: {
+          paymentStatus: "Cancelled",
+          cancelledAt: now,
+          cancelledBy: actorId,
+          cancelReason: input.reason,
+        },
+        select: {
+          orderId: true,
+          paymentStatus: true,
+          cancelledAt: true,
+          cancelledBy: true,
+          cancelReason: true,
+          updatedAt: true,
+        },
+      });
+    });
+  },
+
+  async refundOrder(actorId: string, orderId: number, input: RefundOrderInput) {
+    const order = await prisma.order.findUnique({ where: { orderId } });
+    if (!order) throw new AppError("Đơn hàng không tồn tại", 404, "NOT_FOUND");
+    if (order.paymentStatus !== "Paid") {
+      throw new AppError(
+        "Chỉ có thể hoàn tiền đơn đã thanh toán",
+        400,
+        "NOT_PAID",
+      );
+    }
+    if (order.refundedAt) {
+      throw new AppError("Đơn đã được hoàn tiền trước đó", 400, "ALREADY_REFUNDED");
+    }
+
+    const refundAmount = input.amount ?? Number(order.totalAmount);
+    if (refundAmount > Number(order.totalAmount)) {
+      throw new AppError(
+        "Số tiền hoàn không được lớn hơn tổng đơn",
+        400,
+        "AMOUNT_TOO_HIGH",
+      );
+    }
+
+    return prisma.order.update({
+      where: { orderId },
+      data: {
+        refundedAt: new Date(),
+        refundedBy: actorId,
+        refundReason: input.reason,
+        refundAmount,
+      },
+      select: {
+        orderId: true,
+        paymentStatus: true,
+        refundedAt: true,
+        refundedBy: true,
+        refundReason: true,
+        refundAmount: true,
+        updatedAt: true,
+      },
+    });
   },
 };
