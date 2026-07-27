@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useActivePopup } from '../hooks/useActivePopup';
 import type { Popup } from '../services/api';
 
@@ -46,49 +46,52 @@ export default function PopupBanner({ delayMs = 1500 }: PopupBannerProps) {
           maxWidth: '32rem',
           width: '100%',
           maxHeight: '90vh',
-          overflow: 'auto',
+          overflow: 'hidden',
           boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
           animation: 'scaleIn 0.25s ease-out',
+          position: 'relative',
         }}
       >
+        {/* Nút đóng — nằm trên cùng, bên phải popup */}
+        <button
+          onClick={dismiss}
+          aria-label="Đóng popup"
+          style={{
+            position: 'absolute',
+            top: '0.75rem',
+            right: '0.75rem',
+            background: 'rgba(0,0,0,0.45)',
+            border: 'none',
+            borderRadius: '50%',
+            width: '2rem',
+            height: '2rem',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '1.1rem',
+            color: '#fff',
+            zIndex: 10,
+          }}
+        >
+          ×
+        </button>
+
         {popup.imageUrl && (
           <img
             src={popup.imageUrl}
             alt={popup.title}
             style={{
               width: '100%',
-              height: 'auto',
-              maxHeight: '14rem',
-              objectFit: 'cover',
+              display: 'block',
               borderTopLeftRadius: '1rem',
               borderTopRightRadius: '1rem',
             }}
           />
         )}
-        <div style={{ padding: '1.5rem', position: 'relative' }}>
-          <button
-            onClick={dismiss}
-            aria-label="Đóng popup"
-            style={{
-              position: 'absolute',
-              top: '0.75rem',
-              right: '0.75rem',
-              background: 'rgba(0,0,0,0.05)',
-              border: 'none',
-              borderRadius: '50%',
-              width: '2rem',
-              height: '2rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '1.25rem',
-              color: 'var(--color-on-surface, #222)',
-            }}
-          >
-            ×
-          </button>
-          <h2 style={{ margin: 0, marginBottom: '0.5rem', fontSize: '1.25rem', fontWeight: 600, paddingRight: '2rem' }}>
+
+        <div style={{ padding: '1.5rem' }}>
+          <h2 style={{ margin: 0, marginBottom: '0.5rem', fontSize: '1.25rem', fontWeight: 600 }}>
             {popup.title}
           </h2>
           <p style={{ margin: 0, marginBottom: '1.25rem', color: 'var(--color-on-surface-variant, #555)', lineHeight: 1.5 }}>
