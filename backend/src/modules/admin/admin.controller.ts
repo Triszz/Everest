@@ -1,8 +1,10 @@
 import { Request, Response } from "express";
 import { ZodError } from "zod";
+import { prisma } from "../../config/prisma";
 import { adminService } from "./admin.service";
 import { asyncHandler } from "../../middlewares/asyncHandler";
 import { AppError } from "../../middlewares/errorHandler";
+import { getPagination } from "../../shared/utils/paginate";
 import {
   listUsersSchema,
   updateUserStatusSchema,
@@ -19,6 +21,7 @@ import {
   updateBranchSchema,
   deleteBranchSchema,
   toggleBranchLockSchema,
+  listAllBranchesSchema,
   listCategoriesSchema,
   createCategorySchema,
   updateCategorySchema,
@@ -133,9 +136,11 @@ export const adminController = {
   togglePartnerLock: asyncHandler(async (req: Request, res: Response) => {
     const { partnerId } = parseQuery(getPartnerByIdSchema, req.params);
     const input = parseBody(togglePartnerLockSchema, req.body);
-    const data = await adminService.togglePartnerLock(partnerId, input);
-    const msg = input.locked ? "Khóa đối tác thành công" : "Mở khóa đối tác thành công";
-    res.json({ success: true, data, message: msg });
+    const result = await adminService.togglePartnerLock(partnerId, input);
+    const msg = input.locked
+      ? `Đã khóa đối tác (${result.affected.branches} chi nhánh, ${result.affected.cashiers} nhân viên)`
+      : `Đã mở khóa đối tác (${result.affected.branches} chi nhánh, ${result.affected.cashiers} nhân viên)`;
+    res.json({ success: true, data: result, message: msg });
   }),
 
   // ─── Branch Management ───────────────────────────────────────────────────────
@@ -179,6 +184,59 @@ export const adminController = {
     const data = await adminService.toggleBranchLock(partnerId, branchId, input);
     const msg = input.locked ? "Khóa chi nhánh thành công" : "Mở khóa chi nhánh thành công";
     res.json({ success: true, data, message: msg });
+  }),
+
+  // ─── All Branches (cross-partner) ─────────────────────────────────────────
+
+  listAllBranches: asyncHandler(async (req: Request, res: Response) => {
+    const { page, limit, skip } = getPagination({
+      page: req.query.page ? Number(req.query.page) : 1,
+      limit: req.query.limit ? Number(req.query.limit) : 20,
+    });
+    const input = {
+      page,
+      limit,
+      skip,
+      search: req.query.search as string | undefined,
+      isLocked:
+        req.query.isLocked === "true"
+          ? true
+          : req.query.isLocked === "false"
+            ? false
+            : undefined,
+      partnerId: req.query.partnerId ? Number(req.query.partnerId) : undefined,
+    };
+    const data = await adminService.listAllBranches(input);
+    res.json({ success: true, data });
+  }),
+
+  getBranchByIdSimple: asyncHandler(async (req: Request, res: Response) => {
+    const branchId = Number(req.params.branchId);
+    if (!branchId || isNaN(branchId)) {
+      throw new AppError("branchId không hợp lệ", 400, "INVALID_INPUT");
+    }
+    const branch = await prisma.branch.findUnique({
+      where: { branchId },
+      select: {
+        branchId: true,
+        partnerId: true,
+        cashierId: true,
+        branchName: true,
+        address: true,
+        phoneNumber: true,
+        isLocked: true,
+        createdAt: true,
+        updatedAt: true,
+        cashier: {
+          select: { userId: true, fullName: true, email: true, status: true },
+        },
+        partner: {
+          select: { partnerId: true, companyName: true, status: true },
+        },
+      },
+    });
+    if (!branch) throw new AppError("Chi nhánh không tồn tại", 404, "NOT_FOUND");
+    res.json({ success: true, data: branch });
   }),
 
   // ─── Category Management ────────────────────────────────────────────────────

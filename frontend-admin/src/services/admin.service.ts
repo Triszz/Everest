@@ -37,6 +37,14 @@ export interface PartnerResponse {
   updatedAt: string;
 }
 
+export interface PartnerLockResponse {
+  partner: PartnerResponse;
+  affected: {
+    branches: number;
+    cashiers: number;
+  };
+}
+
 export interface BranchResponse {
   branchId: number;
   partnerId: number;
@@ -46,6 +54,14 @@ export interface BranchResponse {
   phoneNumber: string | null;
   isLocked: boolean;
   createdAt: string;
+  updatedAt?: string;
+  cashier?: { userId: string; fullName: string; email: string; status: string } | null;
+  partner?: { partnerId: number; companyName: string } | null;
+}
+
+export interface BranchDetailResponse extends BranchResponse {
+  cashier: { userId: string; fullName: string; email: string; status: string } | null;
+  partner: { partnerId: number; companyName: string; status: string } | null;
 }
 
 export interface CategoryResponse {
@@ -185,8 +201,8 @@ export const adminPartnersApi = {
   toggleLock(
     partnerId: number,
     body: { locked: boolean; reason?: string },
-  ): Promise<PartnerResponse> {
-    return patch<PartnerResponse>(
+  ): Promise<PartnerLockResponse> {
+    return patch<PartnerLockResponse>(
       `/api/admin/partners/${partnerId}/lock`,
       body,
       { auth: true },
@@ -196,6 +212,27 @@ export const adminPartnersApi = {
 
 // ── Branches API ────────────────────────────────────────────────────────────
 export const adminBranchesApi = {
+  // Cross-partner list (for /branches page)
+  listAll(params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    isLocked?: boolean;
+    partnerId?: number;
+  }): Promise<PaginatedList<BranchResponse>> {
+    return get<{ data: BranchResponse[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>(
+      `/api/admin/branches${buildQueryString(params)}`,
+      { auth: true },
+    ).then((res) => ({
+      list: res.data.data,
+      total: res.data.pagination.total,
+      page: res.data.pagination.page,
+      limit: res.data.pagination.limit,
+      totalPages: res.data.pagination.totalPages,
+    }));
+  },
+
+  // Per-partner list
   list(
     partnerId: number,
     params?: {
@@ -217,11 +254,22 @@ export const adminBranchesApi = {
     }));
   },
 
-  getById(partnerId: number, branchId: number): Promise<BranchResponse> {
-    return get<BranchResponse>(
+  getById(partnerId: number, branchId: number): Promise<BranchDetailResponse> {
+    return get<BranchDetailResponse>(
       `/api/admin/partners/${partnerId}/branches/${branchId}`,
       { auth: true },
     ).then((res) => res.data);
+  },
+
+  getByIdSimple(branchId: number): Promise<BranchDetailResponse> {
+    // Uses top-level endpoint if needed — for now we always use partnerId
+    return get<BranchDetailResponse>(
+      `/api/admin/branches/${branchId}`,
+      { auth: true },
+    ).then((res) => res.data).catch(() =>
+      // Fallback: try via first partner (admin should always know partnerId)
+      Promise.reject(new Error('Cần partnerId để lấy chi tiết chi nhánh'))
+    );
   },
 
   create(

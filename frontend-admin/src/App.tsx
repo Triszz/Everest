@@ -8,6 +8,7 @@ import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Users from './pages/Users'
 import Partners from './pages/Partners'
+import Branches from './pages/Branches'
 import Vouchers from './pages/Vouchers'
 import Orders from './pages/Orders'
 import Content from './pages/Content'
@@ -36,6 +37,8 @@ export default function App() {
               <Route path="/" element={<Dashboard />} />
               <Route path="/users" element={<Users />} />
               <Route path="/partners" element={<Partners />} />
+              <Route path="/partners/:partnerId/branches" element={<Branches />} />
+              <Route path="/branches" element={<Branches />} />
               <Route path="/vouchers" element={<Vouchers />} />
               <Route path="/orders" element={<Orders />} />
               <Route path="/content" element={<Content />} />
