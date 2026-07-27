@@ -286,6 +286,13 @@ model Order {
   isGift        Boolean       @default(false) @map("is_gift")
   receiverEmail String?       @map("receiver_email") @db.VarChar(100)
   giftMessage   String?       @map("gift_message")
+  cancelledAt   DateTime?     @map("cancelled_at") @db.Timestamptz
+  cancelledBy   String?       @map("cancelled_by") @db.Uuid
+  cancelReason  String?       @map("cancel_reason")
+  refundedAt    DateTime?     @map("refunded_at") @db.Timestamptz
+  refundedBy    String?       @map("refunded_by") @db.Uuid
+  refundReason  String?       @map("refund_reason")
+  refundAmount  Decimal?      @map("refund_amount") @db.Decimal(12, 2)
   createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz
   updatedAt     DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
 
@@ -293,6 +300,8 @@ model Order {
   orderItems OrderItem[]
   feedbacks  Feedback[]
 
+  @@index([paymentStatus])
+  @@index([createdAt])
   @@map("orders")
 }
 

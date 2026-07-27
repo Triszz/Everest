@@ -3,6 +3,7 @@ import {
   UserRole,
   PartnerStatus,
   VoucherApprovalStatus,
+  PaymentStatus,
 } from "../../generated/prisma/enums";
 
 export const listUsersSchema = z.object({
@@ -360,3 +361,42 @@ export type GetPostByIdInput = z.infer<typeof getPostByIdSchema>;
 export type CreatePostInput = z.infer<typeof createPostSchema>;
 export type UpdatePostInput = z.infer<typeof updatePostSchema>;
 export type UpdatePostStatusInput = z.infer<typeof updatePostStatusSchema>;
+
+// ─── Order Management (Admin) ───────────────────────────────────────────
+
+export const listOrdersSchema = z.object({
+  page: z.coerce.number().int().positive().optional().default(1),
+  limit: z.coerce.number().int().positive().max(100).optional().default(20),
+  search: z.string().optional(),
+  paymentStatus: z.nativeEnum(PaymentStatus).optional(),
+  customerId: z.string().uuid("customerId không hợp lệ").optional(),
+  fromDate: z.coerce.date().optional(),
+  toDate: z.coerce.date().optional(),
+});
+
+export const getOrderByIdSchema = z.object({
+  orderId: z.string().regex(/^\d+$/, "orderId phải là số nguyên").transform(Number),
+});
+
+export const cancelOrderSchema = z.object({
+  reason: z
+    .string()
+    .min(5, "Lý do hủy phải có ít nhất 5 ký tự")
+    .max(500, "Lý do hủy tối đa 500 ký tự"),
+});
+
+export const refundOrderSchema = z.object({
+  reason: z
+    .string()
+    .min(5, "Lý do hoàn tiền phải có ít nhất 5 ký tự")
+    .max(500, "Lý do hoàn tiền tối đa 500 ký tự"),
+  amount: z.coerce
+    .number()
+    .positive("Số tiền hoàn phải lớn hơn 0")
+    .optional(),
+});
+
+export type ListOrdersInput = z.infer<typeof listOrdersSchema>;
+export type GetOrderByIdInput = z.infer<typeof getOrderByIdSchema>;
+export type CancelOrderInput = z.infer<typeof cancelOrderSchema>;
+export type RefundOrderInput = z.infer<typeof refundOrderSchema>;
