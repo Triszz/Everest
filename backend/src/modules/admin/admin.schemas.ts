@@ -415,3 +415,34 @@ export type ListOrdersInput = z.infer<typeof listOrdersSchema>;
 export type GetOrderByIdInput = z.infer<typeof getOrderByIdSchema>;
 export type CancelOrderInput = z.infer<typeof cancelOrderSchema>;
 export type RefundOrderInput = z.infer<typeof refundOrderSchema>;
+
+// ─── Audit Logs ───────────────────────────────────────────────────────
+
+export const AUDIT_ACTOR_TYPES = ["ADMIN", "SYSTEM", "CUSTOMER", "PARTNER"] as const;
+export const AUDIT_TARGET_TYPES = [
+  "USER",
+  "PARTNER",
+  "BRANCH",
+  "CATEGORY",
+  "VOUCHER",
+  "POLICY",
+  "BANNER",
+  "POPUP",
+  "POST",
+  "ORDER",
+  "ADMIN",
+] as const;
+
+export const listAuditLogsSchema = z.object({
+  page: z.coerce.number().int().positive().optional().default(1),
+  limit: z.coerce.number().int().positive().max(100).optional().default(20),
+  action: z.string().optional(),
+  actorId: z.string().uuid("actorId không hợp lệ").optional(),
+  actorType: z.enum(AUDIT_ACTOR_TYPES).optional(),
+  targetType: z.enum(AUDIT_TARGET_TYPES).optional(),
+  targetId: z.string().optional(),
+  fromDate: z.coerce.date().optional(),
+  toDate: z.coerce.date().optional(),
+});
+
+export type ListAuditLogsInput = z.infer<typeof listAuditLogsSchema>;
