@@ -18,6 +18,9 @@ router.post("/partners/:partnerId/approve", adminController.approvePartner);
 router.post("/partners/:partnerId/reject", adminController.rejectPartner);
 router.patch("/partners/:partnerId/lock", adminController.togglePartnerLock);
 
+router.get("/branches", adminController.listAllBranches);
+router.get("/branches/:branchId", adminController.getBranchByIdSimple);
+
 router.get("/partners/:partnerId/branches", adminController.listBranches);
 router.get("/partners/:partnerId/branches/:branchId", adminController.getBranchById);
 router.post("/partners/:partnerId/branches", adminController.createBranch);

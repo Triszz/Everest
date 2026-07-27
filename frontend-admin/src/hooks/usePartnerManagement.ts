@@ -115,28 +115,29 @@ export function usePartnerManagement() {
     }
   }, [selectedPartner]);
 
-  // Toggle partner locked/unlocked state
+  // Toggle partner locked/unlocked state (cascades to branches and cashiers)
   const togglePartnerLock = useCallback(async (partnerId: number, currentLocked: boolean, reason?: string) => {
     setError(null);
     try {
-      const updatedPartner = await adminPartnersApi.toggleLock(partnerId, {
+      const result = await adminPartnersApi.toggleLock(partnerId, {
         locked: !currentLocked,
         reason,
       });
 
       // Update local state list
       setPartners((prevPartners) =>
-        prevPartners.map((p) => (p.partnerId === partnerId ? updatedPartner : p))
+        prevPartners.map((p) => (p.partnerId === partnerId ? result.partner : p))
       );
 
       // Update selected detail partner if applicable
       if (selectedPartner?.partnerId === partnerId) {
-        setSelectedPartner(updatedPartner);
+        setSelectedPartner(result.partner);
       }
-      return updatedPartner;
-    } catch (err: any) {
+      return result;
+    } catch (err: unknown) {
       console.error('Failed to toggle partner lock state:', err);
-      setError(err.message || 'Không thể khóa/mở khóa tài khoản đối tác.');
+      const msg = err instanceof Error ? err.message : 'Không thể khóa/mở khóa tài khoản đối tác.';
+      setError(msg);
       throw err;
     }
   }, [selectedPartner]);

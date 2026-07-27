@@ -308,17 +308,51 @@ export const adminService = {
     const partner = await prisma.partner.findUnique({ where: { partnerId } });
     if (!partner) throw new AppError("Đối tác không tồn tại", 404, "NOT_FOUND");
 
-    return prisma.partner.update({
-      where: { partnerId },
-      data: { isLocked: input.locked },
-      select: {
-        partnerId: true,
-        companyName: true,
-        taxCode: true,
-        status: true,
-        isLocked: true,
-        updatedAt: true,
-      },
+    const newLocked = input.locked;
+
+    return prisma.$transaction(async (tx) => {
+      // Lock/unlock partner
+      await tx.partner.update({
+        where: { partnerId },
+        data: { isLocked: newLocked },
+      });
+
+      // Lock/unlock all branches under this partner
+      const branchResult = await tx.branch.updateMany({
+        where: { partnerId },
+        data: { isLocked: newLocked },
+      });
+
+      // Lock/unlock all cashier accounts belonging to this partner
+      // Note: UserRole enum values are "Admin", "Customer", "Partner_Owner", "Partner_Cashier"
+      const cashierResult = await tx.user.updateMany({
+        where: {
+          partnerId,
+          role: "Partner_Cashier",
+        },
+        data: { status: newLocked ? "Banned" : "Active" },
+      });
+
+      // Re-fetch partner for final state
+      const updated = await tx.partner.findUnique({
+        where: { partnerId },
+        select: {
+          partnerId: true,
+          companyName: true,
+          taxCode: true,
+          status: true,
+          isLocked: true,
+          updatedAt: true,
+        },
+      });
+
+      return {
+        partner: updated!,
+        affected: {
+          branches: branchResult.count,
+          cashiers: cashierResult.count,
+        },
+      };
     });
   },
 
@@ -370,6 +404,7 @@ export const adminService = {
       where: { branchId, partnerId },
       select: {
         branchId: true,
+        partnerId: true,
         branchName: true,
         address: true,
         phoneNumber: true,
@@ -386,6 +421,45 @@ export const adminService = {
     });
     if (!branch) throw new AppError("Chi nhánh không tồn tại", 404, "NOT_FOUND");
     return branch;
+  },
+
+  async listAllBranches(input: { page: number; limit: number; skip: number; search?: string; isLocked?: boolean; partnerId?: number }) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const where: any = {};
+    if (input.isLocked !== undefined) where.isLocked = input.isLocked;
+    if (input.partnerId) where.partnerId = input.partnerId;
+    if (input.search) {
+      where.OR = [
+        { branchName: { contains: input.search, mode: "insensitive" } },
+        { address: { contains: input.search, mode: "insensitive" } },
+        { partner: { companyName: { contains: input.search, mode: "insensitive" } } },
+      ];
+    }
+
+    const [branches, total] = await Promise.all([
+      prisma.branch.findMany({
+        where,
+        skip: input.skip,
+        take: input.limit,
+        orderBy: { createdAt: "desc" },
+        select: {
+          branchId: true,
+          partnerId: true,
+          cashierId: true,
+          branchName: true,
+          address: true,
+          phoneNumber: true,
+          isLocked: true,
+          createdAt: true,
+          partner: {
+            select: { partnerId: true, companyName: true },
+          },
+        },
+      }),
+      prisma.branch.count({ where }),
+    ]);
+
+    return buildPaginated(branches, total, input.page, input.limit);
   },
 
   async createBranch(partnerId: number, input: CreateBranchInput) {
@@ -450,16 +524,40 @@ export const adminService = {
     const branch = await prisma.branch.findUnique({ where: { branchId, partnerId } });
     if (!branch) throw new AppError("Chi nhánh không tồn tại", 404, "NOT_FOUND");
 
-    return prisma.branch.update({
-      where: { branchId },
-      data: { isLocked: input.locked },
-      select: {
-        branchId: true,
-        branchName: true,
-        address: true,
-        isLocked: true,
-        updatedAt: true,
-      },
+    // Unlock only allowed when partner is not locked
+    if (!input.locked) {
+      const partner = await prisma.partner.findUnique({ where: { partnerId } });
+      if (!partner) throw new AppError("Đối tác không tồn tại", 404, "NOT_FOUND");
+      if (partner.isLocked) {
+        throw new AppError("Không thể mở khóa chi nhánh khi đối tác đang bị khóa. Hãy mở khóa đối tác trước.", 400, "PARTNER_IS_LOCKED");
+      }
+    }
+
+    return prisma.$transaction(async (tx) => {
+      const updated = await tx.branch.update({
+        where: { branchId },
+        data: { isLocked: input.locked },
+        select: {
+          branchId: true,
+          partnerId: true,
+          branchName: true,
+          address: true,
+          phoneNumber: true,
+          isLocked: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      // When locking a branch, also lock its cashier account
+      if (input.locked && branch.cashierId) {
+        await tx.user.updateMany({
+          where: { userId: branch.cashierId },
+          data: { status: "Banned" },
+        });
+      }
+
+      return updated;
     });
   },
 

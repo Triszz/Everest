@@ -71,6 +71,21 @@ export const listBranchesSchema = z.object({
     .optional(),
 });
 
+export const listAllBranchesSchema = z.object({
+  page: z.coerce.number().int().positive().optional().default(1),
+  limit: z.coerce.number().int().positive().max(100).optional().default(20),
+  search: z.string().optional(),
+  isLocked: z
+    .string()
+    .transform((v) => (v === "true" ? true : v === "false" ? false : undefined))
+    .optional(),
+  partnerId: z.coerce.number().int().positive().optional(),
+});
+
+export const getBranchByIdSimpleSchema = z.object({
+  branchId: z.string().regex(/^\d+$/, "branchId phải là số nguyên").transform(Number),
+});
+
 export const getBranchByIdSchema = z.object({
   partnerId: z.string().regex(/^\d+$/, "partnerId phải là số nguyên").transform(Number),
   branchId: z.string().regex(/^\d+$/, "branchId phải là số nguyên").transform(Number),
