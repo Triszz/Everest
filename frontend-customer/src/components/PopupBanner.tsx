@@ -36,7 +36,6 @@ export default function PopupBanner({ delayMs = 1500 }: PopupBannerProps) {
         padding: '1rem',
         animation: 'fadeIn 0.2s ease-out',
       }}
-      onClick={dismiss}
     >
       <div
         onClick={(e) => e.stopPropagation()}
@@ -98,20 +97,6 @@ export default function PopupBanner({ delayMs = 1500 }: PopupBannerProps) {
             {popup.body}
           </p>
           <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-            <button
-              onClick={dismiss}
-              style={{
-                padding: '0.625rem 1.25rem',
-                background: 'transparent',
-                border: '1px solid var(--color-outline, #ccc)',
-                borderRadius: '0.5rem',
-                cursor: 'pointer',
-                color: 'var(--color-on-surface, #222)',
-                fontWeight: 500,
-              }}
-            >
-              Đóng
-            </button>
             {popup.ctaLabel && (
               <a
                 href={popup.ctaTargetUrl ?? '#'}
