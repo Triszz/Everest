@@ -4,7 +4,8 @@ import { asyncHandler } from "../../../middlewares/asyncHandler";
 
 export const popupsController = {
   getActivePopup: asyncHandler(async (_req: Request, res: Response) => {
-    const popup = await popupsService.getActivePopup();
+    // Random 1 popup visible mỗi lần gọi
+    const popup = await popupsService.getRandomPopup();
     res.json({ success: true, data: popup });
   }),
 
