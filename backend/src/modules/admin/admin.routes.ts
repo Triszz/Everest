@@ -2,10 +2,11 @@ import { Router } from "express";
 import { adminController } from "./admin.controller";
 import { authenticate } from "../../middlewares/authenticate";
 import { roleGuard } from "../../middlewares/roleGuard";
+import { auditContext } from "../../middlewares/auditContext";
 
 const router = Router();
 
-router.use(authenticate, roleGuard("Admin"));
+router.use(authenticate, roleGuard("Admin"), auditContext);
 
 router.get("/users", adminController.listUsers);
 router.get("/users/:userId", adminController.getUserById);
@@ -70,5 +71,7 @@ router.get("/orders", adminController.listOrders);
 router.get("/orders/:orderId", adminController.getOrderById);
 router.post("/orders/:orderId/cancel", adminController.cancelOrder);
 router.post("/orders/:orderId/refund", adminController.refundOrder);
+
+router.get("/audit-logs", adminController.listAuditLogs);
 
 export default router;
