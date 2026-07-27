@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import LogoImg from '../assets/images/Logo.png';
 import { cartApi } from '../services/api';
@@ -8,6 +8,8 @@ export function Header() {
   const [cartCount, setCartCount] = useState(0);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
 
   useEffect(() => {
@@ -36,7 +38,6 @@ export function Header() {
       setCartCount(0);
       return;
     }
-
     cartApi.getCart()
       .then(res => {
         if (res.success && res.data) {
@@ -46,6 +47,17 @@ export function Header() {
       .catch(() => setCartCount(0));
   }, [location.pathname]);
 
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
   const handleLogout = () => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
@@ -53,6 +65,7 @@ export function Header() {
     setIsLoggedIn(false);
     setUser(null);
     setCartCount(0);
+    setMenuOpen(false);
     window.location.href = '/logout';
   };
 
@@ -91,14 +104,16 @@ export function Header() {
           </Link>
 
           {/* Nav */}
-          <nav style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <nav style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <NavLink to="/" label="Marketplace" isActive={location.pathname === '/'} />
+            <NavLink to="/vouchers" label="All Vouchers" isActive={location.pathname === '/vouchers'} />
             <NavLink to="/my-voucher" label="My Vouchers" isActive={location.pathname === '/my-voucher'} />
             <NavLink to="/rewards" label="Rewards" isActive={location.pathname === '/rewards'} />
           </nav>
 
           {/* Search + Actions */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+
             {/* Search bar */}
             <div style={{
               display: 'flex',
@@ -117,7 +132,7 @@ export function Header() {
               <input
                 id="header-search"
                 type="text"
-                placeholder="Tìm kiếm voucher ẩm thực, du lịch..."
+                placeholder="Search vouchers..."
                 style={{
                   border: 'none',
                   outline: 'none',
@@ -134,7 +149,7 @@ export function Header() {
             <Link
               to="/cart"
               id="header-cart"
-              aria-label="Giỏ hàng"
+              aria-label="Cart"
               style={{
                 position: 'relative',
                 width: 40,
@@ -171,23 +186,24 @@ export function Header() {
               )}
             </Link>
 
-            {/* User Menu or Login */}
+            {/* User Menu */}
             {isLoggedIn ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <Link
-                  to="/profile"
+              <div ref={menuRef} style={{ position: 'relative' }}>
+                <button
+                  onClick={() => setMenuOpen(v => !v)}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: 8,
                     padding: '6px 12px',
-                    background: '#F8FAFC',
+                    background: menuOpen ? '#E8F4FA' : '#F8FAFC',
+                    border: menuOpen ? '1.5px solid #BAE6FD' : '1.5px solid #E2E8F0',
                     borderRadius: 10,
-                    textDecoration: 'none',
-                    transition: 'background 0.2s',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
                   }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#E8F4FA'}
-                  onMouseLeave={e => e.currentTarget.style.background = '#F8FAFC'}
+                  onMouseEnter={e => { if (!menuOpen) e.currentTarget.style.background = '#E8F4FA'; e.currentTarget.style.borderColor = '#BAE6FD'; }}
+                  onMouseLeave={e => { if (!menuOpen) { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.borderColor = '#E2E8F0'; } }}
                 >
                   <div style={{
                     width: 32,
@@ -200,6 +216,7 @@ export function Header() {
                     color: 'white',
                     fontSize: 14,
                     fontWeight: 700,
+                    fontFamily: 'Inter, sans-serif',
                   }}>
                     {user?.fullName?.[0]?.toUpperCase() || 'U'}
                   </div>
@@ -211,29 +228,71 @@ export function Header() {
                   }}>
                     {user?.fullName?.split(' ').pop() || 'User'}
                   </span>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2">
+                  <svg
+                    width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2.5"
+                    style={{ transition: 'transform 0.2s', transform: menuOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                  >
                     <path d="M6 9l6 6 6-6"/>
                   </svg>
-                </Link>
-                <button
-                  onClick={handleLogout}
-                  style={{
-                    padding: '9px 16px',
-                    background: '#FEF2F2',
-                    color: '#EF4444',
-                    border: 'none',
-                    borderRadius: 10,
-                    fontFamily: 'Manrope, sans-serif',
-                    fontSize: 14,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    transition: 'background 0.2s',
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.background = '#FEE2E2')}
-                  onMouseLeave={e => (e.currentTarget.style.background = '#FEF2F2')}
-                >
-                  Đăng xuất
                 </button>
+
+                {/* Dropdown */}
+                {menuOpen && (
+                  <div style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 8px)',
+                    right: 0,
+                    width: 200,
+                    background: 'white',
+                    border: '1px solid #E2E8F0',
+                    borderRadius: 12,
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                    overflow: 'hidden',
+                    animation: 'dropIn 0.15s ease-out',
+                    zIndex: 100,
+                  }}>
+                    {/* User info */}
+                    <div style={{ padding: '12px 16px', borderBottom: '1px solid #F1F5F9' }}>
+                      <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 700, color: '#1E293B' }}>
+                        {user?.fullName || 'User'}
+                      </div>
+                      <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#94A3B8', marginTop: 2 }}>
+                        {user?.email || ''}
+                      </div>
+                    </div>
+                    <DropdownItem to="/profile" icon="user" label="Profile" onClick={() => setMenuOpen(false)} />
+                    <DropdownItem to="/settings" icon="settings" label="Settings" onClick={() => setMenuOpen(false)} />
+                    <DropdownItem to="/help" icon="help" label="Help & Support" onClick={() => setMenuOpen(false)} />
+                    <div style={{ borderTop: '1px solid #F1F5F9', margin: '4px 0' }} />
+                    <button
+                      onClick={handleLogout}
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        padding: '10px 16px',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontFamily: 'Inter, sans-serif',
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: '#EF4444',
+                        transition: 'background 0.15s',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = '#FEF2F2'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                        <polyline points="16 17 21 12 16 7"/>
+                        <line x1="21" y1="12" x2="9" y2="12"/>
+                      </svg>
+                      Sign out
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <Link
@@ -253,12 +312,19 @@ export function Header() {
                 onMouseEnter={e => (e.currentTarget.style.background = '#0A5C87')}
                 onMouseLeave={e => (e.currentTarget.style.background = '#0E76A8')}
               >
-                Đăng nhập
+                Sign in
               </Link>
             )}
           </div>
         </div>
       </div>
+
+      <style>{`
+        @keyframes dropIn {
+          from { opacity: 0; transform: translateY(-6px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </header>
   );
 }
@@ -286,6 +352,54 @@ function NavLink({ to, label, isActive }: { to: string; label: string; isActive?
         if (!isActive) e.currentTarget.style.color = '#64748B';
       }}
     >
+      {label}
+    </Link>
+  );
+}
+
+function DropdownItem({ to, icon, label, onClick }: { to: string; icon: string; label: string; onClick: () => void }) {
+  const icons: Record<string, React.ReactNode> = {
+    user: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+        <circle cx="12" cy="7" r="4"/>
+      </svg>
+    ),
+    settings: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    ),
+    help: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2">
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+        <line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+    ),
+  };
+
+  return (
+    <Link
+      to={to}
+      onClick={onClick}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '10px 16px',
+        textDecoration: 'none',
+        fontFamily: 'Inter, sans-serif',
+        fontSize: 13,
+        fontWeight: 500,
+        color: '#334155',
+        transition: 'background 0.15s',
+      }}
+      onMouseEnter={e => e.currentTarget.style.background = '#F8FAFC'}
+      onMouseLeave={e => e.currentTarget.style.background = 'none'}
+    >
+      {icons[icon]}
       {label}
     </Link>
   );
