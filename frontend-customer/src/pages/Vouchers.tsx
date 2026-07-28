@@ -1,8 +1,13 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { voucherApi } from '../services/api';
-import type { Voucher } from '../services/api';
-import { Search, SlidersHorizontal, X, ChevronDown, Star, Loader2 } from 'lucide-react';
+import { voucherApi, categoryApi } from '../services/api';
+import type { Voucher, Category } from '../services/api';
+import {
+  Search, SlidersHorizontal, X, Star, Loader2,
+  Utensils, Coffee, Sandwich, Milk, Pizza,
+  Cake, Dumbbell, Scissors, Gamepad2, Plane,
+  Building2, Film, User, Gem, Tag, LayoutGrid,
+} from 'lucide-react';
 
 // ── Filter config ─────────────────────────────────────────────────────────────
 
@@ -29,16 +34,16 @@ const SORT_OPTIONS = [
   { label: 'Giá: Cao → Thấp', value: 'price_desc' },
 ];
 
-const MOCK_CATEGORIES = [
-  { categoryId: 1, name: 'Ăn uống', emoji: '🍜' },
-  { categoryId: 2, name: 'Cà phê', emoji: '☕' },
-  { categoryId: 3, name: 'Fast food', emoji: '🍔' },
-  { categoryId: 4, name: 'Trà sữa', emoji: '🧋' },
-  { categoryId: 5, name: 'Pizza', emoji: '🍕' },
-  { categoryId: 6, name: 'Bánh ngọt', emoji: '🧁' },
-  { categoryId: 7, name: 'Gym & Fitness', emoji: '💪' },
-  { categoryId: 8, name: 'Spa & Massage', emoji: '💆' },
-];
+const CATEGORY_ICONS: Record<number, React.ElementType> = {
+  1: Utensils, 2: Coffee, 3: Sandwich, 4: Milk, 5: Pizza,
+  6: Cake, 7: Dumbbell, 8: Scissors, 9: Gamepad2, 10: Plane,
+  11: Building2, 12: Film, 13: Scissors, 14: Dumbbell, 15: Cake,
+};
+
+function CategoryIcon({ catId, size = 15 }: { catId: number; size?: number }) {
+  const Icon = CATEGORY_ICONS[catId] || Tag;
+  return <Icon size={size} />;
+}
 
 // ── Filter chip ────────────────────────────────────────────────────────────────
 
@@ -52,12 +57,20 @@ interface FilterChip {
 export function VouchersPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [vouchers, setVouchers] = useState<Voucher[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
   const [localSearch, setLocalSearch] = useState(searchParams.get('search') || '');
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>();
+
+  // Fetch categories once
+  useEffect(() => {
+    categoryApi.list()
+      .then(res => { if (res.success && res.data) setCategories(res.data); })
+      .catch(() => {});
+  }, []);
 
   // Filter state from URL
   const currentPage = Number(searchParams.get('page')) || 1;
@@ -69,7 +82,7 @@ export function VouchersPage() {
 
   // Derive active filter chips for display
   const activeFilters: FilterChip[] = [
-    ...(categoryId ? [{ key: 'category_id', label: MOCK_CATEGORIES.find(c => String(c.categoryId) === categoryId)?.name || 'Danh mục' }] : []),
+    ...(categoryId ? [{ key: 'category_id', label: categories.find(c => String(c.categoryId) === categoryId)?.categoryName || 'Danh mục' }] : []),
     ...(discount ? [{ key: 'discount', label: `Giảm ≥ ${discount}%` }] : []),
     ...(priceRange ? [{ key: 'price', label: PRICE_OPTIONS.find(p => p.value === priceRange)?.label || 'Khoảng giá' }] : []),
   ];
@@ -186,7 +199,7 @@ export function VouchersPage() {
           >
             <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: !categoryId ? 700 : 400, color: !categoryId ? '#0E76A8' : '#64748B' }}>Tất cả</span>
           </button>
-          {MOCK_CATEGORIES.map(cat => (
+          {categories.map(cat => (
             <button
               key={cat.categoryId}
               onClick={() => updateParams('category_id', String(cat.categoryId))}
@@ -198,9 +211,11 @@ export function VouchersPage() {
                 cursor: 'pointer', transition: 'all 0.15s',
               }}
             >
-              <span style={{ fontSize: 15 }}>{cat.emoji}</span>
+              <span style={{ color: categoryId === String(cat.categoryId) ? '#0E76A8' : '#64748B' }}>
+                <CategoryIcon catId={cat.categoryId} size={15} />
+              </span>
               <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: categoryId === String(cat.categoryId) ? 700 : 400, color: categoryId === String(cat.categoryId) ? '#0E76A8' : '#334155', flex: 1, textAlign: 'left' }}>
-                {cat.name}
+                {cat.categoryName}
               </span>
               {categoryId === String(cat.categoryId) && (
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0E76A8" strokeWidth="2.5">
@@ -344,7 +359,7 @@ export function VouchersPage() {
 
           {/* Category scroll chips */}
           <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 16, scrollbarWidth: 'none' }}>
-            {MOCK_CATEGORIES.map(cat => (
+            {categories.map(cat => (
               <button
                 key={cat.categoryId}
                 onClick={() => updateParams('category_id', categoryId === String(cat.categoryId) ? '' : String(cat.categoryId))}
@@ -360,8 +375,10 @@ export function VouchersPage() {
                   transition: 'all 0.15s',
                 }}
               >
-                <span style={{ fontSize: 14 }}>{cat.emoji}</span>
-                {cat.name}
+                <span style={{ color: categoryId === String(cat.categoryId) ? 'white' : '#64748B' }}>
+                  <CategoryIcon catId={cat.categoryId} size={14} />
+                </span>
+                {cat.categoryName}
               </button>
             ))}
           </div>
