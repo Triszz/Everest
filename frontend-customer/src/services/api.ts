@@ -145,6 +145,7 @@ export interface Review {
 export interface VoucherQuery {
   search?: string;
   category_id?: number;
+  category_ids?: number[];
   min_price?: number;
   max_price?: number;
   sort?: "price_asc" | "price_desc" | "popular" | "newest";
@@ -254,7 +255,13 @@ export const voucherApi = {
     const query = new URLSearchParams();
     if (params) {
       Object.entries(params).forEach(([k, v]) => {
-        if (v !== undefined && v !== null) query.set(k, String(v));
+        if (v === undefined || v === null) return;
+        if (Array.isArray(v)) {
+          if (v.length === 0) return;
+          query.set(k, v.join(","));
+        } else {
+          query.set(k, String(v));
+        }
       });
     }
     const res = await authFetch(`${BASE_URL}/vouchers?${query}`, { auth: true });

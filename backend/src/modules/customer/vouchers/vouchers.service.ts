@@ -12,7 +12,7 @@ interface PaginationResult {
 
 export const vouchersService = {
   async listVouchers(query: VoucherQuery) {
-    const { search, category_id, min_price, max_price, sort, page, limit } = query;
+    const { search, category_id, category_ids, min_price, max_price, sort, page, limit } = query;
 
     const where: Prisma.VoucherWhereInput = {
       approvalStatus: "Approved",
@@ -31,6 +31,8 @@ export const vouchersService = {
 
     if (category_id) {
       where.categoryId = category_id;
+    } else if (category_ids && category_ids.length > 0) {
+      where.categoryId = { in: category_ids };
     }
 
     if (min_price !== undefined) {
