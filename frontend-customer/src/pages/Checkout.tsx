@@ -129,9 +129,7 @@ export function Checkout() {
 
       // ── Step 3: clear cart & redirect ──
       await cartApi.clearCart();
-      navigate('/checkout/success', {
-        state: { orderId: createRes.data.orderId },
-      });
+      navigate(`/checkout/success?orderId=${createRes.data.orderId}`);
     } catch (err: any) {
       alert(err.message || 'Đã xảy ra lỗi. Vui lòng thử lại.');
       setSubmitting(false);

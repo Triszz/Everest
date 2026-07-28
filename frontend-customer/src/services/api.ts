@@ -524,18 +524,17 @@ export const profileApi = {
 export interface IssuedVoucher {
   issuedVoucherId: number;
   voucherCode: string;
-  status: 'Unused' | 'Used' | 'Expired' | 'Locked';
+  status: 'Unused' | 'Used' | 'Expired' | 'Locked' | 'Cancelled';
   validFrom: string;
   validTo: string;
   usedAt: string | null;
   usedAtBranchId: number | null;
   voucher?: {
+    voucherId: number;
     title: string;
     imageUrl: string | null;
     expiryDays: number;
-    partner?: {
-      companyName: string;
-    };
+    partner?: string | { companyName: string };
   };
 }
 
@@ -548,9 +547,7 @@ export interface OrderItem {
     title: string;
     imageUrl: string | null;
     expiryDays: number;
-    partner?: {
-      companyName: string;
-    };
+    partner?: string | { companyName: string };
   };
   issuedVouchers?: IssuedVoucher[];
 }
@@ -566,6 +563,11 @@ export interface OrderDetail {
   giftMessage: string | null;
   createdAt: string;
   updatedAt: string;
+  orderItems: OrderItem[];
+}
+
+// Còn lại code cũ dùng `items` — alias để không vỡ
+export interface OrderDetailLegacy extends Omit<OrderDetail, 'orderItems'> {
   items: OrderItem[];
 }
 
@@ -651,7 +653,7 @@ export const orderApi = {
    */
   getById: async (orderId: number) => {
     const res = await authFetch(`${BASE_URL}/customer/orders/${orderId}`, { auth: true });
-    return handleResponse<{ success: boolean; data: any }>(res);
+    return handleResponse<{ success: boolean; data: OrderDetail }>(res);
   },
 
   /**
@@ -665,7 +667,7 @@ export const orderApi = {
     const res = await authFetch(`${BASE_URL}/customer/orders?${query}`, { auth: true });
     return handleResponse<{
       success: boolean;
-      data: any[];
+      data: OrderSummary[];
       pagination: PaginationMeta;
     }>(res);
   },

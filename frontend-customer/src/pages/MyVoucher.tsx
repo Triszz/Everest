@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { orderApi } from '../services/api';
 import type { IssuedVoucher } from '../services/api';
 import {
-  Ticket, Copy, Check, QrCode, Clock, MapPin, Star,
+  Ticket, Copy, Check, QrCode, Clock, MapPin, Star, Eye,
   Loader2, RefreshCw, ShoppingBag, ChevronRight,
 } from 'lucide-react';
 
@@ -270,7 +270,7 @@ function VoucherCard({ v, onClick }: { v: IssuedVoucher; onClick: (v: IssuedVouc
           padding: '3px 8px', borderRadius: 6,
           background: 'rgba(0,0,0,0.55)', color: 'white',
         }}>
-          {v.voucher?.partner?.companyName}
+          {(typeof v.voucher?.partner === 'string' ? v.voucher.partner : v.voucher?.partner?.companyName) || ''}
         </span>
       </div>
 
@@ -310,9 +310,25 @@ function VoucherCard({ v, onClick }: { v: IssuedVoucher; onClick: (v: IssuedVouc
                 : `Còn ${left} ngày`}
             </span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#0E76A8' }}>
-            <QrCode size={13} />
-            <span style={{ fontSize: 12, fontWeight: 600 }}>Xem QR</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {v.voucher?.voucherId && (
+              <Link
+                to={`/voucher/${v.voucher.voucherId}`}
+                onClick={e => e.stopPropagation()}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 3,
+                  fontSize: 12, fontWeight: 600, color: '#0E76A8',
+                  textDecoration: 'none',
+                }}
+              >
+                <Eye size={13} />
+                Chi tiết
+              </Link>
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#0E76A8' }}>
+              <QrCode size={13} />
+              <span style={{ fontSize: 12, fontWeight: 600 }}>Xem QR</span>
+            </div>
           </div>
         </div>
       </div>
@@ -392,7 +408,7 @@ function VoucherModal({ v, onClose }: { v: IssuedVoucher; onClose: () => void })
               {v.voucher?.title}
             </h2>
             <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', fontWeight: 500 }}>
-              {v.voucher?.partner?.companyName}
+              {(typeof v.voucher?.partner === 'string' ? v.voucher.partner : v.voucher?.partner?.companyName) || ''}
             </p>
           </div>
         </div>
@@ -449,7 +465,7 @@ function VoucherModal({ v, onClose }: { v: IssuedVoucher; onClose: () => void })
             <MapPin size={18} style={{ color: '#0E76A8', flexShrink: 0 }} />
             <div>
               <p style={{ fontSize: 12, color: '#94A3B8', marginBottom: 2 }}>Đối tác</p>
-              <p style={{ fontSize: 13, fontWeight: 600, color: '#1E293B' }}>{v.voucher?.partner?.companyName}</p>
+              <p style={{ fontSize: 13, fontWeight: 600, color: '#1E293B' }}>{(typeof v.voucher?.partner === 'string' ? v.voucher.partner : v.voucher?.partner?.companyName) || ''}</p>
             </div>
           </div>
 
@@ -691,37 +707,30 @@ export function MyVoucher() {
                 <Clock size={16} style={{ color: '#0E76A8' }} />
                 Đơn hàng gần đây
               </h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {[
-                  { id: 10047, date: '15/07/2026', status: 'Hoàn thành', sc: { bg: '#ECFDF5', text: '#10B981' } },
-                  { id: 10045, date: '10/07/2026', status: 'Hoàn thành', sc: { bg: '#ECFDF5', text: '#10B981' } },
-                  { id: 10040, date: '05/07/2026', status: 'Hoàn thành', sc: { bg: '#ECFDF5', text: '#10B981' } },
-                ].map(order => (
-                  <Link
-                    key={order.id}
-                    to={`/checkout/success?orderId=${order.id}`}
-                    style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      padding: '10px 12px', background: '#F8FAFC', borderRadius: 10,
-                      textDecoration: 'none', transition: 'background 0.2s',
-                      border: '1px solid transparent',
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.background = '#EEF4FA'; e.currentTarget.style.borderColor = '#BAE6FD'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.borderColor = 'transparent'; }}
-                  >
-                    <div>
-                      <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 600, color: '#1E293B', marginBottom: 1 }}>#{order.id}</div>
-                      <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: '#94A3B8' }}>{order.date}</div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: order.sc.bg, color: order.sc.text }}>
-                        {order.status}
-                      </span>
-                      <ChevronRight size={14} style={{ color: '#94A3B8' }} />
-                    </div>
-                  </Link>
-                ))}
-              </div>
+
+              <Link
+                to="/orders"
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '12px 14px',
+                  background: '#F8FAFC', borderRadius: 10,
+                  textDecoration: 'none',
+                  border: '1px solid transparent',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = '#EEF4FA'; e.currentTarget.style.borderColor = '#BAE6FD'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.borderColor = 'transparent'; }}
+              >
+                <div>
+                  <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 600, color: '#1E293B', marginBottom: 2 }}>
+                    Xem tất cả đơn hàng
+                  </div>
+                  <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: '#94A3B8' }}>
+                    Theo dõi trạng thái đơn hàng
+                  </div>
+                </div>
+                <ChevronRight size={16} style={{ color: '#0E76A8' }} />
+              </Link>
             </div>
           </div>
 
