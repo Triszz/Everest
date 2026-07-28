@@ -73,7 +73,7 @@ export function DanhMucNoiBat() {
           </div>
           <Link
             id="categories-view-all"
-            to="/categories"
+            to="/vouchers"
             style={{
               display: 'flex',
               alignItems: 'center',
