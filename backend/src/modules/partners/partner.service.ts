@@ -30,41 +30,146 @@ export const partnerService = {
 
   // ── Settings ──────────────────────────────────────────────────
   // GET /api/partner/settings → user + partner combined (for Settings page)
-  async getSettings(partnerId: number, userId: string) {
-    const [user, partner] = await Promise.all([
-      prisma.user.findUnique({
-        where: { userId },
-        select: {
-          userId: true,
-          email: true,
-          fullName: true,
-          phoneNumber: true,
-        },
-      }),
-      prisma.partner.findUnique({
-        where: { partnerId },
-        select: {
-          partnerId: true,
-          companyName: true,
-          taxCode: true,
-          representativeName: true,
-          representativePosition: true,
-          representativePhone: true,
-          representativeEmail: true,
-          businessLicenseUrl: true,
-          status: true,
-          createdAt: true,
-        },
-      }),
-    ]);
+  // async getSettings(partnerId: number, userId: string) {
+  //   const [user, partner] = await Promise.all([
+  //     prisma.user.findUnique({
+  //       where: { userId },
+  //       select: {
+  //         userId: true,
+  //         email: true,
+  //         fullName: true,
+  //         phoneNumber: true,
+  //       },
+  //     }),
+  //     prisma.partner.findUnique({
+  //       where: { partnerId },
+  //       select: {
+  //         partnerId: true,
+  //         companyName: true,
+  //         taxCode: true,
+  //         representativeName: true,
+  //         representativePosition: true,
+  //         representativePhone: true,
+  //         representativeEmail: true,
+  //         businessLicenseUrl: true,
+  //         status: true,
+  //         createdAt: true,
+  //       },
+  //     }),
+  //   ]);
 
-    if (!partner)
-      throw new AppError("Không tìm thấy thông tin đối tác", 404, "NOT_FOUND");
-    if (!user)
-      throw new AppError("Không tìm thấy người dùng", 404, "NOT_FOUND");
+  //   if (!partner)
+  //     throw new AppError("Không tìm thấy thông tin đối tác", 404, "NOT_FOUND");
+  //   if (!user)
+  //     throw new AppError("Không tìm thấy người dùng", 404, "NOT_FOUND");
 
-    return { user, partner };
-  },
+  //   return { user, partner };
+  // },
+
+  async getSettings(
+  partnerId: number,
+  userId: string,
+  role: "Partner_Owner" | "Partner_Cashier",
+) {
+  const [user, partner] = await Promise.all([
+    prisma.user.findUnique({
+      where: {
+        userId,
+      },
+      select: {
+        userId: true,
+        email: true,
+        fullName: true,
+        phoneNumber: true,
+        role: true,
+        status: true,
+      },
+    }),
+
+    prisma.partner.findUnique({
+      where: {
+        partnerId,
+      },
+      select: {
+        partnerId: true,
+        companyName: true,
+        taxCode: true,
+        representativeName: true,
+        representativePosition: true,
+        representativePhone: true,
+        representativeEmail: true,
+        businessLicenseUrl: true,
+        status: true,
+        isLocked: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    }),
+  ]);
+
+  if (!user) {
+    throw new AppError(
+      "Không tìm thấy người dùng",
+      404,
+      "NOT_FOUND",
+    );
+  }
+
+  if (!partner) {
+    throw new AppError(
+      "Không tìm thấy thông tin đối tác",
+      404,
+      "NOT_FOUND",
+    );
+  }
+
+  // Owner không cần thông tin branch
+  if (role === "Partner_Owner") {
+    return {
+      user,
+      partner,
+    };
+  }
+
+  // Cashier phải được gán vào một chi nhánh
+  const branch = await prisma.branch.findFirst({
+    where: {
+      cashierId: userId,
+      partnerId,
+    },
+    select: {
+      branchId: true,
+      partnerId: true,
+      branchName: true,
+      address: true,
+      phoneNumber: true,
+      isLocked: true,
+      createdAt: true,
+    },
+  });
+
+  if (!branch) {
+    throw new AppError(
+      "Thu ngân chưa được phân công vào chi nhánh",
+      403,
+      "CASHIER_NOT_ASSIGNED",
+    );
+  }
+
+  if (branch.isLocked) {
+    throw new AppError(
+      "Chi nhánh đang bị khóa",
+      403,
+      "BRANCH_LOCKED",
+    );
+  }
+
+  return {
+    user,
+    partner,
+    branch,
+  };
+},
 
   async updateProfile(
     partnerId: number,
