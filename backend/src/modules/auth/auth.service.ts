@@ -11,6 +11,166 @@ import type {
 
 const SALT_ROUNDS = 12;
 
+type AuthUser = {
+  userId: string;
+  email: string;
+  role: string;
+  partnerId: number | null;
+};
+
+type PartnerAccessContext = {
+  branchId?: number;
+};
+
+async function assertPartnerAccess(
+  user: AuthUser,
+): Promise<PartnerAccessContext> {
+  /*
+   * Admin và Customer không cần kiểm tra partner.
+   */
+  if (
+    user.role !== "Partner_Owner" &&
+    user.role !== "Partner_Cashier"
+  ) {
+    return {};
+  }
+
+  /*
+   * Cả Owner và Cashier đều bắt buộc phải liên kết với partner.
+   */
+  if (user.partnerId == null) {
+    throw new AppError(
+      "Tài khoản chưa được liên kết với đối tác",
+      403,
+      "PARTNER_NOT_LINKED",
+    );
+  }
+
+  const partner = await prisma.partner.findUnique({
+    where: {
+      partnerId: user.partnerId,
+    },
+    select: {
+      partnerId: true,
+      status: true,
+      isLocked: true,
+    },
+  });
+
+  /*
+   * partnerId có trong user nhưng bản ghi partner không còn tồn tại.
+   */
+  if (!partner) {
+    throw new AppError(
+      "Không tìm thấy thông tin đối tác",
+      403,
+      "PARTNER_NOT_FOUND",
+    );
+  }
+
+  /*
+   * Phân biệt rõ Pending và Rejected để frontend hiển thị đúng thông báo.
+   */
+  if (partner.status === "Pending") {
+    throw new AppError(
+      "Tài khoản đối tác đang chờ Admin phê duyệt",
+      403,
+      "PARTNER_PENDING",
+    );
+  }
+
+  if (partner.status === "Rejected") {
+    throw new AppError(
+      "Tài khoản đối tác đã bị từ chối",
+      403,
+      "PARTNER_REJECTED",
+    );
+  }
+
+  /*
+   * Phòng trường hợp sau này enum có thêm trạng thái khác.
+   */
+  if (partner.status !== "Approved") {
+    throw new AppError(
+      "Đối tác chưa được phép hoạt động",
+      403,
+      "PARTNER_NOT_APPROVED",
+    );
+  }
+
+  /*
+   * Đối tác đã Approved nhưng bị Admin khóa.
+   */
+  if (partner.isLocked) {
+    throw new AppError(
+      "Tài khoản đối tác đang bị khóa",
+      403,
+      "PARTNER_LOCKED",
+    );
+  }
+
+  /*
+   * Owner không cần chi nhánh khi đăng nhập.
+   */
+  if (user.role === "Partner_Owner") {
+    return {};
+  }
+
+  /*
+   * Từ đây trở xuống chỉ áp dụng cho Partner_Cashier.
+   *
+   * cashierId có @unique trong Prisma nên dùng findUnique được.
+   */
+  const branch = await prisma.branch.findUnique({
+    where: {
+      cashierId: user.userId,
+    },
+    select: {
+      branchId: true,
+      partnerId: true,
+      isLocked: true,
+    },
+  });
+
+  /*
+   * Cashier đã bị gỡ khỏi branch hoặc chưa từng được phân công.
+   */
+  if (!branch) {
+    throw new AppError(
+      "Thu ngân chưa được phân công chi nhánh",
+      403,
+      "CASHIER_NOT_ASSIGNED",
+    );
+  }
+
+  /*
+   * Kiểm tra phòng trường hợp dữ liệu bị liên kết sai:
+   * user thuộc partner A nhưng branch lại thuộc partner B.
+   */
+  if (branch.partnerId !== user.partnerId) {
+    throw new AppError(
+      "Chi nhánh không thuộc đối tác của thu ngân",
+      403,
+      "CASHIER_PARTNER_MISMATCH",
+    );
+  }
+
+  /*
+   * Branch bị Admin hoặc Owner khóa.
+   */
+  if (branch.isLocked) {
+    throw new AppError(
+      "Chi nhánh đang bị khóa",
+      403,
+      "BRANCH_LOCKED",
+    );
+  }
+
+  return {
+    branchId: branch.branchId,
+  };
+}
+
 // ── Token helpers ──────────────────────────────────────────────────────────
 
 const signAccessToken = (payload: JwtPayload) =>
@@ -27,26 +187,37 @@ const signRefreshToken = (userId: string) =>
   });
 
 /** Build JWT payload, enrich branchId nếu là cashier */
-async function buildPayload(user: {
-  userId: string;
-  email: string;
-  role: string;
-  partnerId: number | null;
-}, sessionId?: string): Promise<JwtPayload> {
+async function buildPayload(
+  user: AuthUser,
+  sessionId?: string,
+  branchId?: number,
+): Promise<JwtPayload> {
   const payload: JwtPayload = {
     userId: user.userId,
     email: user.email,
     role: user.role as Role,
-    ...(user.partnerId != null && { partnerId: user.partnerId }),
-    ...(sessionId && { sessionId }),
+    ...(user.partnerId != null && {
+      partnerId: user.partnerId,
+    }),
+    ...(sessionId && {
+      sessionId,
+    }),
   };
 
+  /*
+   * Cashier bắt buộc phải có branchId.
+   * branchId đã được kiểm tra bởi assertPartnerAccess().
+   */
   if (user.role === "Partner_Cashier") {
-    const branch = await prisma.branch.findUnique({
-      where: { cashierId: user.userId },
-      select: { branchId: true },
-    });
-    if (branch) payload.branchId = branch.branchId;
+    if (branchId == null) {
+      throw new AppError(
+        "Thu ngân chưa được phân công chi nhánh",
+        403,
+        "CASHIER_NOT_ASSIGNED",
+      );
+    }
+
+    payload.branchId = branchId;
   }
 
   return payload;
@@ -63,7 +234,7 @@ export const authService = {
     if (!user || !user.passwordHash) {
       throw new AppError("Email hoặc mật khẩu không đúng", 401, "UNAUTHORIZED");
     }
-    if (user.status === "Banned") {
+    if (user.status !== "Active") {
       throw new AppError("Tài khoản đã bị khóa", 403, "FORBIDDEN");
     }
 
@@ -71,23 +242,9 @@ export const authService = {
     if (!valid)
       throw new AppError("Email hoặc mật khẩu không đúng", 401, "UNAUTHORIZED");
 
-    // Nếu Partner_Owner: partner status phải Approved
-    if (user.role === "Partner_Owner" && user.partnerId) {
-      const partner = await prisma.partner.findUnique({
-        where: { partnerId: user.partnerId },
-        select: { status: true },
-      });
-      if (partner?.status === "Pending") {
-        throw new AppError(
-          "Tài khoản đối tác đang chờ Admin phê duyệt",
-          403,
-          "FORBIDDEN",
-        );
-      }
-      if (partner?.status === "Rejected") {
-        throw new AppError("Tài khoản đối tác đã bị từ chối", 403, "FORBIDDEN");
-      }
-    }
+        // Nếu Partner_Owner: partner status phải Approved
+    const partnerAccess = await assertPartnerAccess(user);
+
 
     const session = await prisma.userSession.create({
       data: {
@@ -96,7 +253,11 @@ export const authService = {
       },
     });
 
-    const payload = await buildPayload(user, session.sessionId);
+    const payload = await buildPayload(
+  user,
+  session.sessionId,
+  partnerAccess.branchId,
+);
 
     return {
       accessToken: signAccessToken(payload),
@@ -229,34 +390,71 @@ export const authService = {
     };
   },
 
-  async refreshAccessToken(token: string) {
-    let decoded: { userId: string };
-    try {
-      decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET!) as {
-        userId: string;
-      };
-    } catch {
-      throw new AppError(
-        "Refresh token không hợp lệ hoặc đã hết hạn",
-        401,
-        "UNAUTHORIZED",
-      );
-    }
+ async refreshAccessToken(token: string) {
+  let decoded: { userId: string };
 
-    const user = await prisma.user.findUnique({
-      where: { userId: decoded.userId },
-    });
-    if (!user || user.status === "Banned") {
-      throw new AppError(
-        "Không thể làm mới phiên đăng nhập",
-        401,
-        "UNAUTHORIZED",
-      );
-    }
+  try {
+    decoded = jwt.verify(
+      token,
+      process.env.JWT_REFRESH_SECRET!,
+    ) as {
+      userId: string;
+    };
+  } catch {
+    throw new AppError(
+      "Refresh token không hợp lệ hoặc đã hết hạn",
+      401,
+      "UNAUTHORIZED",
+    );
+  }
 
-    const payload = await buildPayload(user);
-    return { accessToken: signAccessToken(payload) };
-  },
+  const user = await prisma.user.findUnique({
+    where: {
+      userId: decoded.userId,
+    },
+  });
+
+  /*
+   * Không cấp access token mới nếu user không tồn tại
+   * hoặc tài khoản không còn ở trạng thái Active.
+   */
+  if (!user || user.status !== "Active") {
+    throw new AppError(
+      "Không thể làm mới phiên đăng nhập",
+      401,
+      "UNAUTHORIZED",
+    );
+  }
+
+  /*
+   * Admin và Customer nhận {}.
+   *
+   * Partner Owner:
+   * - Partner phải Approved
+   * - Partner không bị khóa
+   *
+   * Partner Cashier:
+   * - Partner hợp lệ
+   * - Cashier còn được gán chi nhánh
+   * - Chi nhánh không bị khóa
+   */
+  const partnerAccess = await assertPartnerAccess(user);
+
+  /*
+   * Cashier cần branchId trong access token mới.
+   */
+  const payload = await buildPayload(
+    user,
+    undefined,
+    partnerAccess.branchId,
+  );
+
+  return {
+    accessToken: signAccessToken(payload),
+  };
+},
+
+  
 
   async getMe(userId: string) {
     const user = await prisma.user.findUnique({
