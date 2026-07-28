@@ -31,14 +31,14 @@ function App() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'white' }}>
       <Header />
-      {/* Popup luôn hiện trên tất cả trang, ngoài trừ login/register */}
-      <PopupBanner />
       <main style={{ flex: 1 }}>
         <Routes>
           <Route
             path="/"
             element={
               <>
+                {/* Popup chỉ hiện trên trang chủ */}
+                <PopupBanner />
                 <Hero />
                 <DanhMucNoiBat />
                 <FeaturedVouchers />

@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
 
 interface PaginationMeta {
   page: number;
@@ -21,18 +21,18 @@ const onTokenRefreshed = (token: string) => {
 };
 
 const refreshAccessToken = async (): Promise<string | null> => {
-  const refreshToken = localStorage.getItem('refresh_token');
+  const refreshToken = localStorage.getItem("refresh_token");
   if (!refreshToken) return null;
 
   try {
     const res = await fetch(`${BASE_URL}/auth/refresh`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refreshToken }),
     });
     const json = await res.json();
     if (json.success && json.data?.accessToken) {
-      localStorage.setItem('access_token', json.data.accessToken);
+      localStorage.setItem("access_token", json.data.accessToken);
       return json.data.accessToken;
     }
   } catch {
@@ -44,20 +44,17 @@ const refreshAccessToken = async (): Promise<string | null> => {
 /**
  * Fetch wrapper với auto-refresh token khi nhận 401
  */
-const authFetch = async (
-  url: string,
-  options: RequestInit & { auth?: boolean } = {},
-): Promise<Response> => {
+const authFetch = async (url: string, options: RequestInit & { auth?: boolean } = {}): Promise<Response> => {
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...options.headers as Record<string, string>,
+    "Content-Type": "application/json",
+    ...(options.headers as Record<string, string>),
   };
 
   // Attach auth token
   if (options.auth) {
-    const token = localStorage.getItem('access_token');
+    const token = localStorage.getItem("access_token");
     if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+      headers["Authorization"] = `Bearer ${token}`;
     }
   }
 
@@ -73,21 +70,21 @@ const authFetch = async (
       if (newToken) {
         onTokenRefreshed(newToken);
         // Retry with new token
-        headers['Authorization'] = `Bearer ${newToken}`;
+        headers["Authorization"] = `Bearer ${newToken}`;
         response = await fetch(url, { ...options, headers });
       } else {
         // Refresh failed - clear tokens and redirect
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-        window.location.href = '/login';
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
+        window.location.href = "/login";
       }
     } else {
       // Another refresh in progress, wait
       await new Promise<string>((resolve) => {
         subscribeTokenRefresh(resolve);
       });
-      const newToken = localStorage.getItem('access_token')!;
-      headers['Authorization'] = `Bearer ${newToken}`;
+      const newToken = localStorage.getItem("access_token")!;
+      headers["Authorization"] = `Bearer ${newToken}`;
       response = await fetch(url, { ...options, headers });
     }
   }
@@ -98,7 +95,7 @@ const authFetch = async (
 const handleResponse = async <T>(res: Response): Promise<T> => {
   const json = await res.json();
   if (!res.ok) {
-    throw new Error(json.error?.message || 'API Error');
+    throw new Error(json.error?.message || "API Error");
   }
   return json;
 };
@@ -150,13 +147,13 @@ export interface VoucherQuery {
   category_id?: number;
   min_price?: number;
   max_price?: number;
-  sort?: 'price_asc' | 'price_desc' | 'popular' | 'newest';
+  sort?: "price_asc" | "price_desc" | "popular" | "newest";
   page?: number;
   limit?: number;
 }
 
 export interface CategoryVoucherQuery {
-  sort?: 'price_asc' | 'price_desc' | 'popular' | 'newest';
+  sort?: "price_asc" | "price_desc" | "popular" | "newest";
   page?: number;
   limit?: number;
 }
@@ -236,7 +233,7 @@ export interface User {
   fullName: string;
   role: string;
   phoneNumber?: string;
-  status: 'Active' | 'Inactive' | 'Banned';
+  status: "Active" | "Inactive" | "Banned";
   createdAt?: string;
   updatedAt?: string;
 }
@@ -327,11 +324,12 @@ export const popupApi = {
 export const postApi = {
   list: async (params?: { page?: number; limit?: number }) => {
     const qs = params
-      ? '?' + Object.entries(params)
+      ? "?" +
+        Object.entries(params)
           .filter(([, v]) => v !== undefined && v !== null)
           .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
-          .join('&')
-      : '';
+          .join("&")
+      : "";
     const res = await fetch(`${BASE_URL}/posts${qs}`);
     return handleResponse<{
       success: boolean;
@@ -352,7 +350,7 @@ export const cartApi = {
 
   addToCart: async (voucherId: number, quantity: number) => {
     const res = await authFetch(`${BASE_URL}/cart/items`, {
-      method: 'POST',
+      method: "POST",
       auth: true,
       body: JSON.stringify({ voucher_id: voucherId, quantity }),
     });
@@ -361,7 +359,7 @@ export const cartApi = {
 
   updateCartItem: async (itemId: number, quantity: number) => {
     const res = await authFetch(`${BASE_URL}/cart/items/${itemId}`, {
-      method: 'PUT',
+      method: "PUT",
       auth: true,
       body: JSON.stringify({ quantity }),
     });
@@ -370,7 +368,7 @@ export const cartApi = {
 
   removeCartItem: async (itemId: number) => {
     const res = await authFetch(`${BASE_URL}/cart/items/${itemId}`, {
-      method: 'DELETE',
+      method: "DELETE",
       auth: true,
     });
     return handleResponse<{ success: boolean; data: { message: string } }>(res);
@@ -378,7 +376,7 @@ export const cartApi = {
 
   clearCart: async () => {
     const res = await authFetch(`${BASE_URL}/cart`, {
-      method: 'DELETE',
+      method: "DELETE",
       auth: true,
     });
     return handleResponse<{ success: boolean; data: { message: string } }>(res);
@@ -391,7 +389,7 @@ export const cartApi = {
    */
   applyCode: async (code: string) => {
     const res = await authFetch(`${BASE_URL}/customer/orders/apply-code`, {
-      method: 'POST',
+      method: "POST",
       auth: true,
       body: JSON.stringify({ code }),
     });
@@ -402,22 +400,17 @@ export const cartApi = {
 export const authApi = {
   login: async (email: string, password: string) => {
     const res = await fetch(`${BASE_URL}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
     });
     return handleResponse<{ success: boolean; data: AuthResponse }>(res);
   },
 
-  register: async (data: {
-    email: string;
-    password: string;
-    fullName: string;
-    phoneNumber?: string;
-  }) => {
+  register: async (data: { email: string; password: string; fullName: string; phoneNumber?: string }) => {
     const res = await fetch(`${BASE_URL}/auth/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
     return handleResponse<{ success: boolean; data: AuthResponse }>(res);
@@ -430,8 +423,8 @@ export const authApi = {
 
   refresh: async (refreshToken: string) => {
     const res = await fetch(`${BASE_URL}/auth/refresh`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refreshToken }),
     });
     return handleResponse<{ success: boolean; data: AuthResponse }>(res);
@@ -443,8 +436,8 @@ export const authApi = {
    */
   forgotPassword: async (email: string) => {
     const res = await fetch(`${BASE_URL}/auth/forgot-password`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email }),
     });
     return handleResponse<{ success: boolean; message?: string }>(res);
@@ -455,7 +448,7 @@ export const authApi = {
    */
   revokeSession: async (sessionId: string) => {
     const res = await authFetch(`${BASE_URL}/auth/sessions/${sessionId}/revoke`, {
-      method: 'POST',
+      method: "POST",
       auth: true,
     });
     return handleResponse<{ success: boolean; message?: string }>(res);
@@ -466,7 +459,7 @@ export const authApi = {
    */
   revokeAllOtherSessions: async () => {
     const res = await authFetch(`${BASE_URL}/auth/sessions/revoke-all`, {
-      method: 'POST',
+      method: "POST",
       auth: true,
     });
     return handleResponse<{ success: boolean; message?: string }>(res);
@@ -481,7 +474,7 @@ export const profileApi = {
 
   updateProfile: async (data: { fullName?: string; phoneNumber?: string | null }) => {
     const res = await authFetch(`${BASE_URL}/customer/profile/me`, {
-      method: 'PUT',
+      method: "PUT",
       auth: true,
       body: JSON.stringify(data),
     });
@@ -490,7 +483,7 @@ export const profileApi = {
 
   changePassword: async (data: { currentPassword: string; newPassword: string }) => {
     const res = await authFetch(`${BASE_URL}/customer/profile/password`, {
-      method: 'PUT',
+      method: "PUT",
       auth: true,
       body: JSON.stringify(data),
     });
@@ -503,7 +496,7 @@ export const profileApi = {
    */
   updateNotificationPrefs: async (prefs: Record<string, boolean>) => {
     const res = await authFetch(`${BASE_URL}/customer/notifications/preferences`, {
-      method: 'PUT',
+      method: "PUT",
       auth: true,
       body: JSON.stringify(prefs),
     });
@@ -524,7 +517,7 @@ export const profileApi = {
 export interface IssuedVoucher {
   issuedVoucherId: number;
   voucherCode: string;
-  status: 'Unused' | 'Used' | 'Expired' | 'Locked' | 'Cancelled';
+  status: "Unused" | "Used" | "Expired" | "Locked" | "Cancelled";
   validFrom: string;
   validTo: string;
   usedAt: string | null;
@@ -557,7 +550,7 @@ export interface OrderDetail {
   customerId: string;
   totalAmount: string | number;
   paymentMethod: string | null;
-  paymentStatus: 'Pending' | 'Paid' | 'Cancelled';
+  paymentStatus: "Pending" | "Paid" | "Cancelled";
   isGift: boolean;
   receiverEmail: string | null;
   giftMessage: string | null;
@@ -567,7 +560,7 @@ export interface OrderDetail {
 }
 
 // Còn lại code cũ dùng `items` — alias để không vỡ
-export interface OrderDetailLegacy extends Omit<OrderDetail, 'orderItems'> {
+export interface OrderDetailLegacy extends Omit<OrderDetail, "orderItems"> {
   items: OrderItem[];
 }
 
@@ -575,7 +568,7 @@ export interface OrderSummary {
   orderId: number;
   totalAmount: string | number;
   paymentMethod: string | null;
-  paymentStatus: 'Pending' | 'Paid' | 'Cancelled';
+  paymentStatus: "Pending" | "Paid" | "Cancelled";
   createdAt: string;
   itemCount: number;
 }
@@ -593,7 +586,7 @@ export interface CreateOrderPayload {
 export interface CreateOrderResponse {
   orderId: number;
   totalAmount: number;
-  paymentStatus: 'Pending' | 'Paid' | 'Cancelled';
+  paymentStatus: "Pending" | "Paid" | "Cancelled";
   isGift: boolean;
   createdAt: string;
   orderItems: OrderItem[];
@@ -602,7 +595,7 @@ export interface CreateOrderResponse {
 // Response from POST /customer/orders/:id/checkout
 export interface CheckoutResponse {
   orderId: number;
-  paymentStatus: 'Paid';
+  paymentStatus: "Paid";
   paymentMethod: string;
   issuedVouchers: {
     issuedVoucherId: number;
@@ -626,7 +619,7 @@ export const orderApi = {
    */
   create: async (payload: CreateOrderPayload) => {
     const res = await authFetch(`${BASE_URL}/customer/orders`, {
-      method: 'POST',
+      method: "POST",
       auth: true,
       body: JSON.stringify(payload),
     });
@@ -640,7 +633,7 @@ export const orderApi = {
    */
   checkout: async (orderId: number, body: { paymentMethod: string }) => {
     const res = await authFetch(`${BASE_URL}/customer/orders/${orderId}/checkout`, {
-      method: 'POST',
+      method: "POST",
       auth: true,
       body: JSON.stringify(body),
     });
@@ -662,8 +655,8 @@ export const orderApi = {
    */
   listMine: async (params?: { page?: number; pageSize?: number }) => {
     const query = new URLSearchParams();
-    if (params?.page) query.set('page', String(params.page));
-    if (params?.pageSize) query.set('pageSize', String(params.pageSize));
+    if (params?.page) query.set("page", String(params.page));
+    if (params?.pageSize) query.set("pageSize", String(params.pageSize));
     const res = await authFetch(`${BASE_URL}/customer/orders?${query}`, { auth: true });
     return handleResponse<{
       success: boolean;
@@ -677,7 +670,7 @@ export const orderApi = {
    */
   cancel: async (orderId: number) => {
     const res = await authFetch(`${BASE_URL}/customer/orders/${orderId}/cancel`, {
-      method: 'POST',
+      method: "POST",
       auth: true,
     });
     return handleResponse<{ success: boolean; data: { orderId: number; paymentStatus: string }; message: string }>(res);
@@ -689,9 +682,9 @@ export const orderApi = {
    */
   listIssuedVouchers: async (params?: { page?: number; pageSize?: number; status?: string }) => {
     const query = new URLSearchParams();
-    if (params?.page) query.set('page', String(params.page));
-    if (params?.pageSize) query.set('pageSize', String(params.pageSize));
-    if (params?.status) query.set('status', params.status);
+    if (params?.page) query.set("page", String(params.page));
+    if (params?.pageSize) query.set("pageSize", String(params.pageSize));
+    if (params?.status) query.set("status", params.status);
     const res = await authFetch(`${BASE_URL}/customer/issued-vouchers?${query}`, { auth: true });
     return handleResponse<{
       success: boolean;
@@ -704,7 +697,7 @@ export const orderApi = {
 // ── Feedback API ─────────────────────────────────────────────────────────────────
 
 export interface FeedbackPayload {
-  type: 'general' | 'order' | 'voucher' | 'complaint';
+  type: "general" | "order" | "voucher" | "complaint";
   subject: string;
   orderId?: string;
   voucherCode?: string;
@@ -727,8 +720,8 @@ export const feedbackApi = {
    */
   submit: async (payload: FeedbackPayload) => {
     const res = await fetch(`${BASE_URL}/feedback`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
     return handleResponse<{ success: boolean; data: FeedbackSubmitResponse }>(res);
@@ -750,7 +743,7 @@ export const reviewApi = {
    */
   create: async (voucherId: number, payload: ReviewPayload) => {
     const res = await authFetch(`${BASE_URL}/vouchers/${voucherId}/reviews`, {
-      method: 'POST',
+      method: "POST",
       auth: true,
       body: JSON.stringify(payload),
     });
