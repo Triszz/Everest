@@ -90,6 +90,31 @@ enum VoucherUsageStatus {
   @@map("voucher_usage_status")
 }
 
+enum AuditActorType {
+  ADMIN
+  SYSTEM
+  CUSTOMER
+  PARTNER
+
+  @@map("audit_actor_type")
+}
+
+enum AuditTargetType {
+  USER
+  PARTNER
+  BRANCH
+  CATEGORY
+  VOUCHER
+  POLICY
+  BANNER
+  POPUP
+  POST
+  ORDER
+  ADMIN
+
+  @@map("audit_target_type")
+}
+
 // ============= TÀI KHOẢN =============
 model User {
   userId       String        @id @default(uuid()) @map("user_id") @db.Uuid
@@ -109,7 +134,7 @@ model User {
   cartItems               CartItem[]
   orders                  Order[]
   reviews                 Review[]
-  logs                    SystemLog[]
+  logs                    AdminAuditLog[] @relation("AuditLogs")
   feedbacks               Feedback[]
   passwordResets          PasswordReset[]
   notificationPreferences NotificationPreference[]
@@ -416,16 +441,25 @@ model UserSession {
   @@map("user_sessions")
 }
 
-model SystemLog {
-  logId       BigInt   @id @default(autoincrement()) @map("log_id")
-  actorId     String?  @map("actor_id") @db.Uuid
-  actorRole   String?  @map("actor_role") @db.VarChar(50)
-  action      String   @db.VarChar(100)
-  description String?
-  ipAddress   String?  @map("ip_address") @db.VarChar(45)
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+model AdminAuditLog {
+  logId        BigInt         @id @default(autoincrement()) @map("log_id")
+  actorId      String?        @map("actor_id") @db.Uuid
+  actorType    AuditActorType @default(ADMIN)    @map("actor_type")
+  action       String         @db.VarChar(100)               // free-form: APPROVE_PARTNER, LOGIN, ...
+  targetType   AuditTargetType? @map("target_type")           // USER, VOUCHER, ORDER, ...
+  targetId     String?        @map("target_id") @db.VarChar(100)
+  description  String         @db.VarChar(500)
+  ipAddress    String?        @map("ip_address") @db.VarChar(45)
+  userAgent    String?        @map("user_agent") @db.VarChar(500)
+  metadata     Json?
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz
 
-  actor User? @relation(fields: [actorId], references: [userId], onDelete: SetNull)
+  actor        User?          @relation("AuditLogs", fields: [actorId], references: [userId], onDelete: SetNull)
 
-  @@map("system_logs")
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+  @@index([targetType])
+  @@index([targetId])
+  @@index([createdAt])
+  @@map("admin_audit_log")
 }

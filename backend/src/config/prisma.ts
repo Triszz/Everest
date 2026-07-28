@@ -7,6 +7,7 @@ const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 const createPrisma = () => {
   const adapter = new PrismaPg({
     connectionString: process.env.DATABASE_URL!,
+    options: "-c client_encoding=UTF8",
   });
   return new PrismaClient({ adapter });
 };
