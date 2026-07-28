@@ -108,7 +108,7 @@ export function Checkout() {
       const createRes = await orderApi.create({
         buyerInfo,
         items: cartItems.map(item => ({
-          voucherId: item.voucherId,
+          voucherId: item.voucher.voucherId,
           quantity: item.quantity,
         })),
         sendAsGift,
