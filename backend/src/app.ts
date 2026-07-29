@@ -80,7 +80,7 @@ app.use("/api/feedback", feedbackRouter);
 app.use("/api/customer/notifications", notificationsRouter);
 
 // Health check — test kết nối Supabase
-app.get("/api/health", (_req, res) => {
+app.get("/api/health", (req, res) => {
   res.json({
     success: true,
     data: { status: "ok", timestamp: new Date().toISOString() },

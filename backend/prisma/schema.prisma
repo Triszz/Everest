@@ -257,7 +257,7 @@ model Voucher {
   applicationCondition String?               @map("application_condition")
   totalQuantity        Int                   @map("total_quantity")
   availableQuantity    Int                   @map("available_quantity")
-  imageUrl             String?               @map("image_url") @db.VarChar(255)
+  imageUrl             String?               @map("image_url") @db.Text
   startDate            DateTime              @map("start_date") @db.Timestamptz
   endDate              DateTime              @map("end_date") @db.Timestamptz
   expiryDays           Int                   @map("expiry_days")

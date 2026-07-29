@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { Prisma } from "../generated/prisma/client";
+import { ZodError } from "zod";
 
 export class AppError extends Error {
   constructor(
@@ -13,7 +14,7 @@ export class AppError extends Error {
 
 export const errorHandler = (
   err: Error,
-  _req: Request,
+  req: Request,
   res: Response,
   _next: NextFunction,
 ) => {
@@ -35,6 +36,12 @@ export const errorHandler = (
 
   // Prisma unique constraint
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
+    console.error("[Prisma Error]", {
+      code: err.code,
+      message: err.message,
+      meta: err.meta,
+      stack: err.stack,
+    });
     if (err.code === "P2002") {
       return res.status(409).json({
         success: false,
@@ -50,23 +57,51 @@ export const errorHandler = (
         error: { code: "NOT_FOUND", message: "Không tìm thấy dữ liệu yêu cầu" },
       });
     }
+    // Other Prisma errors — return full detail for debugging
+    return res.status(400).json({
+      success: false,
+      error: {
+        code: err.code,
+        message: err.message,
+        meta: err.meta,
+      },
+    });
+  }
+
+  // Zod validation error — return full issues
+  if (err instanceof ZodError) {
+    console.error("[ZodError]", JSON.stringify(err.issues, null, 2));
+    return res.status(400).json({
+      success: false,
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Validation failed",
+        issues: err.issues,
+      },
+    });
   }
 
   // AppError tự định nghĩa
   if (err instanceof AppError) {
+    console.error("[AppError]", { statusCode: err.statusCode, code: err.code, message: err.message, stack: err.stack });
     return res.status(err.statusCode).json({
       success: false,
       error: { code: err.code, message: err.message },
     });
   }
 
-  // Unexpected error — không lộ chi tiết ra ngoài
-  console.error("[Unhandled Error]", err);
+  // Unexpected error — log full detail, return safe message
+  console.error("[Unhandled Error]", {
+    name: err.name,
+    message: err.message,
+    stack: err.stack,
+    body: req.body,
+  });
   return res.status(500).json({
     success: false,
     error: {
       code: "INTERNAL_ERROR",
-      message: "Đã xảy ra lỗi, vui lòng thử lại",
+      message: err.message || "Đã xảy ra lỗi, vui lòng thử lại",
     },
   });
 };

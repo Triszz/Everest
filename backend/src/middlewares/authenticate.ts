@@ -30,7 +30,7 @@ export const authenticate = (
     ) as JwtPayload;
     req.user = payload;
     next();
-  } catch {
+  } catch (err) {
     return res.status(401).json({
       success: false,
       error: {

@@ -13,11 +13,17 @@ export const voucherService = {
     async create(partnerId: number, input: CreateVoucherInput) {
         // Validate branchIds thuộc partner này
         if (input.branchIds?.length) {
+            // Check for duplicates
+            const uniqueBranchIds = [...new Set(input.branchIds)];
+            if (uniqueBranchIds.length !== input.branchIds.length) {
+                throw new AppError('Danh sách chi nhánh chứa giá trị trùng lặp', 400, 'VALIDATION_ERROR');
+            }
+
             const ownedBranches = await prisma.branch.findMany({
-                where: { partnerId, branchId: { in: input.branchIds } },
+                where: { partnerId, branchId: { in: uniqueBranchIds } },
                 select: { branchId: true },
             });
-            if (ownedBranches.length !== input.branchIds.length) {
+            if (ownedBranches.length !== uniqueBranchIds.length) {
                 throw new AppError('Một hoặc nhiều chi nhánh không thuộc đối tác này', 400, 'VALIDATION_ERROR');
             }
         }
@@ -31,36 +37,47 @@ export const voucherService = {
             throw new AppError('Danh mục không tồn tại', 404, 'NOT_FOUND');
         }
 
-        return prisma.voucher.create({
-            data: {
-                partnerId,
-                title: input.title,
-                description: input.description,
-                categoryId: input.categoryId,
-                applicationCondition: input.applicationCondition,
-                originalPrice: input.originalPrice,
-                salePrice: input.salePrice,
-                totalQuantity: input.totalQuantity,
-                availableQuantity: input.totalQuantity, // ban đầu = tổng số lượng
-                imageUrl: input.imageUrl,
-                startDate: new Date(input.startDate),
-                endDate: new Date(input.endDate),
-                expiryDays: input.expiryDays,
-                approvalStatus: 'Draft',
-                displayStatus: 'Hidden',
-                ...(input.branchIds?.length && {
-                    voucherBranches: {
-                        create: input.branchIds.map((branchId) => ({ branchId })),
-                    },
-                }),
-            },
-            include: {
-                category: { select: { categoryId: true, categoryName: true } },
-                voucherBranches: {
-                    include: { branch: { select: { branchId: true, branchName: true } } },
+        try {
+            const result = await prisma.voucher.create({
+                data: {
+                    partnerId,
+                    title: input.title,
+                    description: input.description,
+                    categoryId: input.categoryId,
+                    applicationCondition: input.applicationCondition,
+                    originalPrice: input.originalPrice,
+                    salePrice: input.salePrice,
+                    totalQuantity: input.totalQuantity,
+                    availableQuantity: input.totalQuantity, // ban đầu = tổng số lượng
+                    imageUrl: input.imageUrl,
+                    startDate: new Date(input.startDate),
+                    endDate: new Date(input.endDate),
+                    expiryDays: input.expiryDays,
+                    approvalStatus: 'Draft',
+                    displayStatus: 'Hidden',
+                    ...(input.branchIds?.length && {
+                        voucherBranches: {
+                            create: input.branchIds.map((branchId) => ({ branchId })),
+                        },
+                    }),
                 },
-            },
-        });
+                include: {
+                    category: { select: { categoryId: true, categoryName: true } },
+                    voucherBranches: {
+                        include: { branch: { select: { branchId: true, branchName: true } } },
+                    },
+                },
+            });
+            return result;
+        } catch (err) {
+            console.error("[VoucherService] Prisma error creating voucher:", err);
+            if (err instanceof Error) {
+                console.error("[VoucherService] Error name:", err.name);
+                console.error("[VoucherService] Error message:", err.message);
+                console.error("[VoucherService] Error stack:", err.stack);
+            }
+            throw err;
+        }
     },
 
     // ── Danh sách voucher của partner (BR-PAR-04) ────────────────
