@@ -114,6 +114,9 @@ export interface Voucher {
   expiryDays: number;
   averageRating: number;
   reviewCount: number;
+  // ── BR-CUS-03 ───────────────────────────────────────────────
+  discountPercent: number;
+  // ─────────────────────────────────────────────────────────────
   partner: {
     partnerId: number;
     companyName: string;
@@ -122,6 +125,12 @@ export interface Voucher {
     categoryId: number;
     categoryName: string;
   };
+}
+
+export interface Partner {
+  partnerId: number;
+  companyName: string;
+  status: string;
 }
 
 export interface Category {
@@ -148,6 +157,12 @@ export interface VoucherQuery {
   category_ids?: number[];
   min_price?: number;
   max_price?: number;
+  // ── BR-CUS-03: Mở rộng search ─────────────────────────────────
+  partner_id?: number;
+  partner_name?: string;
+  discount_min?: number;
+  area?: string;
+  // ───────────────────────────────────────────────────────────────
   sort?: "price_asc" | "price_desc" | "popular" | "newest";
   page?: number;
   limit?: number;
@@ -311,6 +326,15 @@ export const categoryApi = {
       vouchers: Voucher[];
       pagination: PaginationMeta;
     }>(res);
+  },
+};
+
+// ── BR-CUS-03: Partner list for filter dropdown ───────────────────────────
+export const partnerApi = {
+  list: async () => {
+    // BR-CUS-03: /customer/search/partners
+    const res = await fetch(`${BASE_URL}/customer/search/partners`);
+    return handleResponse<{ success: boolean; data: Partner[] }>(res);
   },
 };
 
@@ -529,6 +553,8 @@ export interface IssuedVoucher {
   validTo: string;
   usedAt: string | null;
   usedAtBranchId: number | null;
+  hasReviewed?: boolean;
+  isAvailable?: boolean;
   voucher?: {
     voucherId: number;
     title: string;

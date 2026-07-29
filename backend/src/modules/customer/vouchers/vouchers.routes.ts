@@ -9,10 +9,10 @@ router.get("/", vouchersController.listVouchers);
 router.get("/featured", vouchersController.getFeatured);
 router.get("/:id", vouchersController.getVoucherById);
 
-// GET /api/vouchers/:id/reviews — public
-router.get("/:id/reviews", vouchersController.getVoucherReviews);
+// GET /api/vouchers/:voucherId/reviews — public
+router.get("/:voucherId/reviews", vouchersController.getVoucherReviews);
 
-// POST /api/vouchers/:id/reviews — authenticated
-router.post("/:id/reviews", authenticate, reviewsController.createReview);
+// POST /api/vouchers/:voucherId/reviews — authenticated
+router.post("/:voucherId/reviews", authenticate, reviewsController.createReview);
 
 export default router;

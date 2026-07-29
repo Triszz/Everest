@@ -28,12 +28,18 @@ export const issuedVouchersService = {
                   title: true,
                   imageUrl: true,
                   expiryDays: true,
+                  approvalStatus: true,
+                  displayStatus: true,
                   partner: {
                     select: { companyName: true },
                   },
                 },
               },
             },
+          },
+          reviews: {
+            where: { customerId },
+            select: { reviewId: true },
           },
         },
         orderBy: { validTo: "asc" },
@@ -44,22 +50,28 @@ export const issuedVouchersService = {
     ]);
 
     return {
-      vouchers: vouchers.map((iv) => ({
-        issuedVoucherId: iv.issuedVoucherId,
-        voucherCode: iv.voucherCode,
-        status: iv.status,
-        validFrom: iv.validFrom,
-        validTo: iv.validTo,
-        usedAt: iv.usedAt,
-        usedAtBranchId: iv.usedAtBranchId,
-        voucher: {
-          voucherId: iv.orderItem.voucher.voucherId,
-          title: iv.orderItem.voucher.title,
-          imageUrl: iv.orderItem.voucher.imageUrl,
-          expiryDays: iv.orderItem.voucher.expiryDays,
-          partner: iv.orderItem.voucher.partner.companyName,
-        },
-      })),
+      vouchers: vouchers.map((iv) => {
+        const v = iv.orderItem.voucher;
+        const isAvailable = v.approvalStatus === "Approved" && v.displayStatus === "Visible";
+        return {
+          issuedVoucherId: iv.issuedVoucherId,
+          voucherCode: iv.voucherCode,
+          status: iv.status,
+          validFrom: iv.validFrom,
+          validTo: iv.validTo,
+          usedAt: iv.usedAt,
+          usedAtBranchId: iv.usedAtBranchId,
+          hasReviewed: iv.reviews.length > 0,
+          isAvailable,
+          voucher: {
+            voucherId: v.voucherId,
+            title: v.title,
+            imageUrl: v.imageUrl,
+            expiryDays: v.expiryDays,
+            partner: v.partner.companyName,
+          },
+        };
+      }),
       pagination: {
         page,
         pageSize,
@@ -80,20 +92,22 @@ export const issuedVouchersService = {
       include: {
         orderItem: {
           include: {
-            voucher: {
-              select: {
-                voucherId: true,
-                title: true,
-                description: true,
-                imageUrl: true,
-                expiryDays: true,
-                applicationCondition: true,
-                partner: {
-                  select: {
-                    companyName: true,
+              voucher: {
+                select: {
+                  voucherId: true,
+                  title: true,
+                  description: true,
+                  imageUrl: true,
+                  expiryDays: true,
+                  applicationCondition: true,
+                  approvalStatus: true,
+                  displayStatus: true,
+                  partner: {
+                    select: {
+                      companyName: true,
+                    },
                   },
-                },
-                voucherBranches: {
+                  voucherBranches: {
                   select: {
                     branch: {
                       select: {
@@ -113,6 +127,9 @@ export const issuedVouchersService = {
 
     if (!voucher) return null;
 
+    const v = voucher.orderItem.voucher;
+    const isAvailable = v.approvalStatus === "Approved" && v.displayStatus === "Visible";
+
     return {
       issuedVoucherId: voucher.issuedVoucherId,
       voucherCode: voucher.voucherCode,
@@ -121,15 +138,16 @@ export const issuedVouchersService = {
       validTo: voucher.validTo,
       usedAt: voucher.usedAt,
       usedAtBranchId: voucher.usedAtBranchId,
+      isAvailable,
       voucher: {
-        voucherId: voucher.orderItem.voucher.voucherId,
-        title: voucher.orderItem.voucher.title,
-        description: voucher.orderItem.voucher.description,
-        imageUrl: voucher.orderItem.voucher.imageUrl,
-        expiryDays: voucher.orderItem.voucher.expiryDays,
-        applicationCondition: voucher.orderItem.voucher.applicationCondition,
-        partner: voucher.orderItem.voucher.partner.companyName,
-        branches: voucher.orderItem.voucher.voucherBranches.map((vb) => vb.branch),
+        voucherId: v.voucherId,
+        title: v.title,
+        description: v.description,
+        imageUrl: v.imageUrl,
+        expiryDays: v.expiryDays,
+        applicationCondition: v.applicationCondition,
+        partner: v.partner.companyName,
+        branches: v.voucherBranches.map((vb) => vb.branch),
       },
     };
   },

@@ -125,6 +125,11 @@ export function VoucherDetail() {
         setReviewComment('');
         setReviewRating(5);
         setShowReviewForm(false);
+        // Reload reviews to show the newly created one
+        const reviewsRes = await voucherApi.getReviews(voucher.voucherId);
+        if (reviewsRes.success && reviewsRes.data) {
+          setReviews(reviewsRes.data);
+        }
         setTimeout(() => setReviewSuccess(false), 3000);
       } else {
         throw new Error(res.error?.message || 'Gửi đánh giá thất bại.');

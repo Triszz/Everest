@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { reviewsService } from "./reviews.service";
 import { AppError } from "../../../middlewares/errorHandler";
+import { createReviewSchema, voucherIdParam } from "./reviews.schemas";
 
 function zodError(error: unknown) {
   const zErr = error as { name: string; errors?: { message: string }[] };
@@ -18,16 +19,9 @@ export const reviewsController = {
   async createReview(req: Request, res: Response, next: NextFunction) {
     try {
       const customerId = req.user!.userId;
-      const voucherId = Number(req.params.voucherId);
+      const { voucherId } = voucherIdParam.parse(req.params);
 
-      if (!voucherId || !Number.isInteger(voucherId) || voucherId <= 0) {
-        return res.status(400).json({
-          success: false,
-          error: { code: "VALIDATION_ERROR", message: "voucherId không hợp lệ" },
-        });
-      }
-
-      const input = req.body;
+      const input = createReviewSchema.parse(req.body);
       const result = await reviewsService.createReview(customerId, voucherId, input);
 
       res.status(201).json({
@@ -55,7 +49,7 @@ export const reviewsController = {
    */
   async listReviews(req: Request, res: Response, next: NextFunction) {
     try {
-      const voucherId = Number(req.params.voucherId);
+      const { voucherId } = voucherIdParam.parse(req.params);
       const page = Number(req.query.page) || 1;
       const pageSize = Number(req.query.pageSize) || 10;
 
@@ -67,6 +61,10 @@ export const reviewsController = {
         pagination: result.pagination,
       });
     } catch (error) {
+      const zErr = zodError(error);
+      if (zErr) {
+        return res.status(400).json({ success: false, error: zErr });
+      }
       next(error);
     }
   },
