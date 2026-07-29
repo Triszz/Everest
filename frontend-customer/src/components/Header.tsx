@@ -261,6 +261,7 @@ export function Header() {
                       </div>
                     </div>
                     <DropdownItem to="/profile" icon="user" label="Profile" onClick={() => setMenuOpen(false)} />
+                    <DropdownItem to="/orders" icon="orders" label="Đơn hàng của tôi" onClick={() => setMenuOpen(false)} />
                     <DropdownItem to="/settings" icon="settings" label="Settings" onClick={() => setMenuOpen(false)} />
                     <DropdownItem to="/help" icon="help" label="Help & Support" onClick={() => setMenuOpen(false)} />
                     <div style={{ borderTop: '1px solid #F1F5F9', margin: '4px 0' }} />
@@ -376,6 +377,13 @@ function DropdownItem({ to, icon, label, onClick }: { to: string; icon: string; 
         <circle cx="12" cy="12" r="10"/>
         <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
         <line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+    ),
+    orders: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2">
+        <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+        <line x1="3" y1="6" x2="21" y2="6"/>
+        <path d="M16 10a4 4 0 0 1-8 0"/>
       </svg>
     ),
   };

@@ -10,6 +10,7 @@ import { CartPage } from './pages/Cart';
 import { MyVoucher } from './pages/MyVoucher';
 import { Checkout } from './pages/Checkout';
 import { OrderSuccessPage } from './pages/OrderSuccess';
+import { OrdersPage } from './pages/Orders';
 import { Rewards } from './pages/Rewards';
 import { VouchersPage } from './pages/Vouchers';
 import { CategoryPage } from './pages/Category';
@@ -30,14 +31,14 @@ function App() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'white' }}>
       <Header />
-      {/* Popup luôn hiện trên tất cả trang, ngoài trừ login/register */}
-      <PopupBanner />
       <main style={{ flex: 1 }}>
         <Routes>
           <Route
             path="/"
             element={
               <>
+                {/* Popup chỉ hiện trên trang chủ */}
+                <PopupBanner />
                 <Hero />
                 <DanhMucNoiBat />
                 <FeaturedVouchers />
@@ -57,6 +58,7 @@ function App() {
           <Route path="/my-voucher" element={<MyVoucher />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/checkout/success" element={<OrderSuccessPage />} />
+          <Route path="/orders" element={<OrdersPage />} />
           <Route path="/rewards" element={<Rewards />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/settings" element={<SettingsPage />} />

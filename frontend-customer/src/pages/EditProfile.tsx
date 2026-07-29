@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { profileApi, type User } from '../services/api';
+import Loading from '../components/Loading';
 
 export function EditProfilePage() {
   const navigate = useNavigate();
@@ -85,23 +86,7 @@ export function EditProfilePage() {
   };
 
   if (loading) {
-    return (
-      <div style={{
-        minHeight: 'calc(100vh - 200px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}>
-        <div style={{
-          width: 40,
-          height: 40,
-          border: '3px solid #E2E8F0',
-          borderTopColor: '#0E76A8',
-          borderRadius: '50%',
-          animation: 'spin 1s linear infinite',
-        }} />
-      </div>
-    );
+    return <Loading />;
   }
 
   return (

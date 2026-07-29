@@ -50,6 +50,7 @@ function CategoryIcon({ catId, size = 15 }: { catId: number; size?: number }) {
 interface FilterChip {
   key: string;
   label: string;
+  categoryId?: number;
 }
 
 // ── Main ───────────────────────────────────────────────────────────────────────
@@ -76,13 +77,23 @@ export function VouchersPage() {
   const currentPage = Number(searchParams.get('page')) || 1;
   const sort = searchParams.get('sort') || 'newest';
   const search = searchParams.get('search') || '';
-  const categoryId = searchParams.get('category_id') || '';
+  const categoriesParam = searchParams.get('categories') || '';
+  const categoryIds: number[] = categoriesParam
+    .split(',')
+    .map(s => s.trim())
+    .filter(s => s.length > 0)
+    .map(Number)
+    .filter(n => !isNaN(n) && n > 0);
   const discount = searchParams.get('discount') || '';
   const priceRange = searchParams.get('price') || '';
 
   // Derive active filter chips for display
   const activeFilters: FilterChip[] = [
-    ...(categoryId ? [{ key: 'category_id', label: categories.find(c => String(c.categoryId) === categoryId)?.categoryName || 'Danh mục' }] : []),
+    ...categoryIds.map(id => ({
+      key: `cat-${id}`,
+      label: categories.find(c => c.categoryId === id)?.categoryName || `Danh mục #${id}`,
+      categoryId: id,
+    })),
     ...(discount ? [{ key: 'discount', label: `Giảm ≥ ${discount}%` }] : []),
     ...(priceRange ? [{ key: 'price', label: PRICE_OPTIONS.find(p => p.value === priceRange)?.label || 'Khoảng giá' }] : []),
   ];
@@ -101,16 +112,44 @@ export function VouchersPage() {
 
   const removeFilter = (key: string) => {
     const newParams = new URLSearchParams(searchParams);
-    newParams.delete(key);
+    if (key.startsWith('cat-')) {
+      const id = Number(key.slice(4));
+      const newCats = categoryIds.filter(c => c !== id);
+      if (newCats.length === 0) {
+        newParams.delete('categories');
+      } else {
+        newParams.set('categories', newCats.join(','));
+      }
+    } else {
+      newParams.delete(key);
+    }
     newParams.set('page', '1');
     setSearchParams(newParams);
   };
 
   const clearAllFilters = () => {
     const newParams = new URLSearchParams(searchParams);
-    newParams.delete('category_id');
+    newParams.delete('categories');
     newParams.delete('discount');
     newParams.delete('price');
+    newParams.set('page', '1');
+    setSearchParams(newParams);
+  };
+
+  const toggleCategory = (id: number) => {
+    const newParams = new URLSearchParams(searchParams);
+    const isCurrentlySelected = categoryIds.includes(id);
+    let newCats: number[];
+    if (isCurrentlySelected) {
+      newCats = categoryIds.filter(c => c !== id);
+    } else {
+      newCats = [...categoryIds, id];
+    }
+    if (newCats.length === 0) {
+      newParams.delete('categories');
+    } else {
+      newParams.set('categories', newCats.join(','));
+    }
     newParams.set('page', '1');
     setSearchParams(newParams);
   };
@@ -129,7 +168,7 @@ export function VouchersPage() {
       page: currentPage,
       sort: sort as 'price_asc' | 'price_desc' | 'popular' | 'newest',
       search: search || undefined,
-      category_id: categoryId ? Number(categoryId) : undefined,
+      category_ids: categoryIds.length > 0 ? categoryIds : undefined,
     })
       .then((res) => {
         if (res.success && res.data) {
@@ -161,7 +200,7 @@ export function VouchersPage() {
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [currentPage, sort, search, categoryId, discount, priceRange]);
+  }, [currentPage, sort, search, categoriesParam, discount, priceRange]);
 
   const formatPrice = (p: string | number) => Number(p).toLocaleString('vi-VN') + 'đ';
 
@@ -185,45 +224,84 @@ export function VouchersPage() {
 
       {/* Category */}
       <div>
-        <h3 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 800, color: '#1E293B', marginBottom: 12 }}>Danh mục</h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <button
-            onClick={() => updateParams('category_id', '')}
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '9px 12px', borderRadius: 10,
-              background: !categoryId ? '#E8F4FA' : 'transparent',
-              border: !categoryId ? '1.5px solid #BAE6FD' : '1.5px solid #E2E8F0',
-              cursor: 'pointer', transition: 'all 0.15s',
-            }}
-          >
-            <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: !categoryId ? 700 : 400, color: !categoryId ? '#0E76A8' : '#64748B' }}>Tất cả</span>
-          </button>
-          {categories.map(cat => (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <h3 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 800, color: '#1E293B', margin: 0 }}>
+            Danh mục
+            {categoryIds.length > 0 && (
+              <span style={{ marginLeft: 6, background: '#0E76A8', color: 'white', fontSize: 11, fontWeight: 700, padding: '1px 7px', borderRadius: 99, verticalAlign: 'middle' }}>
+                {categoryIds.length}
+              </span>
+            )}
+          </h3>
+          {categoryIds.length > 0 && (
             <button
-              key={cat.categoryId}
-              onClick={() => updateParams('category_id', String(cat.categoryId))}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                padding: '9px 12px', borderRadius: 10,
-                background: categoryId === String(cat.categoryId) ? '#E8F4FA' : 'transparent',
-                border: categoryId === String(cat.categoryId) ? '1.5px solid #BAE6FD' : '1.5px solid transparent',
-                cursor: 'pointer', transition: 'all 0.15s',
+              onClick={() => {
+                const newParams = new URLSearchParams(searchParams);
+                newParams.delete('categories');
+                newParams.set('page', '1');
+                setSearchParams(newParams);
               }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#EF4444', fontFamily: 'Inter, sans-serif', fontWeight: 600, textDecoration: 'underline', padding: 0 }}
             >
-              <span style={{ color: categoryId === String(cat.categoryId) ? '#0E76A8' : '#64748B' }}>
-                <CategoryIcon catId={cat.categoryId} size={15} />
-              </span>
-              <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: categoryId === String(cat.categoryId) ? 700 : 400, color: categoryId === String(cat.categoryId) ? '#0E76A8' : '#334155', flex: 1, textAlign: 'left' }}>
-                {cat.categoryName}
-              </span>
-              {categoryId === String(cat.categoryId) && (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0E76A8" strokeWidth="2.5">
-                  <polyline points="20 6 9 17 4 12"/>
-                </svg>
-              )}
+              Bỏ chọn
             </button>
-          ))}
+          )}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 280, overflowY: 'auto', paddingRight: 4 }}>
+          {categories.map(cat => {
+            const checked = categoryIds.includes(cat.categoryId);
+            return (
+              <label
+                key={cat.categoryId}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '8px 10px', borderRadius: 8,
+                  background: checked ? '#E8F4FA' : 'transparent',
+                  border: checked ? '1px solid #BAE6FD' : '1px solid transparent',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                }}
+                onMouseEnter={e => { if (!checked) e.currentTarget.style.background = '#F8FAFC'; }}
+                onMouseLeave={e => { if (!checked) e.currentTarget.style.background = 'transparent'; }}
+              >
+                <span style={{
+                  width: 18, height: 18, borderRadius: 4, flexShrink: 0,
+                  border: checked ? '1.5px solid #0E76A8' : '1.5px solid #CBD5E1',
+                  background: checked ? '#0E76A8' : 'white',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  transition: 'all 0.15s',
+                }}>
+                  {checked && (
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                  )}
+                </span>
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => toggleCategory(cat.categoryId)}
+                  style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
+                />
+                <span style={{ color: checked ? '#0E76A8' : '#64748B', flexShrink: 0 }}>
+                  <CategoryIcon catId={cat.categoryId} size={14} />
+                </span>
+                <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: checked ? 600 : 400, color: checked ? '#0E76A8' : '#334155', flex: 1 }}>
+                  {cat.categoryName}
+                </span>
+                {cat.voucherCount !== undefined && (
+                  <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: '#94A3B8' }}>
+                    {cat.voucherCount}
+                  </span>
+                )}
+              </label>
+            );
+          })}
+          {categories.length === 0 && (
+            <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#94A3B8', textAlign: 'center', padding: 8, margin: 0 }}>
+              Đang tải danh mục...
+            </p>
+          )}
         </div>
       </div>
 
@@ -358,30 +436,49 @@ export function VouchersPage() {
           </div>
 
           {/* Category scroll chips */}
-          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 16, scrollbarWidth: 'none' }}>
-            {categories.map(cat => (
-              <button
-                key={cat.categoryId}
-                onClick={() => updateParams('category_id', categoryId === String(cat.categoryId) ? '' : String(cat.categoryId))}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  padding: '7px 14px',
-                  background: categoryId === String(cat.categoryId) ? '#0E76A8' : 'white',
-                  color: categoryId === String(cat.categoryId) ? 'white' : '#334155',
-                  border: categoryId === String(cat.categoryId) ? '1.5px solid #0E76A8' : '1.5px solid #E2E8F0',
-                  borderRadius: 99,
-                  fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 600,
-                  cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
-                  transition: 'all 0.15s',
-                }}
-              >
-                <span style={{ color: categoryId === String(cat.categoryId) ? 'white' : '#64748B' }}>
-                  <CategoryIcon catId={cat.categoryId} size={14} />
-                </span>
-                {cat.categoryName}
-              </button>
-            ))}
-          </div>
+          {categoryIds.length > 0 && (
+            <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 16, scrollbarWidth: 'none', alignItems: 'center' }}>
+              {categoryIds.map(id => {
+                const cat = categories.find(c => c.categoryId === id);
+                if (!cat) return null;
+                return (
+                  <button
+                    key={cat.categoryId}
+                    onClick={() => toggleCategory(cat.categoryId)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      padding: '7px 14px',
+                      background: '#0E76A8', color: 'white',
+                      border: '1.5px solid #0E76A8',
+                      borderRadius: 99,
+                      fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 600,
+                      cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    <span style={{ color: 'white' }}>
+                      <CategoryIcon catId={cat.categoryId} size={14} />
+                    </span>
+                    {cat.categoryName}
+                    <X size={13} style={{ marginLeft: 2 }} />
+                  </button>
+                );
+              })}
+              {categoryIds.length > 1 && (
+                <button
+                  onClick={() => {
+                    const newParams = new URLSearchParams(searchParams);
+                    newParams.delete('categories');
+                    newParams.set('page', '1');
+                    setSearchParams(newParams);
+                  }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#EF4444', fontFamily: 'Inter, sans-serif', fontWeight: 600, textDecoration: 'underline', padding: '0 4px', whiteSpace: 'nowrap' }}
+                >
+                  Xóa hết
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -465,7 +562,7 @@ export function VouchersPage() {
             {/* Count */}
             <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#64748B', whiteSpace: 'nowrap' }}>
               {loading ? '...' : `${vouchers.length} voucher`}
-              {(search || categoryId || discount || priceRange) && !loading && ` được tìm thấy`}
+              {(search || categoryIds.length > 0 || discount || priceRange) && !loading && ` được tìm thấy`}
             </span>
           </div>
 

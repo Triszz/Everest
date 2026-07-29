@@ -255,6 +255,7 @@ export const ordersService = {
   async cancelOrder(customerId: string, orderId: number) {
     const order = await prisma.order.findFirst({
       where: { orderId, customerId },
+      include: { orderItems: { include: { issuedVouchers: true } } },
     });
 
     if (!order) {
@@ -274,7 +275,21 @@ export const ordersService = {
       data: { paymentStatus: "Cancelled" },
     });
 
-    // RB-13: no vouchers issued for cancelled order (order is Pending, so no IssuedVoucher was created)
+    // RB-13: với đơn đã paid thì restore stock + hủy issued_vouchers
+    if (order.paymentStatus === "Paid") {
+      await prisma.$transaction(async (tx) => {
+        for (const item of order.orderItems) {
+          await tx.voucher.update({
+            where: { voucherId: item.voucherId },
+            data: { availableQuantity: { increment: item.quantity } },
+          });
+          await tx.issuedVoucher.updateMany({
+            where: { orderItemId: item.orderItemId },
+            data: { status: "Cancelled" },
+          });
+        }
+      });
+    }
 
     return {
       orderId: cancelled.orderId,

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { cartApi, orderApi } from '../services/api';
 import type { CartItem } from '../services/api';
+import Loading from '../components/Loading';
 
 export function Checkout() {
   const navigate = useNavigate();
@@ -108,7 +109,7 @@ export function Checkout() {
       const createRes = await orderApi.create({
         buyerInfo,
         items: cartItems.map(item => ({
-          voucherId: item.voucherId,
+          voucherId: item.voucher.voucherId,
           quantity: item.quantity,
         })),
         sendAsGift,
@@ -129,9 +130,7 @@ export function Checkout() {
 
       // ── Step 3: clear cart & redirect ──
       await cartApi.clearCart();
-      navigate('/checkout/success', {
-        state: { orderId: createRes.data.orderId },
-      });
+      navigate(`/checkout/success?orderId=${createRes.data.orderId}`);
     } catch (err: any) {
       alert(err.message || 'Đã xảy ra lỗi. Vui lòng thử lại.');
       setSubmitting(false);
@@ -139,15 +138,7 @@ export function Checkout() {
   };
 
   if (loadingCart) {
-    return (
-      <div style={{ background: '#F8FAFC', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ textAlign: 'center' }}>
-          <Loader2 size={40} style={{ animation: 'spin 1s linear infinite', color: '#0E76A8', margin: '0 auto 16px', display: 'block' }} />
-          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#64748B' }}>Đang tải giỏ hàng...</p>
-        </div>
-        <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
-      </div>
-    );
+    return <Loading />;
   }
 
   if (cartError) {

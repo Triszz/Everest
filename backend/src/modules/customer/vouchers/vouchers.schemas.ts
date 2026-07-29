@@ -21,6 +21,21 @@ const coerceToFloat = (errorMsg: string) =>
 export const voucherQuerySchema = z.object({
   search: z.string().optional(),
   category_id: coerceToNumber("category_id phải là số").optional(),
+  category_ids: z
+    .string()
+    .transform((val) => {
+      const nums = val
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0)
+        .map((s) => {
+          const n = parseInt(s, 10);
+          if (isNaN(n)) throw new Error("category_ids phải là danh sách số, phân cách bằng dấu phẩy");
+          return n;
+        });
+      return nums.length > 0 ? nums : undefined;
+    })
+    .optional(),
   min_price: coerceToFloat("min_price không hợp lệ").optional(),
   max_price: coerceToFloat("max_price không hợp lệ").optional(),
   sort: z

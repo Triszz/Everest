@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useActivePopup } from '../hooks/useActivePopup';
 import type { Popup } from '../services/api';
 
@@ -6,9 +7,17 @@ interface PopupBannerProps {
   delayMs?: number;
 }
 
+function resolveLink(url: string | null) {
+  const fallback = '/vouchers';
+  const target = url && url.trim() !== '' ? url : fallback;
+  const isExternal = /^https?:\/\//i.test(target);
+  return { target, isExternal };
+}
+
 export default function PopupBanner({ delayMs = 1500 }: PopupBannerProps) {
   const { popup, isVisible, dismiss } = useActivePopup();
   const [shouldShow, setShouldShow] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!isVisible) {
@@ -20,6 +29,19 @@ export default function PopupBanner({ delayMs = 1500 }: PopupBannerProps) {
   }, [isVisible, delayMs]);
 
   if (!popup || !shouldShow) return null;
+
+  const { target, isExternal } = resolveLink(popup.ctaTargetUrl);
+
+  const handleImageClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isExternal) {
+      // external link: let <a target="_blank"> handle it
+      return;
+    }
+    e.preventDefault();
+    dismiss();
+    navigate(target);
+  };
 
   return (
     <div
@@ -76,44 +98,56 @@ export default function PopupBanner({ delayMs = 1500 }: PopupBannerProps) {
           ×
         </button>
 
+        {/* Click vào ảnh để chuyển trang */}
         {popup.imageUrl && (
-          <img
-            src={popup.imageUrl}
-            alt={popup.title}
-            style={{
-              width: '100%',
-              display: 'block',
-              borderTopLeftRadius: '1rem',
-              borderTopRightRadius: '1rem',
-            }}
-          />
+          isExternal ? (
+            <a
+              href={target}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={dismiss}
+              style={{ display: 'block', textDecoration: 'none' }}
+            >
+              <img
+                src={popup.imageUrl}
+                alt={popup.title}
+                style={{
+                  width: '100%',
+                  display: 'block',
+                  borderTopLeftRadius: '1rem',
+                  borderTopRightRadius: '1rem',
+                  cursor: 'pointer',
+                }}
+              />
+            </a>
+          ) : (
+            <a
+              href={target}
+              onClick={handleImageClick}
+              style={{ display: 'block', textDecoration: 'none' }}
+            >
+              <img
+                src={popup.imageUrl}
+                alt={popup.title}
+                style={{
+                  width: '100%',
+                  display: 'block',
+                  borderTopLeftRadius: '1rem',
+                  borderTopRightRadius: '1rem',
+                  cursor: 'pointer',
+                }}
+              />
+            </a>
+          )
         )}
 
         <div style={{ padding: '1.5rem' }}>
           <h2 style={{ margin: 0, marginBottom: '0.5rem', fontSize: '1.25rem', fontWeight: 600 }}>
             {popup.title}
           </h2>
-          <p style={{ margin: 0, marginBottom: '1.25rem', color: 'var(--color-on-surface-variant, #555)', lineHeight: 1.5 }}>
+          <p style={{ margin: 0, color: 'var(--color-on-surface-variant, #555)', lineHeight: 1.5 }}>
             {popup.body}
           </p>
-          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-            {popup.ctaLabel && (
-              <a
-                href={popup.ctaTargetUrl ?? '#'}
-                onClick={dismiss}
-                style={{
-                  padding: '0.625rem 1.25rem',
-                  background: 'var(--color-primary, #0066cc)',
-                  color: 'var(--color-on-primary, #fff)',
-                  borderRadius: '0.5rem',
-                  textDecoration: 'none',
-                  fontWeight: 500,
-                }}
-              >
-                {popup.ctaLabel}
-              </a>
-            )}
-          </div>
         </div>
       </div>
     </div>
