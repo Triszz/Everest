@@ -38,6 +38,12 @@ export const voucherQuerySchema = z.object({
     .optional(),
   min_price: coerceToFloat("min_price không hợp lệ").optional(),
   max_price: coerceToFloat("max_price không hợp lệ").optional(),
+  // ── BR-CUS-03: Mở rộng search ─────────────────────────────────
+  partner_id: coerceToNumber("partner_id phải là số").optional(),
+  partner_name: z.string().optional(),
+  discount_min: coerceToNumber("discount_min phải là số").optional(),
+  area: z.string().optional(),
+  // ───────────────────────────────────────────────────────────────
   sort: z
     .enum(["price_asc", "price_desc", "popular", "newest"])
     .optional()

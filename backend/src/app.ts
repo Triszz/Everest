@@ -7,6 +7,7 @@ import { errorHandler } from "./middlewares/errorHandler";
 import { requestLogger } from "./middlewares/requestLogger";
 import authRouter from "./modules/auth/auth.routes";
 import partnerRouter from "./modules/partners/partner.routes";
+import partnerPublicRouter from "./modules/partners/public.routes";
 import adminRouter from "./modules/admin/admin.routes";
 import voucherRouter from "./modules/customer/vouchers/vouchers.routes";
 import categoryRouter from "./modules/customer/categories/categories.routes";
@@ -65,7 +66,8 @@ app.use(requestLogger);
 
 // ── Routes ────────────────────────────────────────────────
 app.use("/api/auth", authLimiter, authRouter);
-app.use("/api/partner", partnerRouter);
+app.use("/api/partners", partnerPublicRouter); // public — danh sách đối tác đã duyệt (BR-CUS-03)
+app.use("/api/partner", partnerRouter); // protected
 app.use("/api/admin", adminRouter);
 app.use("/api/vouchers", voucherRouter);
 app.use("/api/categories", categoryRouter);

@@ -1,12 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { voucherApi, categoryApi } from '../services/api';
-import type { Voucher, Category } from '../services/api';
+import { voucherApi, categoryApi, partnerApi } from '../services/api';
+import type { Voucher, Category, Partner } from '../services/api';
 import {
   Search, SlidersHorizontal, X, Star, Loader2,
   Utensils, Coffee, Sandwich, Milk, Pizza,
   Cake, Dumbbell, Scissors, Gamepad2, Plane,
   Building2, Film, User, Gem, Tag, LayoutGrid,
+  MapPin, Store,
 } from 'lucide-react';
 
 // ── Filter config ─────────────────────────────────────────────────────────────
@@ -34,6 +35,18 @@ const SORT_OPTIONS = [
   { label: 'Giá: Cao → Thấp', value: 'price_desc' },
 ];
 
+// BR-CUS-03: Khu vực (filter theo address chứa chuỗi này)
+const AREA_OPTIONS = [
+  { label: 'Tất cả khu vực', value: '' },
+  { label: 'TP. Hồ Chí Minh', value: 'Hồ Chí Minh' },
+  { label: 'Hà Nội', value: 'Hà Nội' },
+  { label: 'Đà Nẵng', value: 'Đà Nẵng' },
+  { label: 'Cần Thơ', value: 'Cần Thơ' },
+  { label: 'Hải Phòng', value: 'Hải Phòng' },
+  { label: 'Biên Hòa', value: 'Biên Hòa' },
+  { label: 'Nha Trang', value: 'Nha Trang' },
+];
+
 const CATEGORY_ICONS: Record<number, React.ElementType> = {
   1: Utensils, 2: Coffee, 3: Sandwich, 4: Milk, 5: Pizza,
   6: Cake, 7: Dumbbell, 8: Scissors, 9: Gamepad2, 10: Plane,
@@ -43,6 +56,53 @@ const CATEGORY_ICONS: Record<number, React.ElementType> = {
 function CategoryIcon({ catId, size = 15 }: { catId: number; size?: number }) {
   const Icon = CATEGORY_ICONS[catId] || Tag;
   return <Icon size={size} />;
+}
+
+// ── Skeleton loading card ────────────────────────────────────────────────────
+function VoucherSkeleton() {
+  return (
+    <div style={{
+      background: 'white',
+      borderRadius: 16,
+      overflow: 'hidden',
+      border: '1px solid #F1F5F9',
+    }}>
+      <div style={{
+        height: 150,
+        background: 'linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%)',
+        backgroundSize: '200% 100%',
+        animation: 'shimmer 1.5s infinite',
+      }} />
+      <div style={{ padding: '12px 14px 14px' }}>
+        <div style={{ height: 14, width: '80%', borderRadius: 4, background: '#f0f0f0', marginBottom: 8, animation: 'shimmer 1.5s infinite' }} />
+        <div style={{ height: 14, width: '50%', borderRadius: 4, background: '#f0f0f0', marginBottom: 12, animation: 'shimmer 1.5s infinite' }} />
+        <div style={{ height: 12, width: '40%', borderRadius: 4, background: '#f0f0f0', animation: 'shimmer 1.5s infinite' }} />
+      </div>
+    </div>
+  );
+}
+
+// ── Debounce hook (phương pháp C: trì hoãn API call 400ms) ─────────────────
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+  return debouncedValue;
+}
+
+// ── Prefetch hook (phương pháp C: prefetch khi hover) ───────────────────
+function usePrefetch() {
+  const prefetchedRef = useRef<Set<number>>(new Set());
+
+  const prefetch = useCallback((voucherId: number) => {
+    if (prefetchedRef.current.has(voucherId)) return;
+    prefetchedRef.current.add(voucherId);
+    voucherApi.getById(voucherId).catch(() => {});
+  }, []);
+
+  return prefetch;
 }
 
 // ── Filter chip ────────────────────────────────────────────────────────────────
@@ -59,24 +119,31 @@ export function VouchersPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [vouchers, setVouchers] = useState<Voucher[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
   const [localSearch, setLocalSearch] = useState(searchParams.get('search') || '');
-  const searchTimeout = useRef<ReturnType<typeof setTimeout>>();
 
-  // Fetch categories once
+  // Phương pháp C: debounce + prefetch
+  const debouncedSearch = useDebounce(localSearch, 400);
+  const prefetch = usePrefetch();
+
+  // Fetch categories + partners một lần khi mount
   useEffect(() => {
-    categoryApi.list()
-      .then(res => { if (res.success && res.data) setCategories(res.data); })
-      .catch(() => {});
+    Promise.all([
+      categoryApi.list().catch(() => null),
+      partnerApi.list().catch(() => null),
+    ]).then(([catRes, partRes]) => {
+      if (catRes?.success && catRes.data) setCategories(catRes.data);
+      if (partRes?.success && partRes.data) setPartners(partRes.data);
+    });
   }, []);
 
-  // Filter state from URL
+  // Filter state từ URL
   const currentPage = Number(searchParams.get('page')) || 1;
   const sort = searchParams.get('sort') || 'newest';
-  const search = searchParams.get('search') || '';
   const categoriesParam = searchParams.get('categories') || '';
   const categoryIds: number[] = categoriesParam
     .split(',')
@@ -86,8 +153,11 @@ export function VouchersPage() {
     .filter(n => !isNaN(n) && n > 0);
   const discount = searchParams.get('discount') || '';
   const priceRange = searchParams.get('price') || '';
+  const area = searchParams.get('area') || '';
+  const partnerId = searchParams.get('partner_id') || '';
+  const partnerName = searchParams.get('partner_name') || '';
 
-  // Derive active filter chips for display
+  // Derive active filter chips cho hiển thị
   const activeFilters: FilterChip[] = [
     ...categoryIds.map(id => ({
       key: `cat-${id}`,
@@ -96,16 +166,15 @@ export function VouchersPage() {
     })),
     ...(discount ? [{ key: 'discount', label: `Giảm ≥ ${discount}%` }] : []),
     ...(priceRange ? [{ key: 'price', label: PRICE_OPTIONS.find(p => p.value === priceRange)?.label || 'Khoảng giá' }] : []),
+    ...(area ? [{ key: 'area', label: `📍 ${AREA_OPTIONS.find(a => a.value === area)?.label || area}` }] : []),
+    ...(partnerId ? [{ key: 'partner_id', label: `🏪 ${partners.find(p => String(p.partnerId) === partnerId)?.companyName || 'Đối tác'}` }] : []),
+    ...(partnerName ? [{ key: 'partner_name', label: `🔍 "${partnerName}"` }] : []),
   ];
 
-  // Debounced search
   const updateParams = (key: string, value: string) => {
     const newParams = new URLSearchParams(searchParams);
-    if (value) {
-      newParams.set(key, value);
-    } else {
-      newParams.delete(key);
-    }
+    if (value) { newParams.set(key, value); }
+    else { newParams.delete(key); }
     newParams.set('page', '1');
     setSearchParams(newParams);
   };
@@ -115,80 +184,62 @@ export function VouchersPage() {
     if (key.startsWith('cat-')) {
       const id = Number(key.slice(4));
       const newCats = categoryIds.filter(c => c !== id);
-      if (newCats.length === 0) {
-        newParams.delete('categories');
-      } else {
-        newParams.set('categories', newCats.join(','));
-      }
-    } else {
-      newParams.delete(key);
-    }
+      if (newCats.length === 0) { newParams.delete('categories'); }
+      else { newParams.set('categories', newCats.join(',')); }
+    } else { newParams.delete(key); }
     newParams.set('page', '1');
     setSearchParams(newParams);
   };
 
   const clearAllFilters = () => {
-    const newParams = new URLSearchParams(searchParams);
-    newParams.delete('categories');
-    newParams.delete('discount');
-    newParams.delete('price');
+    const newParams = new URLSearchParams();
     newParams.set('page', '1');
     setSearchParams(newParams);
+    setLocalSearch('');
   };
 
   const toggleCategory = (id: number) => {
     const newParams = new URLSearchParams(searchParams);
     const isCurrentlySelected = categoryIds.includes(id);
     let newCats: number[];
-    if (isCurrentlySelected) {
-      newCats = categoryIds.filter(c => c !== id);
-    } else {
-      newCats = [...categoryIds, id];
-    }
-    if (newCats.length === 0) {
-      newParams.delete('categories');
-    } else {
-      newParams.set('categories', newCats.join(','));
-    }
+    if (isCurrentlySelected) { newCats = categoryIds.filter(c => c !== id); }
+    else { newCats = [...categoryIds, id]; }
+    if (newCats.length === 0) { newParams.delete('categories'); }
+    else { newParams.set('categories', newCats.join(',')); }
     newParams.set('page', '1');
     setSearchParams(newParams);
   };
 
   const handleSearchChange = (value: string) => {
     setLocalSearch(value);
-    clearTimeout(searchTimeout.current);
-    searchTimeout.current = setTimeout(() => {
-      updateParams('search', value);
-    }, 400);
   };
 
+  // ── Main data fetch (gọi khi params thay đổi) ────────────────────────────
   useEffect(() => {
     setLoading(true);
-    voucherApi.list({
+    setError(null);
+
+    const params: Record<string, unknown> = {
       page: currentPage,
       sort: sort as 'price_asc' | 'price_desc' | 'popular' | 'newest',
-      search: search || undefined,
-      category_ids: categoryIds.length > 0 ? categoryIds : undefined,
-    })
+      // Phương pháp C: truyền debounced search (đã trì hoãn 400ms)
+      ...(debouncedSearch && { search: debouncedSearch }),
+      ...(categoryIds.length > 0 && { category_ids: categoryIds }),
+      // BR-CUS-03: truyền các filter mới xuống backend
+      ...(discount && { discount_min: Number(discount) }),
+      ...(priceRange && {
+        min_price: Number(priceRange.split('-')[0]),
+        max_price: Number(priceRange.split('-')[1]) || 999999999,
+      }),
+      ...(area && { area }),
+      ...(partnerId && { partner_id: Number(partnerId) }),
+      ...(partnerName && { partner_name: partnerName }),
+    };
+
+    voucherApi.list(params as Parameters<typeof voucherApi.list>[0])
       .then((res) => {
         if (res.success && res.data) {
-          // Client-side discount filter (backend doesn't support yet)
-          let data = res.data;
-          if (discount) {
-            data = data.filter(v => {
-              if (!v.originalPrice) return false;
-              const pct = Math.round((1 - Number(v.salePrice) / Number(v.originalPrice)) * 100);
-              return pct >= Number(discount);
-            });
-          }
-          if (priceRange) {
-            const [min, max] = priceRange.split('-').map(Number);
-            data = data.filter(v => {
-              const p = Number(v.salePrice);
-              return p >= min && p <= max;
-            });
-          }
-          setVouchers(data);
+          setVouchers(res.data);
           if (res.pagination) {
             setPagination({
               page: res.pagination.page,
@@ -200,10 +251,9 @@ export function VouchersPage() {
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [currentPage, sort, search, categoriesParam, discount, priceRange]);
+  }, [currentPage, sort, debouncedSearch, categoriesParam, discount, priceRange, area, partnerId, partnerName]);
 
   const formatPrice = (p: string | number) => Number(p).toLocaleString('vi-VN') + 'đ';
-
   const hasActiveFilters = activeFilters.length > 0;
 
   // ── Filter Drawer (mobile-friendly, also shown as sidebar on desktop) ───────
@@ -303,6 +353,71 @@ export function VouchersPage() {
             </p>
           )}
         </div>
+      </div>
+
+      {/* BR-CUS-03: Partner filter */}
+      <div>
+        <h3 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 800, color: '#1E293B', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Store size={14} /> Đối tác
+        </h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <button
+            onClick={() => updateParams('partner_id', '')}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '9px 12px', borderRadius: 10,
+              background: !partnerId ? '#F0F9FF' : 'transparent',
+              border: !partnerId ? '1.5px solid #BAE6FD' : '1.5px solid #E2E8F0',
+              cursor: 'pointer', transition: 'all 0.15s',
+            }}
+          >
+            <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: !partnerId ? 700 : 400, color: !partnerId ? '#0369A1' : '#334155' }}>
+              Tất cả đối tác
+            </span>
+            {!partnerId && (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0369A1" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            )}
+          </button>
+          {partners.slice(0, 8).map(partner => (
+            <button
+              key={partner.partnerId}
+              onClick={() => updateParams('partner_id', String(partner.partnerId))}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '9px 12px', borderRadius: 10,
+                background: partnerId === String(partner.partnerId) ? '#F0F9FF' : 'transparent',
+                border: partnerId === String(partner.partnerId) ? '1.5px solid #BAE6FD' : '1.5px solid #E2E8F0',
+                cursor: 'pointer', transition: 'all 0.15s',
+              }}
+            >
+              <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: partnerId === String(partner.partnerId) ? 700 : 400, color: partnerId === String(partner.partnerId) ? '#0369A1' : '#334155', textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                {partner.companyName}
+              </span>
+              {partnerId === String(partner.partnerId) && (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0369A1" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              )}
+            </button>
+          ))}
+          {partners.length === 0 && (
+            <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#94A3B8', textAlign: 'center', padding: 8, margin: 0 }}>
+              Không có đối tác
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* BR-CUS-03: Area filter */}
+      <div>
+        <h3 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 800, color: '#1E293B', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <MapPin size={14} /> Khu vực
+        </h3>
+        <select
+          value={area}
+          onChange={e => updateParams('area', e.target.value)}
+          style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #E2E8F0', borderRadius: 10, fontSize: 13, fontFamily: 'Inter, sans-serif', color: '#1E293B', background: 'white', cursor: 'pointer', outline: 'none' }}
+        >
+          {AREA_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
       </div>
 
       {/* Discount */}
@@ -562,7 +677,7 @@ export function VouchersPage() {
             {/* Count */}
             <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#64748B', whiteSpace: 'nowrap' }}>
               {loading ? '...' : `${vouchers.length} voucher`}
-              {(search || categoryIds.length > 0 || discount || priceRange) && !loading && ` được tìm thấy`}
+              {(localSearch || categoryIds.length > 0 || discount || priceRange || area || partnerId) && !loading && ` được tìm thấy`}
             </span>
           </div>
 
@@ -586,10 +701,10 @@ export function VouchersPage() {
             </div>
           </div>
 
-          {/* Loading */}
+          {/* Loading — skeleton cards */}
           {loading && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 80 }}>
-              <Loader2 size={40} style={{ animation: 'spin 1s linear infinite', color: '#0E76A8' }} />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 18 }}>
+              {Array.from({ length: 12 }).map((_, i) => <VoucherSkeleton key={i} />)}
             </div>
           )}
 
@@ -622,20 +737,32 @@ export function VouchersPage() {
             </div>
           )}
 
-          {/* Grid */}
+          {/* Grid — voucher cards */}
           {!loading && !error && vouchers.length > 0 && (
             <>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 18 }}>
                 {vouchers.map((voucher) => {
-                  const discount_pct = voucher.originalPrice
-                    ? Math.round((1 - Number(voucher.salePrice) / Number(voucher.originalPrice)) * 100)
-                    : 0;
+                  // BR-CUS-03: dùng discountPercent đã tính sẵn từ backend
+                  const discount_pct = voucher.discountPercent ?? (
+                    voucher.originalPrice
+                      ? Math.round((1 - Number(voucher.salePrice) / Number(voucher.originalPrice)) * 100)
+                      : 0
+                  );
                   const img = voucher.imageUrl || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&h=300&fit=crop';
 
                   return (
                     <Link
                       key={voucher.voucherId}
                       to={`/voucher/${voucher.voucherId}`}
+                      onMouseEnter={(e) => {
+                        prefetch(voucher.voucherId);
+                        e.currentTarget.style.transform = 'translateY(-4px)';
+                        e.currentTarget.style.boxShadow = '0 12px 32px rgba(14,118,168,0.14)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.06)';
+                      }}
                       style={{
                         display: 'flex', flexDirection: 'column',
                         background: 'white', borderRadius: 16,
@@ -643,14 +770,6 @@ export function VouchersPage() {
                         border: '1px solid #F1F5F9',
                         transition: 'all 0.25s ease',
                         boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-                      }}
-                      onMouseEnter={e => {
-                        e.currentTarget.style.transform = 'translateY(-4px)';
-                        e.currentTarget.style.boxShadow = '0 12px 32px rgba(14,118,168,0.14)';
-                      }}
-                      onMouseLeave={e => {
-                        e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.06)';
                       }}
                     >
                       {/* Image */}

@@ -12,7 +12,20 @@ interface PaginationResult {
 
 export const vouchersService = {
   async listVouchers(query: VoucherQuery) {
-    const { search, category_id, category_ids, min_price, max_price, sort, page, limit } = query;
+    const {
+      search,
+      category_id,
+      category_ids,
+      min_price,
+      max_price,
+      partner_id,
+      partner_name,
+      discount_min,
+      area,
+      sort,
+      page,
+      limit,
+    } = query;
 
     const where: Prisma.VoucherWhereInput = {
       approvalStatus: "Approved",
@@ -22,6 +35,7 @@ export const vouchersService = {
       endDate: { gte: new Date() },
     };
 
+    // ── Search (title + description) ─────────────────────────────────
     if (search) {
       where.OR = [
         { title: { contains: search, mode: "insensitive" } },
@@ -29,20 +43,41 @@ export const vouchersService = {
       ];
     }
 
+    // ── Category filter ───────────────────────────────────────────────
     if (category_id) {
       where.categoryId = category_id;
     } else if (category_ids && category_ids.length > 0) {
       where.categoryId = { in: category_ids };
     }
 
+    // ── Price range ────────────────────────────────────────────────────
     if (min_price !== undefined) {
-      where.salePrice = { ...where.salePrice as object, gte: min_price };
+      where.salePrice = { ...(where.salePrice as object ?? {}), gte: min_price };
     }
-
     if (max_price !== undefined) {
-      where.salePrice = { ...where.salePrice as object, lte: max_price };
+      where.salePrice = { ...(where.salePrice as object ?? {}), lte: max_price };
     }
 
+    // ── BR-CUS-03: Partner filter ──────────────────────────────────────
+    if (partner_id) {
+      where.partnerId = partner_id;
+    }
+    if (partner_name) {
+      where.partner = { companyName: { contains: partner_name, mode: "insensitive" } };
+    }
+
+    // ── BR-CUS-03: Area filter (city/province từ branch address) ──────
+    if (area) {
+      where.voucherBranches = {
+        some: {
+          branch: {
+            address: { contains: area, mode: "insensitive" },
+          },
+        },
+      };
+    }
+
+    // ── Sort ────────────────────────────────────────────────────────────
     const orderBy: Prisma.VoucherOrderByWithRelationInput = {};
     switch (sort) {
       case "price_asc":
@@ -62,6 +97,7 @@ export const vouchersService = {
 
     const skip = (page - 1) * limit;
 
+    // ── Fetch vouchers ─────────────────────────────────────────────────
     const [vouchers, total] = await Promise.all([
       prisma.voucher.findMany({
         where,
@@ -89,28 +125,43 @@ export const vouchersService = {
       prisma.voucher.count({ where }),
     ]);
 
+    // ── BR-CUS-03: Batch load avg ratings → tránh N+1 queries ─────────
+    const voucherIds = vouchers.map((v) => v.voucherId);
+    const ratings = await prisma.review.groupBy({
+      by: ["voucherId"],
+      where: { voucherId: { in: voucherIds } },
+      _avg: { rating: true },
+    });
+    const ratingMap = new Map(ratings.map((r) => [r.voucherId, r._avg.rating ?? 0]));
+
+    // ── BR-CUS-03: Tính discount % ─────────────────────────────────────
+    const vouchersWithMeta = vouchers.map((v) => ({
+      ...v,
+      averageRating: ratingMap.get(v.voucherId) ?? 0,
+      reviewCount: v._count.reviews,
+      discountPercent:
+        v.originalPrice > 0
+          ? Math.round(
+              (1 - Number(v.salePrice) / Number(v.originalPrice)) * 100
+            )
+          : 0,
+    }));
+
+    // ── BR-CUS-03: Filter discount_min (sau khi tính %) ─────────────────
+    // Prisma không hỗ trợ computed field trong WHERE → lọc ở tầng JS
+    const filtered =
+      discount_min !== undefined
+        ? vouchersWithMeta.filter((v) => v.discountPercent >= discount_min)
+        : vouchersWithMeta;
+
     const pagination: PaginationResult = {
       page,
       limit,
-      total,
-      totalPages: Math.ceil(total / limit),
+      total: discount_min !== undefined ? filtered.length : total,
+      totalPages: Math.ceil((discount_min !== undefined ? filtered.length : total) / limit),
     };
 
-    const vouchersWithRating = await Promise.all(
-      vouchers.map(async (voucher) => {
-        const avgRating = await prisma.review.aggregate({
-          where: { voucherId: voucher.voucherId },
-          _avg: { rating: true },
-        });
-        return {
-          ...voucher,
-          averageRating: avgRating._avg.rating || 0,
-          reviewCount: voucher._count.reviews,
-        };
-      }),
-    );
-
-    return { vouchers: vouchersWithRating, pagination };
+    return { vouchers: filtered, pagination };
   },
 
   async getFeaturedVouchers() {
