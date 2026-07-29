@@ -3,6 +3,7 @@ import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import { orderApi } from '../services/api';
 import type { OrderDetail } from '../services/api';
 import { Copy, Check, ShoppingBag, Home, Ticket, Loader2 } from 'lucide-react';
+import Loading from '../components/Loading';
 
 type VoucherDisplay = {
   code: string;
@@ -231,14 +232,7 @@ export function OrderSuccessPage() {
   }, [fetchOrder]);
 
   if (loading) {
-    return (
-      <div style={{ minHeight: '100vh', background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ textAlign: 'center' }}>
-          <Loader2 size={48} style={{ animation: 'spin 1s linear infinite', color: '#0E76A8' }} />
-          <p style={{ marginTop: 16, color: '#64748B', fontFamily: 'Inter, sans-serif', fontSize: 14 }}>Đang tải thông tin đơn hàng...</p>
-        </div>
-      </div>
-    );
+    return <Loading size={48} />;
   }
 
   if (!order) {

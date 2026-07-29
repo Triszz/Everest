@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { UtensilsCrossed, Wifi, ShoppingBag, Car, Loader2, CheckCircle2 } from 'lucide-react';
 import { voucherApi, cartApi, reviewApi } from '../services/api';
 import type { Voucher, Review } from '../services/api';
+import Loading from './Loading';
 
 export function VoucherDetail() {
   const { id } = useParams<{ id: string }>();
@@ -42,11 +43,7 @@ export function VoucherDetail() {
   }, [id]);
 
   if (loading) {
-    return (
-      <div style={{ background: '#F8FAFC', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        Đang tải...
-      </div>
-    );
+    return <Loading />;
   }
 
   if (error || !voucher) {

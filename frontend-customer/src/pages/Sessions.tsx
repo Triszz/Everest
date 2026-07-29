@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Monitor, Smartphone, Globe, Clock, Trash2, Loader2, CheckCircle2 } from 'lucide-react';
 import { authApi } from '../services/api';
+import Loading from '../components/Loading';
 
 function formatDate(d: Date) {
   return d.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -102,11 +103,7 @@ export function SessionsPage() {
   const displayed = showAll ? sessions : sessions.slice(0, 2);
 
   if (loadingSessions) {
-    return (
-      <div style={{ background: '#F8FAFC', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Loader2 size={32} style={{ animation: 'spin 1s linear infinite', color: '#0E76A8' }} />
-      </div>
-    );
+    return <Loading />;
   }
 
   return (
