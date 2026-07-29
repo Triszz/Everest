@@ -553,6 +553,8 @@ export interface IssuedVoucher {
   validTo: string;
   usedAt: string | null;
   usedAtBranchId: number | null;
+  hasReviewed?: boolean;
+  isAvailable?: boolean;
   voucher?: {
     voucherId: number;
     title: string;

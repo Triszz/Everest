@@ -53,8 +53,13 @@ export const voucherQuerySchema = z.object({
 });
 
 export const voucherIdParam = z.object({
-  id: coerceToNumber("id phải là số"),
-});
+  voucherId: coerceToNumber("voucherId phải là số"),
+}).transform((v) => v.voucherId);
+
+export const voucherOptionalIdParam = z.object({
+  id: coerceToNumber("id phải là số").optional(),
+  voucherId: coerceToNumber("voucherId phải là số").optional(),
+}).transform((v) => v.voucherId ?? v.id);
 
 export const reviewQuerySchema = z.object({
   page: coerceToNumber("page phải là số dương").refine((val) => val > 0).optional().default(1),

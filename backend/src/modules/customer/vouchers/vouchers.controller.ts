@@ -5,7 +5,7 @@ import { asyncHandler } from "../../../middlewares/asyncHandler";
 import { AppError } from "../../../middlewares/errorHandler";
 import {
   voucherQuerySchema,
-  voucherIdParam,
+  voucherOptionalIdParam,
   reviewQuerySchema,
 } from "./vouchers.schemas";
 
@@ -23,7 +23,7 @@ const parseQueryOrThrow = <T>(schema: { parse: (v: unknown) => T }, value: unkno
 
 const parseIdParamOrThrow = (req: Request): number => {
   try {
-    return voucherIdParam.parse(req.params).id;
+    return voucherOptionalIdParam.parse(req.params);
   } catch {
     throw new AppError("ID voucher không hợp lệ", 400, "VALIDATION_ERROR");
   }
