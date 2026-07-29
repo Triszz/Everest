@@ -6,61 +6,17 @@ import voucherRouter from "../vouchers/voucher.routes";
 
 const router = Router();
 
-/*
- * Tất cả route đối tác đều phải đăng nhập.
- * Chưa giới hạn Owner tại đây vì Cashier cũng cần dùng một số route.
- */
+// ── Shared auth + role guard ──────────────────────────────────────────────────
 router.use(authenticate);
 
-router.get(
-  "/settings",
-  roleGuard(
-    "Partner_Owner",
-    "Partner_Cashier",
-  ),
-  partnerController.getSettings,
-);
-
-// Các route từ đây trở xuống chỉ Owner
-router.use(roleGuard("Partner_Owner"));
-
-/*
- * =====================================================
- * ROUTE DÙNG CHUNG CHO OWNER VÀ CASHIER
- * =====================================================
- */
-
-// Owner xem user + partner.
-// Cashier xem user + partner + branch được phân công.
+// /settings: shared by both Owner and Cashier
 router.get(
   "/settings",
   roleGuard("Partner_Owner", "Partner_Cashier"),
   partnerController.getSettings,
 );
 
-/*
- * Sau khi tạo module voucher-redemption, hai route này
- * phải được đặt tại đây, trước middleware Owner-only.
- *
- * router.post(
- *   "/voucher-codes/validate",
- *   roleGuard("Partner_Owner", "Partner_Cashier"),
- *   voucherRedemptionController.validate,
- * );
- *
- * router.post(
- *   "/voucher-codes/:code/confirm-use",
- *   roleGuard("Partner_Owner", "Partner_Cashier"),
- *   voucherRedemptionController.confirmUse,
- * );
- */
-
-/*
- * =====================================================
- * TỪ ĐÂY TRỞ XUỐNG CHỈ PARTNER OWNER
- * =====================================================
- */
-
+// ── Owner-only routes ──────────────────────────────────────────────────────────
 router.use(roleGuard("Partner_Owner"));
 
 // Profile doanh nghiệp
