@@ -332,8 +332,8 @@ export const categoryApi = {
 // ── BR-CUS-03: Partner list for filter dropdown ───────────────────────────
 export const partnerApi = {
   list: async () => {
-    // Public endpoint — không cần auth
-    const res = await fetch(`${BASE_URL}/partners`);
+    // BR-CUS-03: /customer/search/partners
+    const res = await fetch(`${BASE_URL}/customer/search/partners`);
     return handleResponse<{ success: boolean; data: Partner[] }>(res);
   },
 };
