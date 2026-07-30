@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
-import { cartApi, orderApi } from '../services/api';
-import type { CartItem } from '../services/api';
+import { cartApi, orderApi } from '../services';
+import type { CartItem } from '../services';
+import { formatPrice } from '../utils';
 import Loading from '../components/Loading';
 
 export function Checkout() {
@@ -61,8 +62,6 @@ export function Checkout() {
 
   const subtotal = cartItems.reduce((sum, item) => sum + Number(item.voucher.salePrice) * item.quantity, 0);
   const total = subtotal - appliedDiscount;
-
-  const formatPrice = (p: number) => p.toLocaleString('vi-VN') + 'đ';
 
   const handleApplyCode = async () => {
     if (!voucherCode.trim()) return;

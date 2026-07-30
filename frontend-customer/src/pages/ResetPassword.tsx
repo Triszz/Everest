@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { Lock, Eye, EyeOff, Loader2, CheckCircle2 } from 'lucide-react';
-import { authApi } from '../services/api';
+import { authApi } from '../services';
 
 // ── Reset Password Page ──────────────────────────────────────────────────────────
 // Dùng khi user nhấn link trong email quên mật khẩu.

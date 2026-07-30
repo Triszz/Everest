@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { orderApi, reviewApi } from '../services/api';
-import type { IssuedVoucher } from '../services/api';
+import { orderApi, reviewApi } from '../services';
+import type { IssuedVoucher } from '../services';
+import { formatDate, ISSUED_STATUS_LABELS } from '../utils';
 import {
   Ticket, Copy, Check, QrCode, Clock, MapPin, Star, Eye,
   Loader2, RefreshCw, ShoppingBag, ChevronRight,
@@ -164,18 +165,11 @@ function generateQRLarge(code: string): string {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function formatDate(d: string) {
-  return new Date(d).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-}
-
+/** Map trạng thái IssuedVoucher → UI config (label + màu). */
 function statusConfig(status: string) {
-  switch (status) {
-    case 'Unused':   return { label: 'Có thể dùng', bg: '#ECFDF5', text: '#10B981', dot: '#10B981' };
-    case 'Used':     return { label: 'Đã sử dụng',  bg: '#FEF3C7', text: '#F59E0B', dot: '#F59E0B' };
-    case 'Expired':   return { label: 'Đã hết hạn',  bg: '#FEE2E2', text: '#EF4444', dot: '#EF4444' };
-    case 'Locked':   return { label: 'Đã khóa',     bg: '#F1F5F9', text: '#64748B', dot: '#64748B' };
-    default:         return { label: status,          bg: '#F1F5F9', text: '#64748B', dot: '#64748B' };
-  }
+  const cfg = ISSUED_STATUS_LABELS[status as keyof typeof ISSUED_STATUS_LABELS];
+  if (cfg) return { label: cfg.label, bg: cfg.bg, text: cfg.color, dot: cfg.color };
+  return { label: status, bg: '#F1F5F9', text: '#64748B', dot: '#64748B' };
 }
 
 function daysLeft(validTo: string) {

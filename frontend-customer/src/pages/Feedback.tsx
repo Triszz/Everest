@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { MessageSquareWarning, Loader2, CheckCircle2, Send, ChevronRight } from 'lucide-react';
-import { feedbackApi } from '../services/api';
+import { feedbackApi } from '../services';
 
 // ── Feedback / Khiếu nại Page ────────────────────────────────────────────────
 // Flow: Chọn loại → điền thông tin → gửi → success state

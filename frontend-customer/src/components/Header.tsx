@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import LogoImg from '../assets/images/Logo.png';
-import { cartApi } from '../services/api';
+import { cartApi } from '../services';
 
 export function Header() {
   const [scrolled, setScrolled] = useState(false);

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useActivePopup } from '../hooks/useActivePopup';
-import type { Popup } from '../services/api';
+import type { Popup } from '../services';
 
 interface PopupBannerProps {
   delayMs?: number;

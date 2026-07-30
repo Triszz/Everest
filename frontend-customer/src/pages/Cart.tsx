@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Minus, Plus, Trash2, ShoppingBag, Loader2 } from 'lucide-react';
-import { cartApi } from '../services/api';
-import type { Cart, CartItem } from '../services/api';
+import { cartApi } from '../services';
+import type { Cart, CartItem } from '../services';
+import { formatPrice } from '../utils';
 import Loading from '../components/Loading';
 
 export function CartPage() {
@@ -213,11 +214,11 @@ export function CartPage() {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
                           <div>
                             <span style={{ fontSize: 14, fontWeight: 700, color: '#EF4444' }}>
-                              {(item.voucher.salePrice * item.quantity).toLocaleString('vi-VN')}đ
+                              formatPrice(item.voucher.salePrice * item.quantity)
                             </span>
                             {item.voucher.originalPrice > item.voucher.salePrice && (
                               <span style={{ fontSize: 12, color: '#94A3B8', textDecoration: 'line-through', marginLeft: 8 }}>
-                                {item.voucher.originalPrice.toLocaleString('vi-VN')}đ
+                                formatPrice(item.voucher.originalPrice)
                               </span>
                             )}
                           </div>
@@ -283,7 +284,7 @@ export function CartPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: '#64748B' }}>
                   <span>Tạm tính ({items.length} sản phẩm)</span>
-                  <span style={{ color: '#1E293B', fontWeight: 600 }}>{total.toLocaleString('vi-VN')}đ</span>
+                  <span style={{ color: '#1E293B', fontWeight: 600 }}>{formatPrice(total)}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: '#64748B' }}>
                   <span>Phí vận chuyển</span>
@@ -302,7 +303,7 @@ export function CartPage() {
                 }}
               >
                 <span style={{ fontSize: 15, fontWeight: 700, color: '#1E293B' }}>Tổng cộng</span>
-                <span style={{ fontSize: 18, fontWeight: 800, color: '#EF4444' }}>{total.toLocaleString('vi-VN')}đ</span>
+                <span style={{ fontSize: 18, fontWeight: 800, color: '#EF4444' }}>{formatPrice(total)}</span>
               </div>
 
               <button

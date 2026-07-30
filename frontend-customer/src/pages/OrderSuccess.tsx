@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link, useSearchParams, useLocation } from 'react-router-dom';
-import { orderApi } from '../services/api';
-import type { OrderDetail } from '../services/api';
+import { orderApi } from '../services';
+import type { OrderDetail } from '../services';
+import { formatPrice } from '../utils';
 import { Copy, Check, ShoppingBag, Home, Ticket, Loader2 } from 'lucide-react';
 import Loading from '../components/Loading';
 
@@ -57,9 +58,6 @@ function generateQR(code: string): string {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function formatPrice(p: number) {
-  return p.toLocaleString('vi-VN') + 'đ';
-}
 function formatDate(d: string) {
   try {
     return new Date(d).toLocaleDateString('vi-VN', {

@@ -1,29 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { orderApi } from '../services/api';
-import type { OrderSummary } from '../services/api';
+import { orderApi } from '../services';
+import type { OrderSummary } from '../services';
+import { formatPrice, formatDate, PAYMENT_STATUS_LABELS } from '../utils';
 import { Loader2, Package, X, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
 
 type StatusTab = 'All' | 'Pending' | 'Paid' | 'Cancelled';
 
+/** Map ngược từ PAYMENT_STATUS_LABELS (dùng color/bg). */
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
-  Pending:   { label: 'Chờ thanh toán', bg: '#FEF9C3', text: '#92400E' },
-  Paid:      { label: 'Đã thanh toán',   bg: '#ECFDF5', text: '#065F46' },
-  Cancelled: { label: 'Đã hủy',          bg: '#FEE2E2', text: '#991B1B' },
+  Pending:   { label: PAYMENT_STATUS_LABELS.Pending.label,   bg: PAYMENT_STATUS_LABELS.Pending.bg,   text: PAYMENT_STATUS_LABELS.Pending.color },
+  Paid:      { label: PAYMENT_STATUS_LABELS.Paid.label,      bg: PAYMENT_STATUS_LABELS.Paid.bg,      text: PAYMENT_STATUS_LABELS.Paid.color },
+  Cancelled: { label: PAYMENT_STATUS_LABELS.Cancelled.label, bg: PAYMENT_STATUS_LABELS.Cancelled.bg, text: PAYMENT_STATUS_LABELS.Cancelled.color },
 };
-
-function formatPrice(p: number) {
-  return p.toLocaleString('vi-VN') + 'đ';
-}
-function formatDate(d: string) {
-  try {
-    return new Date(d).toLocaleDateString('vi-VN', {
-      day: '2-digit', month: '2-digit', year: 'numeric',
-    });
-  } catch {
-    return d;
-  }
-}
 
 interface OrderRowProps {
   order: OrderSummary;

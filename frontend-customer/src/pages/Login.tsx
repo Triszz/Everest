@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import { authApi } from '../services/api';
+import { authApi } from '../services';
 
 export function LoginPage() {
   const navigate = useNavigate();
