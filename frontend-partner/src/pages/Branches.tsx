@@ -389,7 +389,7 @@ export function BranchesPage() {
                               <circle cx="12" cy="7" r="4" />
                             </svg>
                             {branch.cashier
-                              ? `Thu ngân: ${branch.cashier.fullName}`
+                              ? `Thu ngân: ${branch.cashier.email}`
                               : 'Chưa phân công thu ngân'}
                           </span>
                         </div>

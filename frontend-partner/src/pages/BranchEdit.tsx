@@ -164,7 +164,7 @@ export function BranchEditPage() {
             initialData={{
               branchName: branch.branchName,
               address: branch.address,
-              phoneNumber: branch.phoneNumber ?? '',
+              phoneNumber: branch.phoneNumber,
             }}
             onSubmit={handleSubmit}
             onCancel={handleCancel}

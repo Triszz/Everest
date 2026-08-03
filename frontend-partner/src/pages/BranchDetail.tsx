@@ -310,7 +310,7 @@ function BranchDetailView({
         >
           <Field label="Tên chi nhánh" value={branch.branchName} />
           <Field label="Địa chỉ" value={branch.address} multiline />
-          <Field label="Số điện thoại" value={branch.phoneNumber ?? "—"} />
+          <Field label="Số điện thoại" value={branch.phoneNumber} />
           <Field label="Ngày tạo" value={formatDate(branch.createdAt)} />
         </InfoCard>
 

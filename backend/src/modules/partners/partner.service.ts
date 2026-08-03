@@ -15,7 +15,7 @@ export const partnerService = {
             branchName: true,
             address: true,
             phoneNumber: true,
-            cashier: { select: { userId: true, fullName: true, email: true } },
+            cashier: { select: { userId: true, email: true } },
           },
           orderBy: { branchId: "asc" },
         },
@@ -194,7 +194,7 @@ export const partnerService = {
     return prisma.branch.findMany({
       where: { partnerId },
       include: {
-        cashier: { select: { userId: true, fullName: true, email: true } },
+        cashier: { select: { userId: true, email: true } },
         _count: { select: { voucherBranches: true } },
       },
       orderBy: { branchId: "asc" },
@@ -205,7 +205,7 @@ export const partnerService = {
     const branch = await prisma.branch.findFirst({
       where: { branchId, partnerId },
       include: {
-        cashier: { select: { userId: true, fullName: true, email: true } },
+        cashier: { select: { userId: true, email: true } },
         voucherBranches: {
           include: {
             voucher: {
@@ -237,7 +237,7 @@ export const partnerService = {
 
   async createBranch(
     partnerId: number,
-    data: { branchName: string; address: string; phoneNumber?: string },
+    data: { branchName: string; address: string; phoneNumber: string },
   ) {
     return prisma.branch.create({ data: { ...data, partnerId } });
   },
@@ -248,7 +248,7 @@ export const partnerService = {
     data: {
       branchName?: string;
       address?: string;
-      phoneNumber?: string | null;
+      phoneNumber: string;
     },
   ) {
     const branch = await prisma.branch.findFirst({
@@ -365,7 +365,7 @@ export const partnerService = {
       where: { branchId },
       data: { cashierId: cashier.userId },
       include: {
-        cashier: { select: { userId: true, fullName: true, email: true } },
+        cashier: { select: { userId: true, email: true } },
       },
     });
   },
@@ -390,44 +390,33 @@ export const partnerService = {
     data: {
       email: string;
       password: string;
-      fullName: string;
-      phoneNumber?: string;
       branchId?: number;
     },
   ) {
-    const existing = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { email: data.email },
-          ...(data.phoneNumber ? [{ phoneNumber: data.phoneNumber }] : []),
-        ],
-      },
+    const existing = await prisma.user.findUnique({
+      where: { email: data.email },
     });
 
     if (existing) {
-      const field = existing.email === data.email ? "Email" : "Số điện thoại";
-
-      throw new AppError(`${field} đã được sử dụng`, 409, "CONFLICT");
+      throw new AppError(`Email đã được sử dụng`, 409, "CONFLICT");
     }
 
     const passwordHash = await bcrypt.hash(data.password, 12);
 
     return prisma.$transaction(async (tx) => {
       // Tạo tài khoản thu ngân
+      // Cashier không lưu thông tin cá nhân (fullName/phoneNumber = null).
       const newUser = await tx.user.create({
         data: {
           email: data.email,
           passwordHash,
-          fullName: data.fullName,
-          phoneNumber: data.phoneNumber,
           role: "Partner_Cashier",
           status: "Active",
           partnerId,
-        },
+        } as any,
         select: {
           userId: true,
           email: true,
-          fullName: true,
           role: true,
           status: true,
           partnerId: true,
@@ -466,5 +455,56 @@ export const partnerService = {
         branchId: data.branchId ?? null,
       };
     });
+  },
+
+  /**
+   * Partner_Owner đổi mật khẩu cho Cashier của chi nhánh thuộc partner mình.
+   * Cashier được xác định qua branchId; không đổi email/branch/role.
+   */
+  async resetCashierPassword(
+    branchId: number,
+    partnerId: number,
+    newPassword: string,
+  ) {
+    const branch = await prisma.branch.findFirst({
+      where: { branchId, partnerId },
+      select: { cashierId: true, branchName: true },
+    });
+
+    if (!branch) {
+      throw new AppError("Không tìm thấy chi nhánh", 404, "NOT_FOUND");
+    }
+    if (!branch.cashierId) {
+      throw new AppError(
+        "Chi nhánh chưa có thu ngân",
+        400,
+        "CASHIER_NOT_ASSIGNED",
+      );
+    }
+
+    const cashier = await prisma.user.findUnique({
+      where: { userId: branch.cashierId },
+      select: { userId: true, role: true, status: true },
+    });
+
+    if (!cashier) {
+      throw new AppError("Không tìm thấy thu ngân", 404, "NOT_FOUND");
+    }
+    if (cashier.role !== "Partner_Cashier") {
+      throw new AppError(
+        "Tài khoản không phải thu ngân",
+        400,
+        "VALIDATION_ERROR",
+      );
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+
+    await prisma.user.update({
+      where: { userId: cashier.userId },
+      data: { passwordHash },
+    });
+
+    return { branchName: branch.branchName };
   },
 };

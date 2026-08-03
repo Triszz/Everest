@@ -21,8 +21,7 @@ export const registerPartnerSchema = z.object({
   fullName: z.string().min(2).max(100),
   phoneNumber: z
     .string()
-    .regex(/^[0-9]{10,11}$/)
-    .optional(),
+    .regex(/^[0-9]{10,11}$/, "Số điện thoại không hợp lệ"),
   companyName: z
     .string()
     .min(2, "Tên doanh nghiệp không được để trống")
