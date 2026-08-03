@@ -77,6 +77,21 @@ export function apiCreateCashier(input: CreateCashierInput): Promise<CashierCrea
 }
 
 /**
+ * PUT /api/partner/branches/:branchId/cashier/password
+ * Partner_Owner đổi mật khẩu cho Cashier của chi nhánh thuộc partner mình.
+ */
+export function apiResetCashierPassword(
+  branchId: number,
+  newPassword: string,
+): Promise<{ branchName: string }> {
+  return put<{ branchName: string }>(
+    `${BASE}/${branchId}/cashier/password`,
+    { newPassword },
+    { auth: true },
+  ).then(res => res.data);
+}
+
+/**
  * Tóm tắt thu ngân cho autocomplete.
  */
 export interface CashierSummary {

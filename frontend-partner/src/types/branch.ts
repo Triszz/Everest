@@ -2,7 +2,6 @@
 
 export interface BranchCashier {
   userId: string;
-  fullName: string;
   email: string;
 }
 
@@ -11,7 +10,7 @@ export interface Branch {
   partnerId: number;
   branchName: string;
   address: string;
-  phoneNumber: string | null;
+  phoneNumber: string;
   cashier: BranchCashier | null;
   _count: {
     voucherBranches: number;
@@ -44,13 +43,13 @@ export interface BranchDetail extends Branch {
 export interface CreateBranchInput {
   branchName: string;
   address: string;
-  phoneNumber?: string;
+  phoneNumber: string;
 }
 
 export interface UpdateBranchInput {
   branchName?: string;
   address?: string;
-  phoneNumber?: string | null;
+  phoneNumber: string;
 }
 
 // ── Cashier ──────────────────────────────────────────────────────────────────
@@ -58,15 +57,12 @@ export interface UpdateBranchInput {
 export interface CreateCashierInput {
   email: string;
   password: string;
-  fullName: string;
-  phoneNumber?: string;
   branchId?: number;
 }
 
 export interface CashierCreated {
   userId: string;
   email: string;
-  fullName: string;
   role: string;
   status: string;
   partnerId: number;

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 // ── Types ───────────────────────────────────────────────────────────────────
@@ -13,6 +13,8 @@ interface FormData {
   businessLicenseUrl: string;
 }
 
+type FormField = keyof FormData;
+
 interface FormErrors {
   email?: string;
   password?: string;
@@ -22,8 +24,21 @@ interface FormErrors {
   companyName?: string;
   taxCode?: string;
   businessLicenseUrl?: string;
+  terms?: string;
   general?: string;
 }
+
+// Thứ tự ưu tiên scroll-to-first-error theo đúng thứ tự xuất hiện trong form.
+const FIELD_ORDER: FormField[] = [
+  'email',
+  'password',
+  'confirmPassword',
+  'fullName',
+  'phoneNumber',
+  'companyName',
+  'taxCode',
+  'businessLicenseUrl',
+];
 
 // ── Validation ──────────────────────────────────────────────────────────────
 function validateForm(data: FormData): FormErrors {
@@ -57,8 +72,10 @@ function validateForm(data: FormData): FormErrors {
     errors.fullName = 'Họ và tên ít nhất 2 ký tự';
   }
 
-  // Phone number (optional but if filled, must be digits only)
-  if (data.phoneNumber && !/^[0-9]{10,11}$/.test(data.phoneNumber)) {
+  // Phone number (required per business rule)
+  if (!data.phoneNumber.trim()) {
+    errors.phoneNumber = 'Số điện thoại không được để trống';
+  } else if (!/^[0-9]{10,11}$/.test(data.phoneNumber)) {
     errors.phoneNumber = 'Số điện thoại chỉ chứa 10-11 chữ số';
   }
 
@@ -144,7 +161,11 @@ export function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [agreedTerms, setAgreedTerms] = useState(false);
 
-  const updateField = (field: keyof FormData) => (e: React.ChangeEvent<HTMLInputElement>) => {
+  // ── Refs for scroll-to-first-error ──
+  const fieldRefs = useRef<Partial<Record<FormField, HTMLInputElement | null>>>({});
+  const termsRef = useRef<HTMLInputElement | null>(null);
+
+  const updateField = (field: FormField) => (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({ ...prev, [field]: e.target.value }));
     // Clear field error on change
     if (errors[field]) {
@@ -160,21 +181,47 @@ export function RegisterPage() {
     e.currentTarget.style.borderColor = '#0E76A8';
   };
 
-  const handleBlur = (field: keyof FormData) => (e: React.FocusEvent<HTMLInputElement>) => {
+  const handleBlur = (field: FormField) => (e: React.FocusEvent<HTMLInputElement>) => {
     e.currentTarget.style.borderColor = errors[field] ? '#EF4444' : '#E2E8F0';
+  };
+
+  /**
+   * Tìm field lỗi đầu tiên theo thứ tự FIELD_ORDER, scroll + focus.
+   * Ưu tiên lỗi terms (nếu có) chỉ khi không còn lỗi field nào khác.
+   */
+  const focusFirstError = (nextErrors: FormErrors) => {
+    // Tìm field lỗi đầu tiên theo thứ tự xuất hiện trong form
+    for (const field of FIELD_ORDER) {
+      if (nextErrors[field]) {
+        const el = fieldRefs.current[field];
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Focus sau khi scroll (focus ngay gây jump trên Safari)
+          requestAnimationFrame(() => el.focus({ preventScroll: true }));
+          return;
+        }
+      }
+    }
+
+    // Nếu không có field nào lỗi nhưng terms chưa tick → focus checkbox
+    if (nextErrors.terms && termsRef.current) {
+      termsRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      requestAnimationFrame(() => termsRef.current?.focus({ preventScroll: true }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const validationErrors = validateForm(formData);
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
-      return;
+    const allErrors: FormErrors = { ...validationErrors };
+    if (!agreedTerms) {
+      allErrors.terms = 'Bạn phải đồng ý với Điều khoản sử dụng và Chính sách bảo mật.';
     }
 
-    if (!agreedTerms) {
-      setErrors({ general: 'Vui lòng đồng ý với Điều khoản sử dụng' });
+    if (Object.keys(allErrors).length > 0) {
+      setErrors(allErrors);
+      focusFirstError(allErrors);
       return;
     }
 
@@ -186,7 +233,7 @@ export function RegisterPage() {
         email: formData.email,
         password: formData.password,
         fullName: formData.fullName,
-        phoneNumber: formData.phoneNumber || undefined,
+        phoneNumber: formData.phoneNumber,
         companyName: formData.companyName,
         taxCode: formData.taxCode,
         businessLicenseUrl: formData.businessLicenseUrl || undefined,
@@ -202,8 +249,20 @@ export function RegisterPage() {
     }
   };
 
-  const getInputStyle = (field: keyof FormData): React.CSSProperties =>
+  const getInputStyle = (field: FormField): React.CSSProperties =>
     errors[field] ? INPUT_ERROR_STYLE : INPUT_STYLE;
+
+  // Helper: clear terms error khi user tick
+  const handleTermsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setAgreedTerms(e.target.checked);
+    if (errors.terms) {
+      setErrors(prev => {
+        const next = { ...prev };
+        delete next.terms;
+        return next;
+      });
+    }
+  };
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', background: '#F8FAFC' }}>
@@ -441,7 +500,7 @@ export function RegisterPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {/* ── Section: Thông tin tài khoản ── */}
             <div style={{
               fontFamily: 'Inter, sans-serif',
@@ -458,6 +517,7 @@ export function RegisterPage() {
               <label htmlFor="register-email" style={LABEL_STYLE}>Email <span style={{ color: '#EF4444' }}>*</span></label>
               <input
                 id="register-email"
+                ref={el => { fieldRefs.current.email = el; }}
                 type="email"
                 value={formData.email}
                 onChange={updateField('email')}
@@ -465,8 +525,14 @@ export function RegisterPage() {
                 style={getInputStyle('email')}
                 onFocus={handleFocus}
                 onBlur={handleBlur('email')}
+                aria-invalid={!!errors.email}
+                aria-describedby={errors.email ? 'register-email-error' : undefined}
               />
-              {errors.email && <div style={ERROR_TEXT_STYLE}>{errors.email}</div>}
+              {errors.email && (
+                <div id="register-email-error" style={ERROR_TEXT_STYLE}>
+                  {errors.email}
+                </div>
+              )}
             </div>
 
             {/* Password */}
@@ -474,6 +540,7 @@ export function RegisterPage() {
               <label htmlFor="register-password" style={LABEL_STYLE}>Mật khẩu <span style={{ color: '#EF4444' }}>*</span></label>
               <input
                 id="register-password"
+                ref={el => { fieldRefs.current.password = el; }}
                 type="password"
                 value={formData.password}
                 onChange={updateField('password')}
@@ -481,8 +548,14 @@ export function RegisterPage() {
                 style={getInputStyle('password')}
                 onFocus={handleFocus}
                 onBlur={handleBlur('password')}
+                aria-invalid={!!errors.password}
+                aria-describedby={errors.password ? 'register-password-error' : undefined}
               />
-              {errors.password && <div style={ERROR_TEXT_STYLE}>{errors.password}</div>}
+              {errors.password && (
+                <div id="register-password-error" style={ERROR_TEXT_STYLE}>
+                  {errors.password}
+                </div>
+              )}
             </div>
 
             {/* Confirm password */}
@@ -490,6 +563,7 @@ export function RegisterPage() {
               <label htmlFor="register-confirm-password" style={LABEL_STYLE}>Xác nhận mật khẩu <span style={{ color: '#EF4444' }}>*</span></label>
               <input
                 id="register-confirm-password"
+                ref={el => { fieldRefs.current.confirmPassword = el; }}
                 type="password"
                 value={formData.confirmPassword}
                 onChange={updateField('confirmPassword')}
@@ -497,8 +571,14 @@ export function RegisterPage() {
                 style={getInputStyle('confirmPassword')}
                 onFocus={handleFocus}
                 onBlur={handleBlur('confirmPassword')}
+                aria-invalid={!!errors.confirmPassword}
+                aria-describedby={errors.confirmPassword ? 'register-confirm-password-error' : undefined}
               />
-              {errors.confirmPassword && <div style={ERROR_TEXT_STYLE}>{errors.confirmPassword}</div>}
+              {errors.confirmPassword && (
+                <div id="register-confirm-password-error" style={ERROR_TEXT_STYLE}>
+                  {errors.confirmPassword}
+                </div>
+              )}
             </div>
 
             {/* ── Section: Thông tin cá nhân ── */}
@@ -518,6 +598,7 @@ export function RegisterPage() {
               <label htmlFor="register-name" style={LABEL_STYLE}>Họ và tên <span style={{ color: '#EF4444' }}>*</span></label>
               <input
                 id="register-name"
+                ref={el => { fieldRefs.current.fullName = el; }}
                 type="text"
                 value={formData.fullName}
                 onChange={updateField('fullName')}
@@ -525,15 +606,22 @@ export function RegisterPage() {
                 style={getInputStyle('fullName')}
                 onFocus={handleFocus}
                 onBlur={handleBlur('fullName')}
+                aria-invalid={!!errors.fullName}
+                aria-describedby={errors.fullName ? 'register-name-error' : undefined}
               />
-              {errors.fullName && <div style={ERROR_TEXT_STYLE}>{errors.fullName}</div>}
+              {errors.fullName && (
+                <div id="register-name-error" style={ERROR_TEXT_STYLE}>
+                  {errors.fullName}
+                </div>
+              )}
             </div>
 
             {/* Phone number */}
             <div>
-              <label htmlFor="register-phone" style={LABEL_STYLE}>Số điện thoại</label>
+              <label htmlFor="register-phone" style={LABEL_STYLE}>Số điện thoại <span style={{ color: '#EF4444' }}>*</span></label>
               <input
                 id="register-phone"
+                ref={el => { fieldRefs.current.phoneNumber = el; }}
                 type="tel"
                 value={formData.phoneNumber}
                 onChange={updateField('phoneNumber')}
@@ -541,8 +629,14 @@ export function RegisterPage() {
                 style={getInputStyle('phoneNumber')}
                 onFocus={handleFocus}
                 onBlur={handleBlur('phoneNumber')}
+                aria-invalid={!!errors.phoneNumber}
+                aria-describedby={errors.phoneNumber ? 'register-phone-error' : undefined}
               />
-              {errors.phoneNumber && <div style={ERROR_TEXT_STYLE}>{errors.phoneNumber}</div>}
+              {errors.phoneNumber && (
+                <div id="register-phone-error" style={ERROR_TEXT_STYLE}>
+                  {errors.phoneNumber}
+                </div>
+              )}
             </div>
 
             {/* ── Section: Thông tin doanh nghiệp ── */}
@@ -562,6 +656,7 @@ export function RegisterPage() {
               <label htmlFor="register-company" style={LABEL_STYLE}>Tên doanh nghiệp <span style={{ color: '#EF4444' }}>*</span></label>
               <input
                 id="register-company"
+                ref={el => { fieldRefs.current.companyName = el; }}
                 type="text"
                 value={formData.companyName}
                 onChange={updateField('companyName')}
@@ -569,8 +664,14 @@ export function RegisterPage() {
                 style={getInputStyle('companyName')}
                 onFocus={handleFocus}
                 onBlur={handleBlur('companyName')}
+                aria-invalid={!!errors.companyName}
+                aria-describedby={errors.companyName ? 'register-company-error' : undefined}
               />
-              {errors.companyName && <div style={ERROR_TEXT_STYLE}>{errors.companyName}</div>}
+              {errors.companyName && (
+                <div id="register-company-error" style={ERROR_TEXT_STYLE}>
+                  {errors.companyName}
+                </div>
+              )}
             </div>
 
             {/* Tax code */}
@@ -578,6 +679,7 @@ export function RegisterPage() {
               <label htmlFor="register-tax" style={LABEL_STYLE}>Mã số thuế <span style={{ color: '#EF4444' }}>*</span></label>
               <input
                 id="register-tax"
+                ref={el => { fieldRefs.current.taxCode = el; }}
                 type="text"
                 value={formData.taxCode}
                 onChange={updateField('taxCode')}
@@ -585,8 +687,14 @@ export function RegisterPage() {
                 style={getInputStyle('taxCode')}
                 onFocus={handleFocus}
                 onBlur={handleBlur('taxCode')}
+                aria-invalid={!!errors.taxCode}
+                aria-describedby={errors.taxCode ? 'register-tax-error' : undefined}
               />
-              {errors.taxCode && <div style={ERROR_TEXT_STYLE}>{errors.taxCode}</div>}
+              {errors.taxCode && (
+                <div id="register-tax-error" style={ERROR_TEXT_STYLE}>
+                  {errors.taxCode}
+                </div>
+              )}
             </div>
 
             {/* Business license URL */}
@@ -594,6 +702,7 @@ export function RegisterPage() {
               <label htmlFor="register-license" style={LABEL_STYLE}>URL giấy phép kinh doanh</label>
               <input
                 id="register-license"
+                ref={el => { fieldRefs.current.businessLicenseUrl = el; }}
                 type="url"
                 value={formData.businessLicenseUrl}
                 onChange={updateField('businessLicenseUrl')}
@@ -601,30 +710,66 @@ export function RegisterPage() {
                 style={getInputStyle('businessLicenseUrl')}
                 onFocus={handleFocus}
                 onBlur={handleBlur('businessLicenseUrl')}
+                aria-invalid={!!errors.businessLicenseUrl}
+                aria-describedby={errors.businessLicenseUrl ? 'register-license-error' : undefined}
               />
-              {errors.businessLicenseUrl && <div style={ERROR_TEXT_STYLE}>{errors.businessLicenseUrl}</div>}
+              {errors.businessLicenseUrl && (
+                <div id="register-license-error" style={ERROR_TEXT_STYLE}>
+                  {errors.businessLicenseUrl}
+                </div>
+              )}
             </div>
 
             {/* Terms */}
             <div style={{
               display: 'flex',
-              alignItems: 'flex-start',
-              gap: 10,
+              flexDirection: 'column',
+              gap: 6,
             }}>
-              <input
-                type="checkbox"
-                id="register-terms"
-                checked={agreedTerms}
-                onChange={e => setAgreedTerms(e.target.checked)}
-                style={{ marginTop: 2, accentColor: '#0E76A8' }}
-              />
-              <label htmlFor="register-terms" style={{
-                fontSize: 13,
-                color: '#64748B',
-                lineHeight: 1.5,
+              <div style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 10,
               }}>
-                Tôi đồng ý với <Link to="/terms" style={{ color: '#0E76A8', textDecoration: 'none', fontWeight: 600 }}>Điều khoản sử dụng</Link> và <Link to="/privacy" style={{ color: '#0E76A8', textDecoration: 'none', fontWeight: 600 }}>Chính sách bảo mật</Link>
-              </label>
+                <input
+                  type="checkbox"
+                  id="register-terms"
+                  ref={termsRef}
+                  checked={agreedTerms}
+                  onChange={handleTermsChange}
+                  aria-invalid={!!errors.terms}
+                  aria-describedby={errors.terms ? 'register-terms-error' : undefined}
+                  style={{ marginTop: 2, accentColor: '#0E76A8' }}
+                />
+                <label htmlFor="register-terms" style={{
+                  fontSize: 13,
+                  color: '#64748B',
+                  lineHeight: 1.5,
+                }}>
+                  Tôi đồng ý với <Link to="/terms" style={{ color: '#0E76A8', textDecoration: 'none', fontWeight: 600 }}>Điều khoản sử dụng</Link> và <Link to="/privacy" style={{ color: '#0E76A8', textDecoration: 'none', fontWeight: 600 }}>Chính sách bảo mật</Link>
+                </label>
+              </div>
+              {errors.terms && (
+                <div
+                  id="register-terms-error"
+                  role="alert"
+                  style={{
+                    ...ERROR_TEXT_STYLE,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    marginTop: 2,
+                    marginLeft: 26,
+                  }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2.2" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                  <span>{errors.terms}</span>
+                </div>
+              )}
             </div>
 
             {/* Submit */}

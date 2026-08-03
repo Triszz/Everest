@@ -184,7 +184,9 @@ export function BranchForm({
 
           {/* Phone number */}
           <div id="branch-phoneNumber">
-            <label style={LABEL_STYLE}>Số điện thoại</label>
+            <label style={LABEL_STYLE}>
+              Số điện thoại <span style={{ color: COLORS.error }}>*</span>
+            </label>
             <input
               type="tel"
               value={formData.phoneNumber}
@@ -197,7 +199,7 @@ export function BranchForm({
             {errors.phoneNumber ? (
               <div style={ERROR_TEXT}>{errors.phoneNumber}</div>
             ) : (
-              <div style={HELP_TEXT}>10-11 chữ số, không bắt buộc</div>
+              <div style={HELP_TEXT}>10-11 chữ số</div>
             )}
           </div>
         </div>
