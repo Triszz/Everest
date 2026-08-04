@@ -16,6 +16,7 @@ import { BranchCreatePage } from './pages/BranchCreate';
 import { BranchDetailPage } from './pages/BranchDetail';
 import { BranchEditPage } from './pages/BranchEdit';
 import { SettingsPage } from './pages/Settings';
+import { ReportsPage } from './pages/Reports';
 
 // ── Placeholder pages (sẽ implement chi tiết sau) ──────────────────────────
 function PlaceholderPage({ title }: { title: string }) {
@@ -140,7 +141,7 @@ function AppRoutes() {
       } />
       <Route path="/reports" element={
         <PrivateRoute allowedRoles={['Partner_Owner']}>
-          <AppLayout><PlaceholderPage title="Báo cáo & Thống kê" /></AppLayout>
+          <AppLayout><ReportsPage /></AppLayout>
         </PrivateRoute>
       } />
       <Route path="/settings" element={

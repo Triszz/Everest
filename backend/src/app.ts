@@ -42,10 +42,17 @@ app.use(
     credentials: true,
   }),
 );
-app.use(express.json());
+// ── Body parsers ──────────────────────────────────────────────
+// Default Express limit is 100 KB which is far too small for our
+// base64 image uploads. Allow up to 10 MB per request, well above
+// the frontend's 5 MB per-image limit (5 MB binary ≈ 6.7 MB base64).
+const MAX_JSON_BODY = "10mb";
+
+app.use(express.json({ limit: MAX_JSON_BODY }));
 app.use(
   express.urlencoded({
     extended: true,
+    limit: MAX_JSON_BODY,
   }),
 );
 // Rate limit cho auth routes

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { partnerController } from "./partner.controller";
+import { reportsController } from "./reports.controller";
 import { authenticate } from "../../middlewares/authenticate";
 import { roleGuard } from "../../middlewares/roleGuard";
 import voucherRouter from "../vouchers/voucher.routes";
@@ -56,5 +57,12 @@ router.put(
 
 // Quản lý voucher: chỉ Owner
 router.use("/vouchers", voucherRouter);
+
+// Báo cáo & Thống kê (Owner only)
+router.get("/reports/kpis", reportsController.getKPIs);
+router.get("/reports/revenue-chart", reportsController.getRevenueChart);
+router.get("/reports/voucher-performance", reportsController.getVoucherPerformance);
+router.get("/reports/voucher-status-distribution", reportsController.getVoucherStatusDistribution);
+router.get("/reports/vouchers", reportsController.getVoucherReportTable);
 
 export default router;
