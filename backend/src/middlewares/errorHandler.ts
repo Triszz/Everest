@@ -34,6 +34,23 @@ export const errorHandler = (
     });
   }
 
+  // Payload too large — express.json / express.urlencoded emit a
+  // SyntaxError-shaped error with `status === 413` and `type === 'entity.too.large'`.
+  // Detect it on the type field (more reliable than status, which older
+  // Express versions may not set) and translate to a clean HTTP 413.
+  if (
+    (err as any)?.type === "entity.too.large" ||
+    (err as any)?.status === 413
+  ) {
+    return res.status(413).json({
+      success: false,
+      error: {
+        code: "PAYLOAD_TOO_LARGE",
+        message: "Dữ liệu gửi lên quá lớn. Vui lòng chọn ảnh có kích thước nhỏ hơn.",
+      },
+    });
+  }
+
   // Prisma unique constraint
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
     console.error("[Prisma Error]", {

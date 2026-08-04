@@ -66,12 +66,24 @@ export function VoucherCreatePage() {
       toast.success('Tạo voucher thành công! Voucher đã được lưu vào danh sách nháp.');
       navigate('/vouchers', { replace: true });
     } catch (err) {
-      const message =
-        err instanceof ApiException
-          ? err.message
-          : err instanceof Error
-          ? err.message
-          : 'Tạo voucher thất bại';
+      let message: string;
+      if (err instanceof ApiException) {
+        message = err.message;
+      } else if (err instanceof Error) {
+        message = err.message;
+      } else {
+        message = 'Tạo voucher thất bại';
+      }
+      // Network errors (e.g. fetch aborts when the body is too large for
+      // the browser/server connection) surface as a generic Error without
+      // a status code. Detect them by message text since there's no
+      // standard error class for this in the DOM.
+      const isPayloadTooLarge =
+        (err instanceof ApiException && err.statusCode === 413) ||
+        (err instanceof Error && /request entity too large|payload too large/i.test(err.message));
+      if (isPayloadTooLarge) {
+        message = 'Ảnh vượt quá dung lượng cho phép. Vui lòng chọn ảnh nhỏ hơn và thử lại.';
+      }
       setSubmitError(message);
       // Re-throw is unnecessary — form just shows submitError
     } finally {
