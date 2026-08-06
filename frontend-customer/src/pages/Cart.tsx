@@ -214,11 +214,11 @@ export function CartPage() {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
                           <div>
                             <span style={{ fontSize: 14, fontWeight: 700, color: '#EF4444' }}>
-                              formatPrice(item.voucher.salePrice * item.quantity)
+                              {formatPrice(item.voucher.salePrice * item.quantity)}
                             </span>
                             {item.voucher.originalPrice > item.voucher.salePrice && (
                               <span style={{ fontSize: 12, color: '#94A3B8', textDecoration: 'line-through', marginLeft: 8 }}>
-                                formatPrice(item.voucher.originalPrice)
+                                {formatPrice(item.voucher.originalPrice * item.quantity)}
                               </span>
                             )}
                           </div>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
-import { cartApi, orderApi } from '../services';
+import { cartApi, orderApi, profileApi } from '../services';
 import type { CartItem } from '../services';
 import { formatPrice } from '../utils';
 import Loading from '../components/Loading';
@@ -37,16 +37,31 @@ export function Checkout() {
     }
 
     const user = localStorage.getItem('user');
+    let cachedUser: { fullName?: string; email?: string; phone?: string; phoneNumber?: string } | null = null;
     if (user) {
       try {
-        const u = JSON.parse(user);
+        cachedUser = JSON.parse(user);
         setBuyerInfo({
-          fullName: u.fullName || '',
-          email: u.email || '',
-          phone: u.phone || '',
+          fullName: cachedUser?.fullName || '',
+          email: cachedUser?.email || '',
+          phone: cachedUser?.phoneNumber || cachedUser?.phone || '',
         });
       } catch { /* ignore */ }
     }
+
+    // Lấy profile mới nhất từ server để chắc chắn có SĐT (localStorage có thể cũ/thiếu).
+    profileApi.getProfile()
+      .then(res => {
+        if (res.success && res.data) {
+          localStorage.setItem('user', JSON.stringify(res.data));
+          setBuyerInfo({
+            fullName: res.data.fullName || '',
+            email: res.data.email || '',
+            phone: res.data.phoneNumber || '',
+          });
+        }
+      })
+      .catch(() => { /* giữ giá trị từ localStorage nếu API lỗi */ });
 
     cartApi.getCart()
       .then(res => {
@@ -159,6 +174,18 @@ export function Checkout() {
     boxSizing: 'border-box' as const,
   };
 
+  const requiredLabelStyle: React.CSSProperties = {
+    display: 'block', fontSize: 13, fontWeight: 600,
+    color: '#1E293B', marginBottom: 6,
+  };
+
+  const RequiredLabel = ({ children }: { children: React.ReactNode }) => (
+    <label style={requiredLabelStyle}>
+      {children}
+      <span style={{ color: '#EF4444', marginLeft: 4 }} aria-label="bắt buộc">*</span>
+    </label>
+  );
+
   return (
     <div style={{ background: '#F8FAFC', minHeight: '100vh' }}>
       {/* Breadcrumb */}
@@ -191,7 +218,7 @@ export function Checkout() {
               </h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#1E293B', marginBottom: 6 }}>Họ và tên</label>
+                  <RequiredLabel>Họ và tên</RequiredLabel>
                   <input type="text" placeholder="Nhập đầy đủ họ và tên" value={buyerInfo.fullName}
                     onChange={e => updateBuyer('fullName', e.target.value)}
                     style={inputStyle} onFocus={e => (e.currentTarget.style.borderColor = '#0E76A8')}
@@ -199,14 +226,14 @@ export function Checkout() {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#1E293B', marginBottom: 6 }}>Email</label>
+                    <RequiredLabel>Email</RequiredLabel>
                     <input type="email" placeholder="example@email.com" value={buyerInfo.email}
                       onChange={e => updateBuyer('email', e.target.value)}
                       style={inputStyle} onFocus={e => (e.currentTarget.style.borderColor = '#0E76A8')}
                       onBlur={e => (e.currentTarget.style.borderColor = 'transparent')} />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#1E293B', marginBottom: 6 }}>Số điện thoại</label>
+                    <RequiredLabel>Số điện thoại</RequiredLabel>
                     <input type="tel" placeholder="0xxx xxx xxx" value={buyerInfo.phone}
                       onChange={e => updateBuyer('phone', e.target.value)}
                       style={inputStyle} onFocus={e => (e.currentTarget.style.borderColor = '#0E76A8')}
