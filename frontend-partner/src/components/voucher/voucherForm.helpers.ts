@@ -70,6 +70,16 @@ export interface VoucherFormData {
 
 export type VoucherFormErrors = Partial<Record<keyof VoucherFormData | 'general', string>>;
 
+// ── Image upload limits ─────────────────────────────────────────────────────
+// Mirrors the limits enforced by the backend JSON body parser so we can
+// validate client-side before submitting. Keep in sync with
+// `express.json({ limit: '10mb' })` in backend/src/app.ts.
+// 5 MB binary ≈ 6.7 MB base64 — well below the 10 MB request limit, even
+// with all the other voucher fields around it.
+export const VOUCHER_IMAGE_MAX_BYTES = 5 * 1024 * 1024; // 5 MB
+export const VOUCHER_IMAGE_ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+export const VOUCHER_IMAGE_ALLOWED_LABEL = 'JPG, JPEG, PNG, WEBP';
+
 // ── Default values ──────────────────────────────────────────────────────────
 export const EMPTY_FORM: VoucherFormData = {
   title: '',

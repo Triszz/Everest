@@ -90,7 +90,9 @@ export function validateBranchForm(data: BranchFormData): BranchFormErrors {
     errors.address = 'Địa chỉ không được quá 255 ký tự';
   }
 
-  if (data.phoneNumber.trim() && !PHONE_REGEX.test(data.phoneNumber.trim())) {
+  if (!data.phoneNumber.trim()) {
+    errors.phoneNumber = 'Số điện thoại không được để trống';
+  } else if (!PHONE_REGEX.test(data.phoneNumber.trim())) {
     errors.phoneNumber = 'Số điện thoại phải là 10-11 chữ số';
   }
 
@@ -104,6 +106,6 @@ export function buildBranchPayload(
   return {
     branchName: data.branchName.trim(),
     address: data.address.trim(),
-    phoneNumber: data.phoneNumber.trim() || undefined,
+    phoneNumber: data.phoneNumber.trim(),
   };
 }

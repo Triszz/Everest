@@ -9,6 +9,7 @@ import {
   updateBranchSchema,
   assignCashierSchema,
   createCashierSchema,
+  resetCashierPasswordSchema,
   branchIdParam,
   listCashiersQuerySchema,
 } from "./partner.schemas";
@@ -359,6 +360,35 @@ export const partnerController = {
       res.status(201).json({
         success: true,
         data,
+      });
+    },
+  ),
+
+  /**
+   * PUT /api/partner/branches/:branchId/cashier/password
+   * Partner_Owner đổi mật khẩu cho Cashier của chi nhánh thuộc partner mình.
+   */
+  resetCashierPassword: asyncHandler(
+    async (req: Request, res: Response) => {
+      const branchId = parseBranchId(req);
+      const partnerId = requirePartnerId(req);
+
+      const body = parseOrThrow(
+        resetCashierPasswordSchema,
+        req.body,
+      );
+
+      const data =
+        await partnerService.resetCashierPassword(
+          branchId,
+          partnerId,
+          body.newPassword,
+        );
+
+      res.json({
+        success: true,
+        data,
+        message: "Đã đổi mật khẩu thu ngân",
       });
     },
   ),
