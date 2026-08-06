@@ -3,6 +3,7 @@ import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import { orderApi } from '../services';
 import type { OrderDetail } from '../services';
 import { formatPrice } from '../utils';
+import { QRImage } from '../utils/QRImage';
 import { Copy, Check, ShoppingBag, Home, Ticket, Loader2 } from 'lucide-react';
 import Loading from '../components/Loading';
 
@@ -33,27 +34,6 @@ function buildVouchers(order: OrderDetail): VoucherDisplay[] {
       };
     })
   );
-}
-
-// ── QR generator ─────────────────────────────────────────────────────────────
-
-function generateQR(code: string): string {
-  const size = 120;
-  const cellSize = 6;
-  const padding = 8;
-  const gridSize = Math.floor((size - padding * 2) / cellSize);
-
-  let cells = '';
-  for (let row = 0; row < gridSize; row++) {
-    for (let col = 0; col < gridSize; col++) {
-      const idx = row * gridSize + col;
-      const charCode = code.charCodeAt(idx % code.length);
-      if ((charCode + row + col) % 3 === 0) {
-        cells += `<rect x="${padding + col * cellSize}" y="${padding + row * cellSize}" width="${cellSize}" height="${cellSize}" fill="#1E293B"/>`;
-      }
-    }
-  }
-  return `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><rect width="${size}" height="${size}" fill="white"/>${cells}</svg>`;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -159,8 +139,7 @@ function VoucherCard({ v }: { v: VoucherDisplay }) {
 
         {/* QR */}
         <div style={{ flexShrink: 0, textAlign: 'center' }}>
-          <img src={generateQR(v.code)} alt="QR" width={80} height={80}
-            style={{ borderRadius: 8, display: 'block', marginBottom: 4 }} />
+          <QRImage code={v.code} size={80} style={{ marginBottom: 4 }} />
           <span style={{ fontSize: 10, color: '#94A3B8' }}>Quét tại quán</span>
         </div>
       </div>
