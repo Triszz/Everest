@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { profileApi, type User } from '../services/api';
+import { profileApi, type User } from '../services';
 import Loading from '../components/Loading';
 
 export function EditProfilePage() {

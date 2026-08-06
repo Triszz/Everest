@@ -1,151 +1,66 @@
-import { Request, Response, NextFunction } from "express";
+/**
+ * Cart Controller
+ * --------------------------------------------------------------
+ * Tất cả routes yêu cầu đăng nhập (authenticate middleware).
+ * Lấy customerId từ req.user.userId, gọi cartService.
+ */
+import { Request, Response } from "express";
 import { cartService } from "./cart.service";
+import { asyncHandler } from "../../../middlewares/asyncHandler";
+import { getCustomerId, parseOrThrow, parseParams } from "../shared/helpers";
 import {
   addToCartSchema,
   updateCartItemSchema,
   cartItemIdParam,
 } from "./cart.schemas";
-import { AppError } from "../../../middlewares/errorHandler";
 
 export const cartController = {
-  async getCart(req: Request, res: Response, next: NextFunction) {
-    try {
-      const customerId = req.user!.userId;
-      const cart = await cartService.getCart(customerId);
+  /**
+   * GET /api/cart — Lấy giỏ hàng + tổng tiền.
+   */
+  getCart: asyncHandler(async (req: Request, res: Response) => {
+    const customerId = getCustomerId(req);
+    const cart = await cartService.getCart(customerId);
+    res.json({ success: true, data: cart });
+  }),
 
-      res.json({
-        success: true,
-        data: cart,
-      });
-    } catch (error) {
-      next(error);
-    }
-  },
+  /**
+   * POST /api/cart/items — Thêm voucher vào giỏ.
+   */
+  addToCart: asyncHandler(async (req: Request, res: Response) => {
+    const customerId = getCustomerId(req);
+    const input = parseOrThrow(addToCartSchema, req.body);
+    const result = await cartService.addToCart(customerId, input);
+    res.status(201).json({ success: true, data: result });
+  }),
 
-  async addToCart(req: Request, res: Response, next: NextFunction) {
-    try {
-      const customerId = req.user!.userId;
-      const input = addToCartSchema.parse(req.body);
+  /**
+   * PUT /api/cart/items/:itemId — Cập nhật số lượng.
+   */
+  updateCartItem: asyncHandler(async (req: Request, res: Response) => {
+    const customerId = getCustomerId(req);
+    const { itemId } = parseParams(req, cartItemIdParam);
+    const input = parseOrThrow(updateCartItemSchema, req.body);
+    const result = await cartService.updateCartItem(customerId, itemId, input);
+    res.json({ success: true, data: result });
+  }),
 
-      const result = await cartService.addToCart(customerId, input);
+  /**
+   * DELETE /api/cart/items/:itemId — Xóa 1 item khỏi giỏ.
+   */
+  removeCartItem: asyncHandler(async (req: Request, res: Response) => {
+    const customerId = getCustomerId(req);
+    const { itemId } = parseParams(req, cartItemIdParam);
+    const result = await cartService.removeCartItem(customerId, itemId);
+    res.json({ success: true, data: result });
+  }),
 
-      res.status(201).json({
-        success: true,
-        data: result,
-      });
-    } catch (error) {
-      if (error instanceof AppError) {
-        res.status(error.statusCode).json({
-          success: false,
-          error: {
-            code: error.code,
-            message: error.message,
-          },
-        });
-      } else if ((error as any).name === "ZodError") {
-        const zodError = error as any;
-        const firstError = zodError.errors?.[0];
-        res.status(400).json({
-          success: false,
-          error: {
-            code: "VALIDATION_ERROR",
-            message: firstError?.message || "Dữ liệu không hợp lệ",
-          },
-        });
-      } else {
-        next(error);
-      }
-    }
-  },
-
-  async updateCartItem(req: Request, res: Response, next: NextFunction) {
-    try {
-      const customerId = req.user!.userId;
-      const { itemId } = cartItemIdParam.parse(req.params);
-      const input = updateCartItemSchema.parse(req.body);
-
-      const result = await cartService.updateCartItem(
-        customerId,
-        itemId,
-        input
-      );
-
-      res.json({
-        success: true,
-        data: result,
-      });
-    } catch (error) {
-      if (error instanceof AppError) {
-        res.status(error.statusCode).json({
-          success: false,
-          error: {
-            code: error.code,
-            message: error.message,
-          },
-        });
-      } else if ((error as any).name === "ZodError") {
-        const zodError = error as any;
-        const firstError = zodError.errors?.[0];
-        res.status(400).json({
-          success: false,
-          error: {
-            code: "VALIDATION_ERROR",
-            message: firstError?.message || "Dữ liệu không hợp lệ",
-          },
-        });
-      } else {
-        next(error);
-      }
-    }
-  },
-
-  async removeCartItem(req: Request, res: Response, next: NextFunction) {
-    try {
-      const customerId = req.user!.userId;
-      const { itemId } = cartItemIdParam.parse(req.params);
-
-      const result = await cartService.removeCartItem(customerId, itemId);
-
-      res.json({
-        success: true,
-        data: result,
-      });
-    } catch (error) {
-      if (error instanceof AppError) {
-        res.status(error.statusCode).json({
-          success: false,
-          error: {
-            code: error.code,
-            message: error.message,
-          },
-        });
-      } else if ((error as any).name === "ZodError") {
-        const zodError = error as any;
-        const firstError = zodError.errors?.[0];
-        res.status(400).json({
-          success: false,
-          error: {
-            code: "VALIDATION_ERROR",
-            message: firstError?.message || "Dữ liệu không hợp lệ",
-          },
-        });
-      } else {
-        next(error);
-      }
-    }
-  },
-
-  async clearCart(req: Request, res: Response, next: NextFunction) {
-    try {
-      const customerId = req.user!.userId;
-      const result = await cartService.clearCart(customerId);
-
-      res.json({
-        success: true,
-        data: result,
-      });
-    } catch (error) {
-      next(error);
-    }
-  },
+  /**
+   * DELETE /api/cart — Xóa toàn bộ giỏ hàng.
+   */
+  clearCart: asyncHandler(async (req: Request, res: Response) => {
+    const customerId = getCustomerId(req);
+    const result = await cartService.clearCart(customerId);
+    res.json({ success: true, data: result });
+  }),
 };

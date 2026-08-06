@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { voucherApi, cartApi } from '../services/api';
-import type { Voucher } from '../services/api';
+import { voucherApi, cartApi } from '../services';
+import type { Voucher } from '../services';
+import { formatPrice } from '../utils';
 import { Loader2 } from 'lucide-react';
 
 export function FeaturedVouchers() {
@@ -112,7 +113,6 @@ export function FeaturedVouchers() {
 }
 
 function VoucherCard({ voucher, onAddToCart }: { voucher: Voucher; onAddToCart?: () => void }) {
-  const formatPrice = (p: string | number) => Number(p).toLocaleString('vi-VN') + 'đ';
   const discount = voucher.originalPrice
     ? Math.round((1 - Number(voucher.salePrice) / Number(voucher.originalPrice)) * 100)
     : 0;

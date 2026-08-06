@@ -1,8 +1,9 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { UtensilsCrossed, Wifi, ShoppingBag, Car, Loader2, CheckCircle2 } from 'lucide-react';
-import { voucherApi, cartApi, reviewApi } from '../services/api';
-import type { Voucher, Review } from '../services/api';
+import { voucherApi, cartApi, reviewApi } from '../services';
+import type { Voucher, Review } from '../services';
+import { formatPrice, formatDate } from '../utils';
 import Loading from './Loading';
 
 export function VoucherDetail() {
@@ -55,7 +56,6 @@ export function VoucherDetail() {
     );
   }
 
-  const formatPrice = (p: string | number) => Number(p).toLocaleString('vi-VN') + 'đ';
   const discount = voucher.originalPrice
     ? Math.round((1 - Number(voucher.salePrice) / Number(voucher.originalPrice)) * 100)
     : 0;
@@ -430,7 +430,7 @@ export function VoucherDetail() {
                               ))}
                             </div>
                           </div>
-                          <span style={{ marginLeft: 'auto', fontSize: 12, color: '#94A3B8', fontFamily: 'Inter, sans-serif' }}>{new Date(review.createdAt).toLocaleDateString('vi-VN')}</span>
+                          <span style={{ marginLeft: 'auto', fontSize: 12, color: '#94A3B8', fontFamily: 'Inter, sans-serif' }}>{formatDate(review.createdAt)}</span>
                         </div>
                         <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#334155', lineHeight: 1.6, margin: '4px 0 0 46px' }}>{review.comment || 'Không có bình luận'}</p>
                       </div>

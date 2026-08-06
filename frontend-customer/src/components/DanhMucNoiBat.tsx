@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { categoryApi } from '../services/api';
-import type { Category } from '../services/api';
+import { categoryApi } from '../services';
+import type { Category } from '../services';
 
 // Default images for categories (in case API doesn't return images)
 const DEFAULT_IMAGES: Record<number, string> = {

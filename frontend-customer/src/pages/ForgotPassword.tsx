@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, ArrowLeft, Loader2, CheckCircle2, ShieldCheck } from 'lucide-react';
-import { authApi } from '../services/api';
+import { authApi } from '../services';
 
 // ── Forgot Password Page ─────────────────────────────────────────────────────
 // Flow: Nhập email → loading → Màn hình xác nhận gửi email

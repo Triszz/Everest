@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { categoryApi } from '../services/api';
-import type { Voucher } from '../services/api';
+import { categoryApi } from '../services';
+import type { Voucher } from '../services';
+import { formatPrice } from '../utils';
 
 export function CategoryPage() {
   const { id } = useParams<{ id: string }>();
@@ -49,8 +50,6 @@ export function CategoryPage() {
     newParams.set('page', '1');
     setSearchParams(newParams);
   };
-
-  const formatPrice = (p: string | number) => Number(p).toLocaleString('vi-VN') + 'đ';
 
   return (
     <div style={{ background: '#F8FAFC', minHeight: '100vh' }}>

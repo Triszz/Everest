@@ -1,5 +1,11 @@
+/**
+ * Notification Preferences Schemas
+ * --------------------------------------------------------------
+ * Zod schemas cho Notification Preferences API.
+ */
 import { z } from "zod";
 
+/** Body cho PUT /api/customer/notifications/preferences — cập nhật từng preference. */
 export const updateNotificationsSchema = z.object({
   n1: z.boolean().optional(),
   n2: z.boolean().optional(),

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { bannerApi, type Banner } from "../services/api";
+import { bannerApi, type Banner } from "../services";
 
 export function Hero() {
   const [banners, setBanners] = useState<Banner[]>([]);

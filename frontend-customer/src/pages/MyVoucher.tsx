@@ -1,7 +1,9 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { orderApi, reviewApi } from '../services/api';
-import type { IssuedVoucher } from '../services/api';
+import { orderApi, reviewApi } from '../services';
+import type { IssuedVoucher } from '../services';
+import { formatDate, ISSUED_STATUS_LABELS } from '../utils';
+import { QRImage } from '../utils/QRImage';
 import {
   Ticket, Copy, Check, QrCode, Clock, MapPin, Star, Eye,
   Loader2, RefreshCw, ShoppingBag, ChevronRight,
@@ -124,58 +126,17 @@ const MOCK_VOUCHERS: IssuedVoucher[] = [
 
 type Tab = 'all' | 'unused' | 'used' | 'expired';
 
-// ── QR generator ─────────────────────────────────────────────────────────────
-
-function generateQR(code: string): string {
-  const size = 120;
-  const cellSize = 6;
-  const padding = 8;
-  const gridSize = Math.floor((size - padding * 2) / cellSize);
-  let cells = '';
-  for (let row = 0; row < gridSize; row++) {
-    for (let col = 0; col < gridSize; col++) {
-      const idx = row * gridSize + col;
-      const charCode = code.charCodeAt(idx % code.length);
-      if ((charCode + row + col) % 3 === 0) {
-        cells += `<rect x="${padding + col * cellSize}" y="${padding + row * cellSize}" width="${cellSize}" height="${cellSize}" fill="#1E293B"/>`;
-      }
-    }
-  }
-  return `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><rect width="${size}" height="${size}" fill="white"/>${cells}</svg>`;
-}
-
-function generateQRLarge(code: string): string {
-  const size = 200;
-  const cellSize = 8;
-  const padding = 12;
-  const gridSize = Math.floor((size - padding * 2) / cellSize);
-  let cells = '';
-  for (let row = 0; row < gridSize; row++) {
-    for (let col = 0; col < gridSize; col++) {
-      const idx = row * gridSize + col;
-      const charCode = code.charCodeAt(idx % code.length);
-      if ((charCode + row + col) % 3 === 0) {
-        cells += `<rect x="${padding + col * cellSize}" y="${padding + row * cellSize}" width="${cellSize}" height="${cellSize}" fill="#1E293B"/>`;
-      }
-    }
-  }
-  return `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><rect width="${size}" height="${size}" fill="white"/>${cells}</svg>`;
-}
+// ── QR rendering ─────────────────────────────────────────────────────────────
+// QR chuẩn ISO/IEC 18004 do <QRImage /> sinh ra — quét được bằng camera.
+// Trước đây dùng fake pattern ngẫu nhiên (không scan được) — đã thay bằng thư viện `qrcode`.
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function formatDate(d: string) {
-  return new Date(d).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-}
-
+/** Map trạng thái IssuedVoucher → UI config (label + màu). */
 function statusConfig(status: string) {
-  switch (status) {
-    case 'Unused':   return { label: 'Có thể dùng', bg: '#ECFDF5', text: '#10B981', dot: '#10B981' };
-    case 'Used':     return { label: 'Đã sử dụng',  bg: '#FEF3C7', text: '#F59E0B', dot: '#F59E0B' };
-    case 'Expired':   return { label: 'Đã hết hạn',  bg: '#FEE2E2', text: '#EF4444', dot: '#EF4444' };
-    case 'Locked':   return { label: 'Đã khóa',     bg: '#F1F5F9', text: '#64748B', dot: '#64748B' };
-    default:         return { label: status,          bg: '#F1F5F9', text: '#64748B', dot: '#64748B' };
-  }
+  const cfg = ISSUED_STATUS_LABELS[status as keyof typeof ISSUED_STATUS_LABELS];
+  if (cfg) return { label: cfg.label, bg: cfg.bg, text: cfg.color, dot: cfg.color };
+  return { label: status, bg: '#F1F5F9', text: '#64748B', dot: '#64748B' };
 }
 
 function daysLeft(validTo: string) {
@@ -417,12 +378,7 @@ function VoucherModal({ v, onClose }: { v: IssuedVoucher; onClose: () => void })
         <div style={{ padding: '16px 16px 0', display: 'flex', gap: 14, alignItems: 'center' }}>
           {/* QR */}
           <div style={{ flexShrink: 0, textAlign: 'center' }}>
-            <img
-              src={generateQRLarge(v.voucherCode)}
-              alt="QR Code"
-              width={90} height={90}
-              style={{ borderRadius: 10, display: 'block', marginBottom: 4 }}
-            />
+            <QRImage code={v.voucherCode} size={90} style={{ marginBottom: 4 }} />
             <span style={{ fontSize: 10, color: '#94A3B8' }}>Quét tại quán</span>
           </div>
 

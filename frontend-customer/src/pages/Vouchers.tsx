@@ -1,7 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { voucherApi, categoryApi, partnerApi } from "../services/api";
-import type { Voucher, Category, Partner } from "../services/api";
+import { voucherApi, categoryApi, partnerApi } from "../services";
+import type { Voucher, Category, Partner } from "../services";
+import {
+  DISCOUNT_OPTIONS,
+  PRICE_OPTIONS,
+  SORT_OPTIONS,
+  AREA_OPTIONS,
+} from "../utils";
+import { useDebounce } from "../hooks";
 import {
   Search,
   SlidersHorizontal,
@@ -27,43 +34,6 @@ import {
   MapPin,
   Store,
 } from "lucide-react";
-
-// ── Filter config ─────────────────────────────────────────────────────────────
-
-const DISCOUNT_OPTIONS = [
-  { label: "Tất cả", value: "" },
-  { label: "Giảm ≥ 10%", value: "10" },
-  { label: "Giảm ≥ 20%", value: "20" },
-  { label: "Giảm ≥ 30%", value: "30" },
-  { label: "Giảm ≥ 50%", value: "50" },
-];
-
-const PRICE_OPTIONS = [
-  { label: "Tất cả mức giá", value: "" },
-  { label: "Dưới 50.000đ", value: "0-50000" },
-  { label: "50.000đ – 100.000đ", value: "50000-100000" },
-  { label: "100.000đ – 200.000đ", value: "100000-200000" },
-  { label: "Trên 200.000đ", value: "200000-999999999" },
-];
-
-const SORT_OPTIONS = [
-  { label: "Mới nhất", value: "newest" },
-  { label: "Phổ biến nhất", value: "popular" },
-  { label: "Giá: Thấp → Cao", value: "price_asc" },
-  { label: "Giá: Cao → Thấp", value: "price_desc" },
-];
-
-// BR-CUS-03: Khu vực (filter theo address chứa chuỗi này)
-const AREA_OPTIONS = [
-  { label: "Tất cả khu vực", value: "" },
-  { label: "TP. Hồ Chí Minh", value: "Hồ Chí Minh" },
-  { label: "Hà Nội", value: "Hà Nội" },
-  { label: "Đà Nẵng", value: "Đà Nẵng" },
-  { label: "Cần Thơ", value: "Cần Thơ" },
-  { label: "Hải Phòng", value: "Hải Phòng" },
-  { label: "Biên Hòa", value: "Biên Hòa" },
-  { label: "Nha Trang", value: "Nha Trang" },
-];
 
 const CATEGORY_ICONS: Record<number, React.ElementType> = {
   1: Utensils,
@@ -142,16 +112,6 @@ function VoucherSkeleton() {
   );
 }
 
-// ── Debounce hook (phương pháp C: trì hoãn API call 400ms) ─────────────────
-function useDebounce<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-  useEffect(() => {
-    const handler = setTimeout(() => setDebouncedValue(value), delay);
-    return () => clearTimeout(handler);
-  }, [value, delay]);
-  return debouncedValue;
-}
-
 // ── Prefetch hook (phương pháp C: prefetch khi hover) ───────────────────
 function usePrefetch() {
   const prefetchedRef = useRef<Set<number>>(new Set());
@@ -174,6 +134,8 @@ interface FilterChip {
 }
 
 // ── Main ───────────────────────────────────────────────────────────────────────
+
+import { formatPrice } from "../utils";
 
 export function VouchersPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -336,7 +298,6 @@ export function VouchersPage() {
       .finally(() => setLoading(false));
   }, [currentPage, sort, debouncedSearch, categoriesParam, discount, priceRange, area, partnerId, partnerName]);
 
-  const formatPrice = (p: string | number) => Number(p).toLocaleString("vi-VN") + "đ";
   const hasActiveFilters = activeFilters.length > 0;
 
   // ── Filter Drawer (mobile-friendly, also shown as sidebar on desktop) ───────

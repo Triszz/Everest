@@ -5,36 +5,41 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { errorHandler } from "./middlewares/errorHandler";
 import { requestLogger } from "./middlewares/requestLogger";
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
 import authRouter from "./modules/auth/auth.routes";
+
+// ── Partner ──────────────────────────────────────────────────────────────────
 import partnerRouter from "./modules/partners/partner.routes";
-import searchRouter from "./modules/customer/search/search.routes";
+
+// ── Admin ───────────────────────────────────────────────────────────────────
 import adminRouter from "./modules/admin/admin.routes";
-import adminRouter from "./modules/admin/admin.routes";
+
+// ── Customer modules ──────────────────────────────────────────────────────────
 import voucherRouter from "./modules/customer/vouchers/vouchers.routes";
 import categoryRouter from "./modules/customer/categories/categories.routes";
 import bannerRouter from "./modules/customer/banners/banners.routes";
 import popupRouter from "./modules/customer/popups/popups.routes";
 import postRouter from "./modules/customer/posts/posts.routes";
 import cartRouter from "./modules/customer/cart/cart.routes";
-import profileRouter from "./modules/customer/profile/profile.routes";
 import ordersRouter from "./modules/customer/orders/orders.routes";
 import issuedVouchersRouter from "./modules/customer/issued-vouchers/issued-vouchers.routes";
-import feedbackRouter from "./modules/customer/feedback/feedback.routes";
+import reviewsRouter from "./modules/customer/reviews/reviews.routes";
+import profileRouter from "./modules/customer/profile/profile.routes";
 import notificationsRouter from "./modules/customer/notifications/notifications.routes";
+import feedbackRouter, {
+  feedbackAdminRouter,
+} from "./modules/customer/feedback/feedback.routes";
 
 const app = express();
 
-// ── Security ──────────────────────────────────────────────
+// ── Security ──────────────────────────────────────────────────────────────────
 app.use(helmet());
-
-const allowedOrigins = (process.env.CLIENT_URL || "http://localhost:5173")
-  .split(",")
-  .map((o) => o.trim());
 
 app.use(
   cors({
     origin: [
-      process.env.CLIENT_URL || "http://localhost:5173",
+      "http://localhost:5173",
       "http://localhost:5174",
       "http://localhost:5175",
       "http://localhost:5176",
@@ -57,8 +62,8 @@ app.use(
 );
 // Rate limit cho auth routes
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 phút
-  max: 1000000,
+  windowMs: 15 * 60 * 1000,
+  max: 1_000_000,
   message: {
     success: false,
     error: {
@@ -67,37 +72,49 @@ const authLimiter = rateLimit({
     },
   },
 });
-app.use("/api/auth", authLimiter);
 
-// ── Request Logging ────────────────────────────────────────
+// ── Request Logging ───────────────────────────────────────────────────────────
 app.use(requestLogger);
 
-// ── Routes ────────────────────────────────────────────────
+// ── Routes ───────────────────────────────────────────────────────────────────
+
+// Auth
 app.use("/api/auth", authLimiter, authRouter);
-app.use("/api/partner", partnerRouter); // protected
-app.use("/api/customer/search", searchRouter); // BR-CUS-03: search & filter, không cần auth
+
+// Partner
+app.use("/api/partner", partnerRouter);
+
+// Admin (base)
 app.use("/api/admin", adminRouter);
+
+// Customer — public content
 app.use("/api/vouchers", voucherRouter);
 app.use("/api/categories", categoryRouter);
 app.use("/api/banners", bannerRouter);
 app.use("/api/popups", popupRouter);
 app.use("/api/posts", postRouter);
+
+// Customer — authenticated
 app.use("/api/cart", cartRouter);
 app.use("/api/customer/profile", profileRouter);
 app.use("/api/customer/orders", ordersRouter);
 app.use("/api/customer/issued-vouchers", issuedVouchersRouter);
-app.use("/api/feedback", feedbackRouter);
+app.use("/api/customer/vouchers", reviewsRouter); // reviews GET + POST
 app.use("/api/customer/notifications", notificationsRouter);
 
-// Health check — test kết nối Supabase
-app.get("/api/health", (req, res) => {
+// Feedback — public (submit) + admin
+app.use("/api/feedback", feedbackRouter);
+app.use("/api/admin/feedback", feedbackAdminRouter);
+
+// ── Health check ──────────────────────────────────────────────────────────────
+app.get("/api/health", (_req, res) => {
   res.json({
     success: true,
     data: { status: "ok", timestamp: new Date().toISOString() },
   });
 });
 
-// ── Error Handler (phải ở cuối) ───────────────────────────
+// ── Error Handler ─────────────────────────────────────────────────────────────
 app.use(errorHandler);
 
 const PORT = Number(process.env.PORT) || 3000;

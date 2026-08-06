@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, Loader2 } from 'lucide-react';
-import { profileApi } from '../services/api';
+import { profileApi } from '../services';
 
 const NOTIFICATION_GROUPS = [
   {

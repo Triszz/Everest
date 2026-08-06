@@ -1,20 +1,36 @@
+/**
+ * Issued Voucher Service
+ * --------------------------------------------------------------
+ * Quản lý voucher đã phát hành (sau khi customer thanh toán đơn thành công).
+ * - List issued voucher của customer (filter theo status)
+ * - Chi tiết 1 issued voucher
+ *
+ * `isAvailable`: voucher còn dùng được (chưa dùng + voucher cha còn active).
+ */
 import { prisma } from "../../../config/prisma";
+import { Prisma } from "../../../generated/prisma/client";
+import { AppError } from "../../../middlewares/errorHandler";
 import type { IssuedVouchersQuery } from "./issued-vouchers.schemas";
+import { buildPagination } from "../shared";
 
 export const issuedVouchersService = {
+  /**
+   * Danh sách issued voucher của customer (chỉ lấy từ đơn đã Paid).
+   * Trả kèm `hasReviewed` để UI biết ẩn/hiện nút "Đánh giá".
+   */
   async listIssuedVouchers(customerId: string, query: IssuedVouchersQuery) {
     const { status, page, pageSize } = query;
-    const skip = (page - 1) * pageSize;
+    const { skip, pagination } = buildPagination(page, pageSize, 0);
 
-    const where: Record<string, unknown> = {
+    // Build where clause — status cần cast đúng enum type
+    const where: Prisma.IssuedVoucherWhereInput = {
       orderItem: {
-        order: {
-          customerId,
-          paymentStatus: "Paid",
-        },
+        order: { customerId, paymentStatus: "Paid" },
       },
     };
-    if (status) where.status = status;
+    if (status) {
+      where.status = status as Prisma.EnumVoucherUsageStatusFilter<"IssuedVoucher">;
+    }
 
     const [vouchers, total] = await Promise.all([
       prisma.issuedVoucher.findMany({
@@ -30,9 +46,7 @@ export const issuedVouchersService = {
                   expiryDays: true,
                   approvalStatus: true,
                   displayStatus: true,
-                  partner: {
-                    select: { companyName: true },
-                  },
+                  partner: { select: { companyName: true } },
                 },
               },
             },
@@ -52,7 +66,8 @@ export const issuedVouchersService = {
     return {
       vouchers: vouchers.map((iv) => {
         const v = iv.orderItem.voucher;
-        const isAvailable = v.approvalStatus === "Approved" && v.displayStatus === "Visible";
+        const isAvailable =
+          v.approvalStatus === "Approved" && v.displayStatus === "Visible";
         return {
           issuedVoucherId: iv.issuedVoucherId,
           voucherCode: iv.voucherCode,
@@ -72,42 +87,35 @@ export const issuedVouchersService = {
           },
         };
       }),
-      pagination: {
-        page,
-        pageSize,
-        total,
-        totalPages: Math.ceil(total / pageSize),
-      },
+      pagination: { ...pagination, total },
     };
   },
 
+  /**
+   * Chi tiết 1 issued voucher (kèm thông tin voucher cha + danh sách chi nhánh).
+   * Throw 404 nếu không thuộc customer.
+   */
   async getIssuedVoucher(customerId: string, issuedVoucherId: number) {
     const voucher = await prisma.issuedVoucher.findFirst({
       where: {
         issuedVoucherId,
-        orderItem: {
-          order: { customerId },
-        },
+        orderItem: { order: { customerId } },
       },
       include: {
         orderItem: {
           include: {
-              voucher: {
-                select: {
-                  voucherId: true,
-                  title: true,
-                  description: true,
-                  imageUrl: true,
-                  expiryDays: true,
-                  applicationCondition: true,
-                  approvalStatus: true,
-                  displayStatus: true,
-                  partner: {
-                    select: {
-                      companyName: true,
-                    },
-                  },
-                  voucherBranches: {
+            voucher: {
+              select: {
+                voucherId: true,
+                title: true,
+                description: true,
+                imageUrl: true,
+                expiryDays: true,
+                applicationCondition: true,
+                approvalStatus: true,
+                displayStatus: true,
+                partner: { select: { companyName: true } },
+                voucherBranches: {
                   select: {
                     branch: {
                       select: {
@@ -125,10 +133,13 @@ export const issuedVouchersService = {
       },
     });
 
-    if (!voucher) return null;
+    if (!voucher) {
+      throw new AppError("Không tìm thấy voucher", 404, "ISSUED_VOUCHER_NOT_FOUND");
+    }
 
     const v = voucher.orderItem.voucher;
-    const isAvailable = v.approvalStatus === "Approved" && v.displayStatus === "Visible";
+    const isAvailable =
+      v.approvalStatus === "Approved" && v.displayStatus === "Visible";
 
     return {
       issuedVoucherId: voucher.issuedVoucherId,

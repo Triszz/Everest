@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { authApi } from '../services/api';
+import { authApi } from '../services';
 
 export function SettingsPage() {
   const navigate = useNavigate();
