@@ -1,66 +1,67 @@
+/**
+ * Review Service
+ * --------------------------------------------------------------
+ * Quản lý đánh giá voucher của customer:
+ * - Tạo/cập nhật review (1 review / customer / voucher)
+ * - Danh sách review của 1 voucher
+ *
+ * Customer chỉ được review khi đã mua voucher (có issued voucher).
+ */
 import { prisma } from "../../../config/prisma";
 import { AppError } from "../../../middlewares/errorHandler";
 import type { CreateReviewInput } from "./reviews.schemas";
+import { buildPagination, CUSTOMER_MINI_SELECT } from "../shared";
 
 export const reviewsService = {
+  /**
+   * Tạo review mới, hoặc cập nhật nếu customer đã review voucher này rồi.
+   * Validate: voucher tồn tại + đã duyệt + customer đã mua (nếu truyền issuedVoucherId).
+   */
   async createReview(
     customerId: string,
     voucherId: number,
-    input: CreateReviewInput
+    input: CreateReviewInput,
   ) {
     const { rating, comment, issuedVoucherId } = input;
 
-    // Kiểm tra voucher tồn tại
     const voucher = await prisma.voucher.findUnique({
       where: { voucherId },
       select: { voucherId: true, title: true, approvalStatus: true },
     });
-
     if (!voucher) {
       throw new AppError("Không tìm thấy voucher", 404, "VOUCHER_NOT_FOUND");
     }
-
     if (voucher.approvalStatus !== "Approved") {
       throw new AppError("Voucher không khả dụng để đánh giá", 400, "VOUCHER_NOT_AVAILABLE");
     }
 
-    // Kiểm tra issuedVoucher nếu có (đảm bảo customer đã mua voucher này)
+    // Nếu có issuedVoucherId → verify customer đã mua
     if (issuedVoucherId) {
       const issued = await prisma.issuedVoucher.findFirst({
         where: {
           issuedVoucherId,
           orderItem: {
-            order: {
-              customerId,
-              paymentStatus: "Paid",
-            },
+            order: { customerId, paymentStatus: "Paid" },
             voucherId,
           },
         },
       });
-
       if (!issued) {
         throw new AppError("Bạn chưa mua voucher này", 403, "NOT_PURCHASED");
       }
     }
 
-    // Kiểm tra đã đánh giá chưa (1 review / voucher / customer)
+    // Đã review chưa? → update thay vì create
     const existing = await prisma.review.findFirst({
       where: { customerId, voucherId },
     });
 
     if (existing) {
-      // Update instead of create
       const updated = await prisma.review.update({
         where: { reviewId: existing.reviewId },
         data: { rating, comment },
-        include: {
-          customer: {
-            select: { userId: true, fullName: true },
-          },
-        },
+        include: { customer: { select: CUSTOMER_MINI_SELECT } },
       });
-
       return {
         reviewId: updated.reviewId,
         voucherId: updated.voucherId,
@@ -80,11 +81,7 @@ export const reviewsService = {
         rating,
         comment,
       },
-      include: {
-        customer: {
-          select: { userId: true, fullName: true },
-        },
-      },
+      include: { customer: { select: CUSTOMER_MINI_SELECT } },
     });
 
     return {
@@ -98,22 +95,22 @@ export const reviewsService = {
     };
   },
 
-  async listReviews(voucherId: number, page = 1, pageSize = 10) {
-    const skip = (page - 1) * pageSize;
+  /**
+   * Danh sách review của 1 voucher (public, có phân trang).
+   */
+  async listReviews(voucherId: number, page: number, pageSize: number) {
+    const where = { voucherId };
+    const { skip, pagination } = buildPagination(page, pageSize, 0);
 
     const [reviews, total] = await Promise.all([
       prisma.review.findMany({
-        where: { voucherId },
-        include: {
-          customer: {
-            select: { userId: true, fullName: true },
-          },
-        },
+        where,
+        include: { customer: { select: CUSTOMER_MINI_SELECT } },
         orderBy: { createdAt: "desc" },
         skip,
         take: pageSize,
       }),
-      prisma.review.count({ where: { voucherId } }),
+      prisma.review.count({ where }),
     ]);
 
     return {
@@ -126,12 +123,7 @@ export const reviewsService = {
         createdAt: r.createdAt,
         customer: r.customer,
       })),
-      pagination: {
-        page,
-        pageSize,
-        total,
-        totalPages: Math.ceil(total / pageSize),
-      },
+      pagination: { ...pagination, total },
     };
   },
 };

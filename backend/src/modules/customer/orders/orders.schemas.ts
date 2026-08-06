@@ -1,11 +1,11 @@
+/**
+ * Order Schemas
+ * --------------------------------------------------------------
+ * Zod schemas cho Orders API.
+ */
 import { z } from "zod";
 
-// ── Shared helpers ────────────────────────────────────────────────────────────
-
-const coerceToNumber = (msg: string) => z.coerce.number(msg);
-
-// ── Create order ────────────────────────────────────────────────────────────────
-
+/** POST /api/customer/orders — Tạo đơn (Pending). */
 export const createOrderSchema = z.object({
   buyerInfo: z.object({
     fullName: z.string().min(2, "Họ tên phải có ít nhất 2 ký tự"),
@@ -15,34 +15,42 @@ export const createOrderSchema = z.object({
   items: z
     .array(
       z.object({
-        voucherId: coerceToNumber("voucher_id phải là số").int("voucher_id phải là số nguyên"),
-        quantity: coerceToNumber("quantity phải là số").int("quantity phải là số nguyên").refine(
-          (val) => val > 0,
-          { message: "Số lượng phải lớn hơn 0" }
-        ),
-      })
+        voucherId: z.coerce.number("voucher_id phải là số").int().positive(),
+        quantity: z.coerce
+          .number("quantity phải là số")
+          .int()
+          .positive({ message: "Số lượng phải lớn hơn 0" }),
+      }),
     )
     .min(1, "Đơn hàng phải có ít nhất 1 voucher"),
   sendAsGift: z.boolean().optional().default(false),
-  // Optional: để cho tương lai mở rộng mã giảm giá
+  // Tương lai: mã giảm giá
   couponCode: z.string().optional(),
 });
 
-// ── Checkout ───────────────────────────────────────────────────────────────────
-
+/** POST /api/customer/orders/:orderId/checkout — Thanh toán mô phỏng. */
 export const checkoutSchema = z.object({
   paymentMethod: z.enum(["atm", "momo", "visa"]),
-  // Trong tương lai: thêm OTP verification, payment gateway response...
 });
 
-// ── Params ────────────────────────────────────────────────────────────────────
-
+/** Params cho /orders/:orderId */
 export const orderIdParam = z.object({
-  orderId: coerceToNumber("orderId phải là số").int("orderId phải là số nguyên"),
+  orderId: z.coerce.number("orderId phải là số").int().positive(),
 });
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+/** Query cho GET /api/customer/orders */
+export const listOrdersQuery = z.object({
+  page: z.coerce.number("page phải là số").int().positive().optional().default(1),
+  pageSize: z.coerce
+    .number("pageSize phải là số")
+    .int()
+    .positive()
+    .max(100)
+    .optional()
+    .default(10),
+});
 
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
 export type OrderIdParam = z.infer<typeof orderIdParam>;
+export type ListOrdersQuery = z.infer<typeof listOrdersQuery>;

@@ -109,7 +109,7 @@ export const categoryApi = {
 export const partnerApi = {
   /** Danh sách đối tác đã duyệt (cho dropdown filter). */
   list: async () => {
-    const res = await fetch(`${BASE_URL}/customer/search/partners`);
+    const res = await fetch(`${BASE_URL}/vouchers/search/partners`);
     return handleResponse<{ success: boolean; data: Partner[] }>(res);
   },
 };

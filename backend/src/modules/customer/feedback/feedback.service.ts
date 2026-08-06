@@ -1,8 +1,26 @@
+/**
+ * Feedback Service
+ * --------------------------------------------------------------
+ * Nghiệp vụ Feedback:
+ *
+ * Customer (public/auth):
+ *   - submit: gửi phản hồi/kiến nghị mới
+ *
+ * Admin (authenticate + roleGuard):
+ *   - list/listById/updateStatus
+ *
+ * Lưu ý: toàn bộ functions đều trong 1 file service vì
+ * Prisma model Feedback là DUY NHẤT. Admin/partner/customer
+ * chỉ khác nhau ở query WHERE (ai được phép truy cập).
+ */
 import { prisma } from "../../../config/prisma";
+import { AppError } from "../../../middlewares/errorHandler";
 import type { SubmitFeedbackInput } from "./feedback.schemas";
+import { buildPagination } from "../shared";
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
+// ── Helpers ─────────────────────────────────────────────────────────────────
 
+/** Sinh ticket ID ngẫu nhiên cho feedback. */
 function generateTicketId(): string {
   const prefix = "FBK";
   const timestamp = Date.now().toString(36).toUpperCase().slice(-5);
@@ -10,28 +28,37 @@ function generateTicketId(): string {
   return `${prefix}-${timestamp}-${rand}`.substring(0, 20);
 }
 
-// ── Service ────────────────────────────────────────────────────────────────────
+// ── Customer ─────────────────────────────────────────────────────────────────
 
 export const feedbackService = {
   /**
-   * Submit a new feedback/ticket.
-   * customerId is optional — guests can also submit (email required).
+   * Gửi phản hồi mới (customer hoặc guest).
+   * @param input Dữ liệu form feedback
+   * @param customerId Optional — nếu đã đăng nhập thì gắn vào feedback
+   * @param ipAddress IP của người gửi (để trace spam)
    */
-  async submit(input: SubmitFeedbackInput, customerId?: string, ipAddress?: string) {
+  async submit(
+    input: SubmitFeedbackInput,
+    customerId?: string,
+    ipAddress?: string,
+  ) {
     const { type, subject, message, email, phone, orderId, voucherCode } = input;
 
-    // Validate orderId if provided
+    // Nếu truyền orderId → verify đơn tồn tại + thuộc về customer
     if (orderId) {
       const order = await prisma.order.findUnique({
         where: { orderId },
         select: { orderId: true, customerId: true },
       });
       if (!order) {
-        throw new Error("Không tìm thấy đơn hàng này.");
+        throw new AppError("Không tìm thấy đơn hàng này", 400, "BAD_REQUEST");
       }
-      // If customer is logged in, verify they own the order
       if (customerId && order.customerId !== customerId) {
-        throw new Error("Bạn không có quyền phản hồi cho đơn hàng này.");
+        throw new AppError(
+          "Bạn không có quyền phản hồi cho đơn hàng này",
+          403,
+          "FORBIDDEN",
+        );
       }
     }
 
@@ -59,9 +86,10 @@ export const feedbackService = {
     };
   },
 
+  // ── Admin ─────────────────────────────────────────────────────────────────
+
   /**
-   * List feedbacks for admin.
-   * Returns paginated list with optional filters.
+   * Danh sách feedback cho admin (phân trang + filter).
    */
   async list(query: {
     status?: string;
@@ -70,7 +98,7 @@ export const feedbackService = {
     pageSize?: number;
   }) {
     const { status, type, page = 1, pageSize = 20 } = query;
-    const skip = (page - 1) * pageSize;
+    const { skip, pagination } = buildPagination(page, pageSize, 0);
 
     const where = {
       ...(status ? { status } : {}),
@@ -81,20 +109,8 @@ export const feedbackService = {
       prisma.feedback.findMany({
         where,
         include: {
-          customer: {
-            select: {
-              userId: true,
-              fullName: true,
-              email: true,
-            },
-          },
-          order: {
-            select: {
-              orderId: true,
-              totalAmount: true,
-              paymentStatus: true,
-            },
-          },
+          customer: { select: { userId: true, fullName: true, email: true } },
+          order: { select: { orderId: true, totalAmount: true, paymentStatus: true } },
         },
         orderBy: { createdAt: "desc" },
         skip,
@@ -116,69 +132,22 @@ export const feedbackService = {
         voucherCode: f.voucherCode,
         createdAt: f.createdAt,
         customer: f.customer
-          ? {
-              userId: f.customer.userId,
-              fullName: f.customer.fullName,
-              email: f.customer.email,
-            }
+          ? { userId: f.customer.userId, fullName: f.customer.fullName, email: f.customer.email }
           : null,
       })),
-      pagination: {
-        page,
-        pageSize,
-        total,
-        totalPages: Math.ceil(total / pageSize),
-      },
+      pagination: { ...pagination, total },
     };
   },
 
   /**
-   * Update feedback status (admin only).
-   */
-  async updateStatus(feedbackId: number, status: string) {
-    const ALLOWED = ["Open", "InProgress", "Resolved", "Closed"];
-    if (!ALLOWED.includes(status)) {
-      throw new Error("Trạng thái không hợp lệ.");
-    }
-
-    const feedback = await prisma.feedback.findUnique({
-      where: { feedbackId },
-    });
-
-    if (!feedback) {
-      throw new Error("Không tìm thấy phản hồi.");
-    }
-
-    const updated = await prisma.feedback.update({
-      where: { feedbackId },
-      data: { status },
-    });
-
-    return {
-      feedbackId: updated.feedbackId,
-      ticketId: updated.ticketId,
-      status: updated.status,
-    };
-  },
-
-  /**
-   * Get single feedback (admin).
+   * Chi tiết 1 feedback (admin).
    */
   async getById(feedbackId: number) {
     const feedback = await prisma.feedback.findUnique({
       where: { feedbackId },
       include: {
-        customer: {
-          select: { userId: true, fullName: true, email: true },
-        },
-        order: {
-          select: {
-            orderId: true,
-            totalAmount: true,
-            paymentStatus: true,
-            createdAt: true,
-          },
-        },
+        customer: { select: { userId: true, fullName: true, email: true } },
+        order: { select: { orderId: true, totalAmount: true, paymentStatus: true, createdAt: true } },
       },
     });
 
@@ -202,6 +171,32 @@ export const feedbackService = {
         ? { userId: feedback.customer.userId, fullName: feedback.customer.fullName }
         : null,
       order: feedback.order,
+    };
+  },
+
+  /**
+   * Cập nhật trạng thái feedback (admin).
+   */
+  async updateStatus(feedbackId: number, status: string) {
+    const ALLOWED = ["Open", "InProgress", "Resolved", "Closed"];
+    if (!ALLOWED.includes(status)) {
+      throw new AppError("Trạng thái không hợp lệ", 400, "BAD_REQUEST");
+    }
+
+    const feedback = await prisma.feedback.findUnique({ where: { feedbackId } });
+    if (!feedback) {
+      throw new AppError("Không tìm thấy phản hồi", 404, "NOT_FOUND");
+    }
+
+    const updated = await prisma.feedback.update({
+      where: { feedbackId },
+      data: { status },
+    });
+
+    return {
+      feedbackId: updated.feedbackId,
+      ticketId: updated.ticketId,
+      status: updated.status,
     };
   },
 };
