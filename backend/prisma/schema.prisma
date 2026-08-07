@@ -111,6 +111,7 @@ enum AuditTargetType {
   POST
   ORDER
   ADMIN
+  ISSUED_VOUCHER
 
   @@map("audit_target_type")
 }

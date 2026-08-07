@@ -516,7 +516,7 @@ export const adminService = {
     if (!partner) throw new AppError("Đối tác không tồn tại", 404, "NOT_FOUND");
 
     const result = await prisma.branch.create({
-      data: { partnerId, ...input },
+      data: { partnerId, ...input, phoneNumber: input.phoneNumber ?? "" },
       select: {
         branchId: true,
         branchName: true,
@@ -546,14 +546,13 @@ export const adminService = {
 
     const result = await prisma.branch.update({
       where: { branchId },
-      data: input,
+      data: { ...input, phoneNumber: input.phoneNumber ?? undefined },
       select: {
         branchId: true,
         branchName: true,
         address: true,
         phoneNumber: true,
         isLocked: true,
-        updatedAt: true,
       },
     });
 

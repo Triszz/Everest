@@ -12,24 +12,63 @@ import { AppError } from "../../../middlewares/errorHandler";
 import { emailService } from "../../auth/email.service";
 import type { CreateOrderInput, CheckoutInput } from "./orders.schemas";
 import { buildPagination } from "../shared";
+import crypto from "crypto";
 
 /**
  * Sinh mã voucher code duy nhất cho từng issued voucher.
- * Format: EVR-XXXX-YYYYNN (max 20 ký tự).
+ * Format : EVR-XXXX-XXXX  (prefix cố định + 8 ký tự ngẫu nhiên)
+ * Entropy : crypto.randomBytes + rejection sampling → 8 chars → log₂(56⁸) ≈ 45.6 bits
+ * Retry   : tối đa 3 lần nếu bị trùng @unique trong DB
  */
-function generateVoucherCode(voucherTitle: string, index: number): string {
-  const prefix = voucherTitle
-    .split(" ")
-    .filter((w) => w.length > 0)
-    .slice(0, 3)
-    .map((w) => w[0].toUpperCase())
-    .join("")
-    .substring(0, 4);
+/**
+ * Alphabet cho voucher code — 56 ký tự.
+ * Loại bỏ I, O (uppercase), i, l, o (lowercase) và 1 (digit) để tránh nhầm lẫn khi nhập tay.
+ * Alphabet này PHẢI khớp với VOUCHER_CODE_REGEX trong src/shared/utils/voucher-code.ts.
+ */
+const VOUCHER_CODE_CHARS =
+  "023456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz";
+const VOUCHER_CODE_ALPHABET_SIZE = VOUCHER_CODE_CHARS.length; // 56
+const VOUCHER_CODE_LENGTH = 8;
+const MAX_RETRY = 3;
 
-  const timestamp = Date.now().toString(36).toUpperCase().slice(-4);
-  const seq = String(index).padStart(2, "0");
+/**
+ * Sinh 8 ký tự ngẫu nhiên uniform (rejection sampling).
+ * Tránh modulo bias hoàn toàn.
+ */
+function generateVoucherCode(): string {
+  const result: string[] = [];
+  // 256 % 56 = 32, loại bỏ 32 giá trị byte (224-255) để đạt uniform distribution
+  const mask = VOUCHER_CODE_ALPHABET_SIZE * 4; // 224 — floor(256/56)*56
 
-  return `EVR-${prefix}-${timestamp}${seq}`.substring(0, 20);
+  for (let i = 0; i < VOUCHER_CODE_LENGTH; i++) {
+    let byte: number;
+    do {
+      byte = crypto.randomBytes(1)[0];
+    } while (byte >= mask); // rejection sampling
+    result.push(VOUCHER_CODE_CHARS[byte % VOUCHER_CODE_ALPHABET_SIZE]);
+  }
+
+  const raw = result.join("");
+  return `EVR-${raw.slice(0, 4)}-${raw.slice(4)}`;
+}
+
+/** Sinh code có retry trên @unique collision */
+async function generateUniqueVoucherCode(tx: {
+  issuedVoucher: { findUnique: (args: { where: { voucherCode: string } }) => Promise<unknown> };
+}): Promise<string> {
+  for (let attempt = 0; attempt < MAX_RETRY; attempt++) {
+    const code = generateVoucherCode();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const existing = await (tx as any).issuedVoucher.findUnique({
+      where: { voucherCode: code },
+    });
+    if (!existing) return code;
+  }
+  throw new AppError(
+    "Không thể sinh mã voucher duy nhất. Vui lòng thử lại.",
+    500,
+    "VOUCHER_CODE_GENERATION_FAILED",
+  );
 }
 
 const ORDER_ITEM_SELECT = {
@@ -230,7 +269,12 @@ export const ordersService = {
       const issuedVouchers = [];
       for (const item of order.orderItems) {
         for (let i = 0; i < item.quantity; i++) {
-          const code = generateVoucherCode(item.voucher.title, i + 1);
+          // Chuẩn hóa về UPPERCASE trước khi insert.
+          // Lý do: generator alphabet chứa cả chữ thường (a-z, không có i,l,o).
+          // PostgreSQL VARCHAR collation mặc định là case-sensitive,
+          // nên nếu insert giữ nguyên mixed-case, các query sau
+          // (findUnique với code đã normalize thành UPPERCASE) sẽ trả về NULL.
+          const code = (await generateUniqueVoucherCode(tx)).toUpperCase();
           const validTo = new Date();
           validTo.setDate(validTo.getDate() + (item.voucher.expiryDays || 30));
 
