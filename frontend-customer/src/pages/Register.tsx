@@ -38,14 +38,10 @@ export function RegisterPage() {
         phoneNumber: phone || undefined,
       });
 
-      if (response.success && response.data) {
-        // Lưu tokens vào localStorage
-        localStorage.setItem('access_token', response.data.accessToken);
-        localStorage.setItem('refresh_token', response.data.refreshToken);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-
-        // Chuyển hướng về trang chủ
-        navigate('/');
+      if (response.success && response.data?.user) {
+        // Đăng ký thành công — chuyển sang trang nhập OTP để xác thực email.
+        // KHÔNG lưu token ở đây vì user chưa verify.
+        navigate(`/verify-email?email=${encodeURIComponent(response.data.user.email)}`);
       }
     } catch (err: any) {
       setError(err.message || 'Đăng ký thất bại. Vui lòng thử lại.');
@@ -468,7 +464,7 @@ export function RegisterPage() {
               onMouseEnter={e => { if (!loading) e.currentTarget.style.background = '#0A5C87'; }}
               onMouseLeave={e => { if (!loading) e.currentTarget.style.background = '#0E76A8'; }}
             >
-              {loading ? 'Đang đăng ký...' : 'Đăng ký'}
+              {loading ? 'Đang đăng ký...' : 'Đăng ký & nhận mã xác thực'}
             </button>
           </form>
 

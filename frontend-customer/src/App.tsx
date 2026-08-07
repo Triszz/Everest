@@ -5,6 +5,7 @@ import { LoginPage } from './pages/Login';
 import { RegisterPage } from './pages/Register';
 import { ForgotPasswordPage } from './pages/ForgotPassword';
 import { LogoutSuccessPage } from './pages/LogoutSuccess';
+import { VerifyEmailPage } from './pages/VerifyEmail';
 import { VoucherDetail } from './components/VoucherDetail';
 import { CartPage } from './pages/Cart';
 import { MyVoucher } from './pages/MyVoucher';
@@ -48,6 +49,7 @@ function App() {
           />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/logout" element={<LogoutSuccessPage />} />

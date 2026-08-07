@@ -39,6 +39,19 @@ export interface ApiError {
   error: { message: string; code: string };
 }
 
+/**
+ * Custom Error class giữ thêm `code` (mã lỗi từ backend) để frontend
+ * phân nhánh xử lý (VD: redirect khi EMAIL_NOT_VERIFIED).
+ */
+export class ApiResponseError extends Error {
+  code: string;
+  constructor(message: string, code: string) {
+    super(message);
+    this.name = "ApiResponseError";
+    this.code = code;
+  }
+}
+
 // ── Token storage ───────────────────────────────────────────────────
 // Dùng localStorage để persist qua refresh trang.
 // Key trùng với convention của các module khác trong repo.
@@ -176,7 +189,9 @@ export const handleResponse = async <T>(res: Response): Promise<T> => {
   const json = await res.json();
   if (!res.ok) {
     const err = json as ApiError;
-    throw new Error(err.error?.message || "API Error");
+    const message = err.error?.message || "API Error";
+    const code = err.error?.code || "API_ERROR";
+    throw new ApiResponseError(message, code);
   }
   return json as T;
 };
