@@ -126,6 +126,8 @@ model User {
   role         UserRole      @default(Customer)
   status       AccountStatus @default(Active)
   partnerId    Int?          @map("partner_id")
+  emailVerified    Boolean    @default(false) @map("email_verified")
+  emailVerifiedAt  DateTime?  @map("email_verified_at") @db.Timestamptz
   createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz
   updatedAt    DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
 
@@ -137,6 +139,7 @@ model User {
   logs                    AdminAuditLog[] @relation("AuditLogs")
   feedbacks               Feedback[]
   passwordResets          PasswordReset[]
+  emailOtps               EmailOtp[]
   notificationPreferences NotificationPreference[]
   sessions                UserSession[]
   posts                   Post[]                   @relation("PostAuthor")
@@ -412,6 +415,32 @@ model PasswordReset {
   user User @relation(fields: [userId], references: [userId], onDelete: Cascade)
 
   @@map("password_resets")
+}
+
+enum OtpPurpose {
+  REGISTER_VERIFY
+  RESET_PASSWORD
+  TWO_FA_LOGIN
+
+  @@map("otp_purpose")
+}
+
+model EmailOtp {
+  otpId      Int        @id @default(autoincrement()) @map("otp_id")
+  userId     String?    @map("user_id") @db.Uuid
+  email      String     @map("email") @db.VarChar(100)
+  codeHash   String     @map("code_hash") @db.VarChar(255)
+  purpose    OtpPurpose @default(REGISTER_VERIFY)
+  attempts   Int        @default(0) @map("attempts")
+  expiresAt  DateTime   @map("expires_at") @db.Timestamptz
+  consumedAt DateTime?  @map("consumed_at") @db.Timestamptz
+  ipAddress  String?    @map("ip_address") @db.VarChar(45)
+  createdAt  DateTime   @default(now()) @map("created_at") @db.Timestamptz
+
+  user User? @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@index([email, purpose, consumedAt])
+  @@map("email_otps")
 }
 
 model NotificationPreference {

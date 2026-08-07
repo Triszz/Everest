@@ -31,6 +31,7 @@ export {
   getRefreshToken,
   setTokens,
   clearTokens,
+  ApiResponseError,
   BASE_URL,
 } from "./http";
 

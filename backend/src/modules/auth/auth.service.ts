@@ -8,6 +8,7 @@ import type {
   RegisterCustomerInput,
   RegisterPartnerInput,
 } from "./auth.schemas";
+import { emailOtpService } from "./email-otp.service";
 
 const SALT_ROUNDS = 12;
 
@@ -238,6 +239,16 @@ export const authService = {
       throw new AppError("Tài khoản đã bị khóa", 403, "FORBIDDEN");
     }
 
+    // Customer bắt buộc verify email trước khi đăng nhập.
+    // Admin và Partner (Owner/Cashier) có thể được admin tạo trực tiếp nên không bắt buộc.
+    if (user.role === "Customer" && !user.emailVerified) {
+      throw new AppError(
+        "Vui lòng xác thực email trước khi đăng nhập. Kiểm tra hộp thư để nhận mã OTP.",
+        403,
+        "EMAIL_NOT_VERIFIED",
+      );
+    }
+
     const valid = await bcrypt.compare(input.password, user.passwordHash);
     if (!valid)
       throw new AppError("Email hoặc mật khẩu không đúng", 401, "UNAUTHORIZED");
@@ -298,24 +309,26 @@ export const authService = {
         phoneNumber: input.phoneNumber,
         role: "Customer",
         status: "Active",
+        emailVerified: false, // chờ OTP verify
       },
     });
 
-    const payload: JwtPayload = {
-      userId: user.userId,
-      email: user.email,
-      role: "Customer",
-    };
+    // Gửi OTP verify (fail throw nhẹ không chặn register — user vẫn có thể bấm resend)
+    try {
+      await emailOtpService.sendOtp(user.email, "REGISTER_VERIFY", undefined, user.userId);
+    } catch (err) {
+      console.error("[registerCustomer] Gửi OTP thất bại:", err);
+    }
 
+    // Không cấp token ngay — user phải verify OTP mới login được.
     return {
-      accessToken: signAccessToken(payload),
-      refreshToken: signRefreshToken(user.userId),
       user: {
         userId: user.userId,
         email: user.email,
         fullName: user.fullName,
         role: user.role,
         status: user.status,
+        emailVerified: user.emailVerified,
       },
     };
   },
@@ -423,6 +436,15 @@ export const authService = {
       "Không thể làm mới phiên đăng nhập",
       401,
       "UNAUTHORIZED",
+    );
+  }
+
+  // Customer chưa verify email thì không cấp token mới
+  if (user.role === "Customer" && !user.emailVerified) {
+    throw new AppError(
+      "Vui lòng xác thực email trước khi tiếp tục sử dụng.",
+      403,
+      "EMAIL_NOT_VERIFIED",
     );
   }
 
