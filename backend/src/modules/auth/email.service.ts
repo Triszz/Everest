@@ -87,6 +87,99 @@ function buildHtml(p: OtpEmailParams): string {
 </html>`;
 }
 
+export type OrderEmailParams = {
+  to: string;
+  customerName: string;
+  orderId: number;
+  totalAmount: number;
+  paymentMethod: string;
+  items: Array<{
+    title: string;
+    partner: string;
+    quantity: number;
+    price: number;
+    voucherCodes: string[];
+    validFrom: Date;
+    validTo: Date;
+  }>;
+};
+
+function buildOrderHtml(p: OrderEmailParams): string {
+  const fmt = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" });
+
+  const itemsHtml = p.items
+    .map(
+      (item) => `
+      <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:12px;padding:16px;margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">
+          <div>
+            <p style="margin:0;font-size:14px;font-weight:700;color:#1E293B">${item.title}</p>
+            <p style="margin:4px 0 0;font-size:12px;color:#64748B">${item.partner}</p>
+          </div>
+          <div style="text-align:right">
+            <p style="margin:0;font-size:14px;font-weight:700;color:#1E293B">${fmt.format(item.price * item.quantity)}</p>
+            <p style="margin:4px 0 0;font-size:12px;color:#64748B">× ${item.quantity}</p>
+          </div>
+        </div>
+        <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:10px 14px">
+          <p style="margin:0 0 6px;font-size:11px;font-weight:600;color:#1D4ED8;text-transform:uppercase;letter-spacing:0.5px">Mã voucher</p>
+          ${item.voucherCodes
+            .map(
+              (code) => `
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+              <span style="font-family:'Courier New',monospace;font-size:15px;font-weight:700;color:#0E76A8;letter-spacing:1px">${code}</span>
+            </div>
+          `,
+            )
+            .join("")}
+          <p style="margin:8px 0 0;font-size:11px;color:#64748B">
+            Hiệu lực: ${new Date(item.validFrom).toLocaleDateString("vi-VN")} → ${new Date(item.validTo).toLocaleDateString("vi-VN")}
+          </p>
+        </div>
+      </div>
+    `,
+    )
+    .join("");
+
+  return `<!DOCTYPE html>
+<html lang="vi">
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#F8FAFC;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1E293B">
+  <div style="max-width:560px;margin:40px auto;background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 12px rgba(15,23,42,0.06)">
+    <div style="background:linear-gradient(135deg,#0E76A8 0%,#1A8FC0 100%);padding:32px 24px;text-align:center">
+      <h1 style="margin:0;color:white;font-size:22px;font-weight:800">Thanh toán thành công!</h1>
+      <p style="margin:8px 0 0;font-size:14px;color:rgba(255,255,255,0.85)">Cảm ơn bạn đã mua voucher tại Everest</p>
+    </div>
+    <div style="padding:32px 24px">
+      <p style="font-size:15px;line-height:1.6;color:#475569;margin:0 0 24px">
+        Xin chào <strong style="color:#1E293B">${p.customerName}</strong>!
+        Chúng tôi đã nhận thanh toán cho đơn hàng <strong style="color:#0E76A8">#${p.orderId}</strong>.
+        Dưới đây là thông tin voucher của bạn:
+      </p>
+      ${itemsHtml}
+      <div style="background:#F1F5F9;border-radius:12px;padding:16px 20px;margin-top:8px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+          <span style="font-size:13px;color:#64748B">Phương thức thanh toán</span>
+          <span style="font-size:13px;font-weight:600;color:#1E293B">${p.paymentMethod.toUpperCase()}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;border-top:1px solid #E2E8F0;padding-top:12px;margin-top:4px">
+          <span style="font-size:16px;font-weight:700;color:#1E293B">Tổng cộng</span>
+          <span style="font-size:18px;font-weight:800;color:#0E76A8">${fmt.format(p.totalAmount)}</span>
+        </div>
+      </div>
+      <p style="font-size:13px;color:#94A3B8;margin:24px 0 0;line-height:1.5">
+        Hãy lưu lại các mã voucher bên trên. Bạn có thể xem lại đơn hàng và mã voucher tại trang
+        <strong>Đơn hàng của tôi</strong> trong ứng dụng Everest bất cứ lúc nào.
+      </p>
+    </div>
+    <div style="background:#F8FAFC;padding:16px 24px;text-align:center;border-top:1px solid #E2E8F0">
+      <p style="margin:0;font-size:12px;color:#94A3B8">© Everest — Nền tảng voucher & ưu đãi</p>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
 export const emailService = {
   /** Gửi mã OTP qua Gmail. Trả về true nếu thành công. */
   async sendOtp({ to, code, ttlMinutes, purpose }: OtpEmailParams): Promise<boolean> {
@@ -114,6 +207,31 @@ export const emailService = {
       // Vẫn in OTP ra console để dev debug được
       console.log(`[email.service] DEV fallback OTP for ${to}: ${code}`);
       return false;
+    }
+  },
+
+  /**
+   * Gửi email xác nhận đơn hàng sau khi thanh toán thành công.
+   * Chứa mã voucher, thông tin voucher, tổng tiền.
+   * Không throw — lỗi gửi email không được coi là thất bại thanh toán.
+   */
+  async sendOrderConfirmation(params: OrderEmailParams): Promise<void> {
+    const t = getTransporter();
+
+    if (!t) {
+      console.log("\n📧 [DEV EMAIL] Xác nhận đơn hàng:\n", JSON.stringify(params, null, 2));
+      return;
+    }
+
+    try {
+      await t.sendMail({
+        from: FROM,
+        to: params.to,
+        subject: `Xác nhận thanh toán đơn hàng #${params.orderId} — Everest`,
+        html: buildOrderHtml(params),
+      });
+    } catch (err) {
+      console.error("[email.service] Gửi email xác nhận đơn hàng thất bại:", err);
     }
   },
 };

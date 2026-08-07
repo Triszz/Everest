@@ -9,6 +9,7 @@
  */
 import { prisma } from "../../../config/prisma";
 import { AppError } from "../../../middlewares/errorHandler";
+import { emailService } from "../../auth/email.service";
 import type { CreateOrderInput, CheckoutInput } from "./orders.schemas";
 import { buildPagination } from "../shared";
 
@@ -170,6 +171,7 @@ export const ordersService = {
     const order = await prisma.order.findFirst({
       where: { orderId, customerId },
       include: {
+        customer: { select: { email: true, fullName: true } },
         orderItems: {
           include: {
             voucher: {
@@ -260,6 +262,53 @@ export const ordersService = {
 
       return { updatedOrder, issuedVouchers };
     });
+
+    // Gửi email xác nhận (không blocking — không ảnh hưởng kết quả thanh toán)
+    const customerEmail = order.customer?.email;
+    const customerName = order.customer?.fullName || "Khách hàng";
+    if (customerEmail) {
+      // Map price về từ orderItems (issuedVouchers không chứa price)
+      const priceByVoucher = new Map(
+        order.orderItems.map((oi) => [oi.voucher.title, Number(oi.price)]),
+      );
+
+      emailService.sendOrderConfirmation({
+        to: customerEmail,
+        customerName,
+        orderId,
+        totalAmount: Number(order.totalAmount),
+        paymentMethod: paymentMethod || "unknown",
+        items: result.issuedVouchers.reduce<Array<{
+          title: string;
+          partner: string;
+          quantity: number;
+          price: number;
+          voucherCodes: string[];
+          validFrom: Date;
+          validTo: Date;
+        }>>((acc, iv) => {
+          const existing = acc.find(
+            (a) =>
+              a.title === iv.voucher.title &&
+              a.partner === iv.voucher.partner,
+          );
+          if (existing) {
+            existing.voucherCodes.push(iv.voucherCode);
+          } else {
+            acc.push({
+              title: iv.voucher.title,
+              partner: iv.voucher.partner || "",
+              quantity: 1,
+              price: priceByVoucher.get(iv.voucher.title) || 0,
+              voucherCodes: [iv.voucherCode],
+              validFrom: iv.validFrom,
+              validTo: iv.validTo,
+            });
+          }
+          return acc;
+        }, []),
+      });
+    }
 
     return {
       orderId: result.updatedOrder.orderId,
