@@ -1,9 +1,11 @@
 import { Router } from "express";
 import { partnerController } from "./partner.controller";
 import { reportsController } from "./reports.controller";
+import { getDashboardStats } from "./dashboard/dashboard.controller";
 import { authenticate } from "../../middlewares/authenticate";
 import { roleGuard } from "../../middlewares/roleGuard";
 import voucherRouter from "../vouchers/voucher.routes";
+import redemptionRouter from "./redemption/redemption.routes";
 
 const router = Router();
 
@@ -16,6 +18,16 @@ router.get(
   roleGuard("Partner_Owner", "Partner_Cashier"),
   partnerController.getSettings,
 );
+
+// Dashboard: shared by both Owner and Cashier
+router.get(
+  "/dashboard/stats",
+  roleGuard("Partner_Owner", "Partner_Cashier"),
+  getDashboardStats,
+);
+
+// Redemption — shared by Owner and Cashier (role guard inside redemption.routes)
+router.use("/redemption", redemptionRouter);
 
 // ── Owner-only routes ──────────────────────────────────────────────────────────
 router.use(roleGuard("Partner_Owner"));
