@@ -2,11 +2,13 @@ import { useState, useEffect } from "react";
 import { apiGetStatusDistribution } from "../services/report.service";
 import type { ReportFilters, StatusDistributionData } from "../types/report";
 
-// Clearing stale data immediately when filters change is intentional UX —
-// old data must not linger while new data is being fetched.
-export function useStatusDistribution(filters: ReportFilters) {
+/**
+ * Status distribution hook với hỗ trợ refresh qua `refreshKey`.
+ */
+export function useStatusDistribution(filters: ReportFilters, refreshKey?: number) {
   const [data, setData] = useState<StatusDistributionData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -14,10 +16,16 @@ export function useStatusDistribution(filters: ReportFilters) {
 
     setData(null);
     setLoading(true);
+    setError(null);
 
     apiGetStatusDistribution(filters)
       .then((res) => { if (!cancelled) setData(res); })
-      .catch(() => { if (!cancelled) setData(null); })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          const msg = err instanceof Error ? err.message : "Không thể cập nhật dữ liệu báo cáo. Vui lòng thử lại.";
+          setError(msg);
+        }
+      })
       .finally(() => { if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
@@ -25,8 +33,9 @@ export function useStatusDistribution(filters: ReportFilters) {
     filters.datePreset,
     filters.fromDate,
     filters.toDate,
+    refreshKey,
   ]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  return { data, loading };
+  return { data, loading, error };
 }
