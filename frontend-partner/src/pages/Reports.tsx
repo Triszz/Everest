@@ -72,6 +72,16 @@ export function ReportsPage() {
   const [tableSearch, setTableSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
+  // ── Refresh state ─────────────────────────────────────────────────────────
+  // refreshKey dùng làm dependency trigger cho tất cả hooks.
+  // Mỗi lần user bấm "Làm mới", key tăng → useEffect re-run → fetch fresh data.
+  // Filter KHÔNG bị reset.
+  const [refreshKey, setRefreshKey] = useState(0);
+  // isRefreshing = true khi user đã bấm refresh (key > 0) và hooks đang loading.
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  // Error message hiển thị khi refresh thất bại.
+  const [refreshError, setRefreshError] = useState<string | null>(null);
+
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(tableSearch), 400);
     return () => clearTimeout(timer);
@@ -85,13 +95,44 @@ export function ReportsPage() {
   }), [datePreset, fromDate, toDate]);
 
   // ── Independent data hooks ─────────────────────────────────────────────────
-  const { data: kpis, loading: loadingKPIs } = useReportKPIs(filters);
-  const { data: perfChart, loading: loadingPerf } = useVoucherPerformance(filters);
-  const { data: statusChart, loading: loadingStatus } = useStatusDistribution(filters);
-  const { data: revenueChart, loading: loadingRevenue } = useRevenueChart(filters, granularity);
-  const { data: tableData, loading: loadingTable } = useVoucherTable(
-    filters, tablePage, tableSortBy, tableSortOrder, debouncedSearch,
+  // Tất cả hooks nhận refreshKey để trigger re-fetch khi user bấm "Làm mới".
+  // Filter HIỆN TẠI được giữ nguyên.
+  const { data: kpis, loading: loadingKPIs, error: errorKPIs } = useReportKPIs(filters, refreshKey);
+  const { data: perfChart, loading: loadingPerf, error: errorPerf } = useVoucherPerformance(filters, refreshKey);
+  const { data: statusChart, loading: loadingStatus, error: errorStatus } = useStatusDistribution(filters, refreshKey);
+  const { data: revenueChart, loading: loadingRevenue, error: errorRevenue } = useRevenueChart(filters, granularity, refreshKey);
+  const { data: tableData, loading: loadingTable, error: errorTable } = useVoucherTable(
+    filters, tablePage, tableSortBy, tableSortOrder, debouncedSearch, refreshKey,
   );
+
+  // ── Refresh UX: sync error from hooks into page-level refreshError ────────────
+  // Sync first error from any hook into the refreshError state.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const firstError = errorKPIs ?? errorPerf ?? errorStatus ?? errorRevenue ?? errorTable;
+    if (firstError && refreshKey > 0) {
+      setRefreshError(firstError);
+    }
+  }, [errorKPIs, errorPerf, errorStatus, errorRevenue, errorTable, refreshKey]);
+
+  // ── Refresh UX: set isRefreshing=true when user initiates refresh ─────────────────
+  // Only triggers when refreshKey changes from 0 to > 0 (not on initial mount).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (refreshKey > 0) {
+      setIsRefreshing(true);
+    }
+  }, [refreshKey]);
+
+  // ── Refresh UX: track when ALL hooks finish loading ───────────────────────────
+  // isRefreshing flips back to false when ALL hooks finish loading after a refresh.
+  useEffect(() => {
+    if (!loadingKPIs && !loadingPerf && !loadingStatus && !loadingRevenue && !loadingTable) {
+      if (refreshKey > 0) {
+        setIsRefreshing(false);
+      }
+    }
+  }, [loadingKPIs, loadingPerf, loadingStatus, loadingRevenue, loadingTable, refreshKey]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   // Preset change: applied immediately (Hôm nay / 7 ngày / ...).
@@ -131,15 +172,22 @@ export function ReportsPage() {
     setTablePage(page);
   };
 
+  /**
+   * "Làm mới" — KHÔNG reset filter, chỉ trigger re-fetch.
+   *
+   * Cơ chế: tăng refreshKey → useEffect trong tất cả 5 hooks re-run
+   * với filter HIỆN TẠI → fetch fresh data.
+   *
+   * Reset table page về 1 để đảm bảo UX consistent.
+   * Reset sort/search về default để tránh mismatch với new data.
+   */
   const handleRefresh = () => {
-    setDatePreset("last30days");
-    setFromDate(undefined);
-    setToDate(undefined);
-    setGranularity("day");
     setTablePage(1);
     setTableSortBy("revenue");
     setTableSortOrder("desc");
     setTableSearch("");
+    // Tăng key để trigger re-fetch ở TẤT CẢ hooks
+    setRefreshKey((k) => k + 1);
   };
 
   return (
@@ -171,33 +219,65 @@ export function ReportsPage() {
               </p>
             </div>
 
-            <button
-              onClick={handleRefresh}
-              style={{
-                display: "inline-flex", alignItems: "center", gap: 6,
-                padding: "10px 16px",
-                border: `1.5px solid ${C.border}`, borderRadius: 10,
-                background: "white",
-                fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600,
-                color: C.textSecondary, cursor: "pointer", transition: "all 0.2s",
-              }}
-              onMouseEnter={e => {
-                const b = e.currentTarget;
-                b.style.borderColor = C.primary;
-                b.style.color = C.primary;
-              }}
-              onMouseLeave={e => {
-                const b = e.currentTarget;
-                b.style.borderColor = C.border;
-                b.style.color = C.textSecondary;
-              }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="23 4 23 10 17 10" />
-                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-              </svg>
-              Làm mới
-            </button>
+            {/* Refresh button với loading/error UX */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {/* Error toast: hiển thị khi refresh thất bại */}
+              {refreshError && (
+                <span style={{
+                  fontFamily: "Inter, sans-serif", fontSize: 12, color: "#EF4444",
+                  fontWeight: 500,
+                }}>
+                  {refreshError}
+                </span>
+              )}
+              <button
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                title={isRefreshing ? "Đang làm mới..." : "Làm mới dữ liệu"}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                  padding: "10px 16px",
+                  border: `1.5px solid ${isRefreshing ? C.primary : C.border}`,
+                  borderRadius: 10,
+                  background: isRefreshing ? "#E8F4FA" : "white",
+                  fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600,
+                  color: isRefreshing ? C.primary : C.textSecondary,
+                  cursor: isRefreshing ? "not-allowed" : "pointer",
+                  transition: "all 0.2s",
+                  opacity: isRefreshing ? 0.8 : 1,
+                }}
+                onMouseEnter={e => {
+                  if (!isRefreshing) {
+                    const b = e.currentTarget;
+                    b.style.borderColor = C.primary;
+                    b.style.color = C.primary;
+                  }
+                }}
+                onMouseLeave={e => {
+                  if (!isRefreshing) {
+                    const b = e.currentTarget;
+                    b.style.borderColor = C.border;
+                    b.style.color = C.textSecondary;
+                  }
+                }}
+              >
+                {/* Spinning icon khi loading */}
+                <svg
+                  width="16" height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  style={{
+                    animation: isRefreshing ? "spin 1s linear infinite" : "none",
+                  }}
+                >
+                  <polyline points="23 4 23 10 17 10" />
+                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                </svg>
+                {isRefreshing ? "Đang làm mới" : "Làm mới"}
+              </button>
+            </div>
           </div>
 
           {/* ── Toolbar: Date filter ──────────────────────────────────── */}

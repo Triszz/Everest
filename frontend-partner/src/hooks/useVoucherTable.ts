@@ -6,17 +6,23 @@ import type {
   VoucherSortBy,
 } from "../types/report";
 
-// Clearing stale data immediately when filters/sort/page change is intentional UX —
-// old data must not linger while new data is being fetched.
+/**
+ * Voucher table hook với hỗ trợ refresh qua `refreshKey`.
+ *
+ * Khi refreshKey thay đổi → re-fetch với filter/page/sort/search HIỆN TẠI.
+ * Filter KHÔNG bị reset.
+ */
 export function useVoucherTable(
   filters: ReportFilters,
   page: number,
   sortBy: VoucherSortBy,
   sortOrder: "asc" | "desc",
   debouncedSearch: string,
+  refreshKey?: number,
 ) {
   const [data, setData] = useState<VoucherReportData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -24,6 +30,7 @@ export function useVoucherTable(
 
     setData(null);
     setLoading(true);
+    setError(null);
 
     apiGetVoucherReportTable({
       datePreset: filters.datePreset,
@@ -36,7 +43,12 @@ export function useVoucherTable(
       search: debouncedSearch,
     })
       .then((res) => { if (!cancelled) setData(res); })
-      .catch(() => { if (!cancelled) setData(null); })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          const msg = err instanceof Error ? err.message : "Không thể cập nhật dữ liệu báo cáo. Vui lòng thử lại.";
+          setError(msg);
+        }
+      })
       .finally(() => { if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
@@ -48,8 +60,9 @@ export function useVoucherTable(
     sortBy,
     sortOrder,
     debouncedSearch,
+    refreshKey,
   ]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  return { data, loading };
+  return { data, loading, error };
 }
