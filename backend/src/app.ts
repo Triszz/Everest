@@ -30,6 +30,7 @@ import notificationsRouter from "./modules/customer/notifications/notifications.
 import feedbackRouter, {
   feedbackAdminRouter,
 } from "./modules/customer/feedback/feedback.routes";
+import paymentRouter from "./modules/customer/payment/payment.routes";
 
 const app = express();
 
@@ -98,6 +99,7 @@ app.use("/api/posts", postRouter);
 app.use("/api/cart", cartRouter);
 app.use("/api/customer/profile", profileRouter);
 app.use("/api/customer/orders", ordersRouter);
+app.use("/api/customer/payment", paymentRouter);
 app.use("/api/customer/issued-vouchers", issuedVouchersRouter);
 app.use("/api/customer/vouchers", reviewsRouter); // reviews GET + POST
 app.use("/api/customer/notifications", notificationsRouter);

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
-import { cartApi, orderApi, profileApi } from '../services';
+import { cartApi, orderApi, profileApi, paymentApi } from '../services';
 import type { CartItem } from '../services';
 import { formatPrice } from '../utils';
 import Loading from '../components/Loading';
@@ -119,7 +119,7 @@ export function Checkout() {
 
     setSubmitting(true);
     try {
-      // ── Step 1: create order ──
+      // ── Step 1: create order (Pending) ──
       const createRes = await orderApi.create({
         buyerInfo,
         items: cartItems.map(item => ({
@@ -133,18 +133,21 @@ export function Checkout() {
         throw new Error(createRes.error?.message || 'Không thể tạo đơn hàng.');
       }
 
-      // ── Step 2: checkout / payment ──
-      const checkoutRes = await orderApi.checkout(createRes.data.orderId, {
-        paymentMethod,
-      });
+      const orderId = createRes.data.orderId;
 
-      if (!checkoutRes.success) {
-        throw new Error(checkoutRes.error?.message || 'Thanh toán thất bại.');
+      // ── Step 2: tạo URL thanh toán VNPAY ──
+      const paymentRes = await paymentApi.create(orderId);
+
+      if (!paymentRes.success || !paymentRes.data?.paymentUrl) {
+        throw new Error(paymentRes.error?.message || 'Không thể tạo liên kết thanh toán.');
       }
 
-      // ── Step 3: clear cart & redirect ──
-      await cartApi.clearCart();
-      navigate(`/checkout/success?orderId=${createRes.data.orderId}`);
+      // ── Step 3: clear cart trước khi redirect (tránh user back lại) ──
+      cartApi.clearCart().catch(() => { /* ignore — không chặn payment */ });
+
+      // ── Step 4: redirect sang VNPAY sandbox ──
+      // Sau khi thanh toán, VNPAY redirect về VNP_RETURN_URL (/payment/return)
+      window.location.href = paymentRes.data.paymentUrl;
     } catch (err: any) {
       alert(err.message || 'Đã xảy ra lỗi. Vui lòng thử lại.');
       setSubmitting(false);
@@ -369,9 +372,9 @@ export function Checkout() {
               onMouseLeave={e => { if (!submitting) e.currentTarget.style.background = '#0E76A8'; }}
             >
               {submitting ? (
-                <><Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> Đang xử lý...</>
+                <><Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> Đang chuyển đến VNPAY...</>
               ) : (
-                <><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> THANH TOÁN NGAY</>
+                <><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> THANH TOÁN QUA VNPAY</>
               )}
             </button>
 
