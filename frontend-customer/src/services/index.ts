@@ -16,6 +16,7 @@
 export { voucherApi, categoryApi, partnerApi } from "./voucherApi";
 export { cartApi } from "./cartApi";
 export { orderApi } from "./orderApi";
+export { paymentApi } from "./paymentApi";
 export { authApi } from "./authApi";
 export { profileApi } from "./profileApi";
 export { reviewApi } from "./reviewApi";
@@ -62,6 +63,8 @@ export type {
   CreateOrderPayload,
   CreateOrderResponse,
   CheckoutResponse,
+  CreatePaymentResponse,
+  PaymentReturnInfo,
   FeedbackPayload,
   FeedbackSubmitResponse,
 } from "./types";

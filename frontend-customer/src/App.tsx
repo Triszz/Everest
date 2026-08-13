@@ -10,6 +10,7 @@ import { VoucherDetail } from './components/VoucherDetail';
 import { CartPage } from './pages/Cart';
 import { MyVoucher } from './pages/MyVoucher';
 import { Checkout } from './pages/Checkout';
+import { PaymentReturn } from './pages/PaymentReturn';
 import { OrderSuccessPage } from './pages/OrderSuccess';
 import { OrdersPage } from './pages/Orders';
 import { Rewards } from './pages/Rewards';
@@ -59,6 +60,7 @@ function App() {
           <Route path="/cart" element={<CartPage />} />
           <Route path="/my-voucher" element={<MyVoucher />} />
           <Route path="/checkout" element={<Checkout />} />
+          <Route path="/payment/return" element={<PaymentReturn />} />
           <Route path="/checkout/success" element={<OrderSuccessPage />} />
           <Route path="/orders" element={<OrdersPage />} />
           <Route path="/rewards" element={<Rewards />} />

@@ -286,6 +286,20 @@ export interface CheckoutResponse {
   }[];
 }
 
+// ── Payment (VNPAY) ───────────────────────────────────────────────
+
+export interface CreatePaymentResponse {
+  paymentUrl: string;
+  orderId: number;
+}
+
+export interface PaymentReturnInfo {
+  isSuccess: boolean;
+  isVerified: boolean;
+  orderId: number;
+  message: string;
+}
+
 // ── Feedback ────────────────────────────────────────────────────────
 
 export interface FeedbackPayload {
