@@ -96,10 +96,17 @@ export const ordersService = {
    * KHÔNG trừ tồn kho ở bước này (chờ checkout).
    */
   async createOrder(customerId: string, input: CreateOrderInput) {
-    const { buyerInfo, items, sendAsGift } = input;
+    const { buyerInfo, items, sendAsGift, receiverEmail, giftMessage } = input;
 
     if (items.length === 0) {
       throw new AppError("Đơn hàng phải có ít nhất 1 voucher", 400, "EMPTY_ORDER");
+    }
+
+    // Validate receiver info when gifting
+    if (sendAsGift) {
+      if (!receiverEmail) {
+        throw new AppError("Email người nhận là bắt buộc khi tặng quà", 400, "MISSING_RECEIVER_EMAIL");
+      }
     }
 
     // RB-01 + RB-03 + RB-04 + RB-11: validate all vouchers
@@ -147,8 +154,8 @@ export const ordersService = {
         customerId,
         totalAmount,
         isGift: sendAsGift,
-        receiverEmail: sendAsGift ? buyerInfo.email : null,
-        giftMessage: sendAsGift ? buyerInfo.email : null,
+        receiverEmail: sendAsGift ? receiverEmail : null,
+        giftMessage: sendAsGift ? giftMessage : null,
         paymentStatus: "Pending",
         orderItems: {
           create: items.map((item) => {
@@ -308,17 +315,23 @@ export const ordersService = {
     });
 
     // Gửi email xác nhận (không blocking — không ảnh hưởng kết quả thanh toán)
-    const customerEmail = order.customer?.email;
-    const customerName = order.customer?.fullName || "Khách hàng";
-    if (customerEmail) {
+    // Nếu là quà tặng → gửi đến receiverEmail, kèm tên người tặng
+    // Nếu không → gửi đến customerEmail
+    const isGift = order.isGift;
+    const recipientEmail = isGift ? order.receiverEmail : order.customer?.email;
+    const recipientName = isGift
+      ? order.customer?.fullName || "Người tặng"
+      : order.customer?.fullName || "Khách hàng";
+
+    if (recipientEmail) {
       // Map price về từ orderItems (issuedVouchers không chứa price)
       const priceByVoucher = new Map(
         order.orderItems.map((oi) => [oi.voucher.title, Number(oi.price)]),
       );
 
       emailService.sendOrderConfirmation({
-        to: customerEmail,
-        customerName,
+        to: recipientEmail,
+        customerName: recipientName,
         orderId,
         totalAmount: Number(order.totalAmount),
         paymentMethod: paymentMethod || "unknown",

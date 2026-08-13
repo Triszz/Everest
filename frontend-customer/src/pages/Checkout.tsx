@@ -18,7 +18,8 @@ export function Checkout() {
     phone: '',
   });
   const [sendAsGift, setSendAsGift] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState('atm');
+  const [receiverEmail, setReceiverEmail] = useState('');
+  const [giftMessage, setGiftMessage] = useState('');
   const [voucherCode, setVoucherCode] = useState('');
   const [applyingCode, setApplyingCode] = useState(false);
   const [appliedDiscount, setAppliedDiscount] = useState(0);
@@ -112,6 +113,10 @@ export function Checkout() {
       alert('Vui lòng điền đầy đủ thông tin người mua.');
       return;
     }
+    if (sendAsGift && !receiverEmail.trim()) {
+      alert('Vui lòng nhập email người nhận voucher tặng.');
+      return;
+    }
     if (cartItems.length === 0) {
       navigate('/cart');
       return;
@@ -127,6 +132,10 @@ export function Checkout() {
           quantity: item.quantity,
         })),
         sendAsGift,
+        ...(sendAsGift && {
+          receiverEmail: receiverEmail.trim(),
+          giftMessage: giftMessage.trim(),
+        }),
       });
 
       if (!createRes.success || !createRes.data?.orderId) {
@@ -257,15 +266,74 @@ export function Checkout() {
                     <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>
                   </svg>
                 </div>
-                <h3 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 15, fontWeight: 700, color: '#1E293B' }}>Gửi tặng bạn bè</h3>
+                <div>
+                  <h3 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 15, fontWeight: 700, color: '#1E293B', margin: 0 }}>Gửi tặng bạn bè</h3>
+                  <p style={{ fontSize: 12, color: '#64748B', margin: '2px 0 0 0' }}>Mã voucher sẽ được gửi đến người nhận</p>
+                </div>
               </div>
-              <button onClick={() => setSendAsGift(!sendAsGift)}
+              <button onClick={() => {
+                setSendAsGift(!sendAsGift);
+                if (sendAsGift) {
+                  setReceiverEmail('');
+                  setGiftMessage('');
+                }
+              }}
                 style={{ width: 44, height: 24, borderRadius: 12, background: sendAsGift ? '#0E76A8' : '#CBD5E1', border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 0.2s', padding: 0 }}>
                 <span style={{ position: 'absolute', top: 2, left: sendAsGift ? 22 : 2, width: 20, height: 20, borderRadius: '50%', background: 'white', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
               </button>
             </div>
 
-            {/* Payment */}
+            {/* Gift form */}
+            {sendAsGift && (
+              <div style={{ background: 'white', borderRadius: 16, padding: 24, marginBottom: 16, border: '1.5px solid #10B981', boxShadow: '0 1px 2px rgba(16,185,129,0.1)' }}>
+                <h3 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700, color: '#10B981', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                  </svg>
+                  Thông tin người nhận
+                </h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#1E293B', marginBottom: 6 }}>
+                      Email người nhận <span style={{ color: '#EF4444' }}>*</span>
+                    </label>
+                    <input
+                      type="email"
+                      placeholder="Nhập email người bạn muốn tặng"
+                      value={receiverEmail}
+                      onChange={e => setReceiverEmail(e.target.value)}
+                      style={{ width: '100%', padding: '12px 14px', background: '#F0FDF4', border: '1.5px solid #86EFAC', borderRadius: 10, fontSize: 14, color: '#1E293B', fontFamily: 'Inter, sans-serif', outline: 'none', boxSizing: 'border-box' }}
+                      onFocus={e => (e.currentTarget.style.borderColor = '#10B981')}
+                      onBlur={e => (e.currentTarget.style.borderColor = '#86EFAC')}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#1E293B', marginBottom: 6 }}>
+                      Lời chúc (tùy chọn)
+                    </label>
+                    <textarea
+                      placeholder="Viết lời chúc cho người bạn yêu quý..."
+                      value={giftMessage}
+                      onChange={e => setGiftMessage(e.target.value.slice(0, 500))}
+                      rows={3}
+                      style={{ width: '100%', padding: '12px 14px', background: '#F0FDF4', border: '1.5px solid #86EFAC', borderRadius: 10, fontSize: 14, color: '#1E293B', fontFamily: 'Inter, sans-serif', outline: 'none', boxSizing: 'border-box', resize: 'vertical', lineHeight: 1.5 }}
+                      onFocus={e => (e.currentTarget.style.borderColor = '#10B981')}
+                      onBlur={e => (e.currentTarget.style.borderColor = '#86EFAC')}
+                    />
+                    <div style={{ textAlign: 'right', fontSize: 11, color: '#94A3B8', marginTop: 4 }}>
+                      {giftMessage.length}/500
+                    </div>
+                  </div>
+                  <div style={{ padding: '12px 16px', background: '#F0FDF4', borderRadius: 10, border: '1px solid #86EFAC' }}>
+                    <p style={{ fontSize: 12, color: '#64748B', margin: 0, lineHeight: 1.5 }}>
+                      <strong style={{ color: '#10B981' }}>{buyerInfo.fullName || 'Bạn'}</strong> sẽ tặng voucher này cho người nhận qua email. Mã voucher sẽ được gửi kèm lời chúc của bạn.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Payment — VNPAY only */}
             <div style={{ background: 'white', borderRadius: 16, padding: 28, boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
               <h2 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 16, fontWeight: 800, color: '#1E293B', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ width: 36, height: 36, background: '#FEF3C7', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -273,25 +341,15 @@ export function Checkout() {
                     <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
                   </svg>
                 </div>
-                Phương thức thanh toán
+                Thanh toán qua VNPAY
               </h2>
-
-              {[
-                { key: 'atm', label: 'ATM / Internet Banking', sub: 'Hỗ trợ tất cả ngân hàng nội địa' },
-                { key: 'momo', label: 'Ví MoMo', sub: 'Thanh toán nhanh qua ứng dụng MoMo' },
-                { key: 'visa', label: 'Thẻ Visa / Mastercard / JCB', sub: 'Thanh toán quốc tế bảo mật cao' },
-              ].map(opt => (
-                <label key={opt.key} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 18px', border: paymentMethod === opt.key ? '2px solid #0E76A8' : '1.5px solid #E2E8F0', borderRadius: 12, background: 'white', cursor: 'pointer', marginBottom: 10, transition: 'all 0.2s' }}>
-                  <input type="radio" name="payment" checked={paymentMethod === opt.key} onChange={() => setPaymentMethod(opt.key)} style={{ width: 18, height: 18, accentColor: '#0E76A8' }} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: '#1E293B', marginBottom: 2 }}>{opt.label}</div>
-                    <div style={{ fontSize: 12, color: '#64748B' }}>{opt.sub}</div>
-                  </div>
-                  {paymentMethod === opt.key && (
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0E76A8" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                  )}
-                </label>
-              ))}
+              <p style={{ fontSize: 13, color: '#64748B', lineHeight: 1.6, marginBottom: 12 }}>
+                Bạn sẽ được chuyển đến cổng thanh toán VNPAY an toàn. Hỗ trợ tất cả ngân hàng nội địa, thẻ quốc tế và ví điện tử.
+              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', border: '1.5px solid #E2E8F0', borderRadius: 12, background: '#F8FAFC' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                <span style={{ fontSize: 13, color: '#64748B', fontWeight: 600 }}>Thanh toán được bảo mật bởi VNPAY</span>
+              </div>
             </div>
           </div>
 

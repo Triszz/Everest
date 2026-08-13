@@ -256,6 +256,8 @@ export interface CreateOrderPayload {
   buyerInfo: { fullName: string; email: string; phone: string };
   items: { voucherId: number; quantity: number }[];
   sendAsGift?: boolean;
+  receiverEmail?: string;
+  giftMessage?: string;
 }
 
 export interface CreateOrderResponse {
