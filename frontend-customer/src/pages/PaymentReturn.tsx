@@ -5,12 +5,11 @@
  *
  * Flow:
  *  1. VNPAY redirect user về /payment/return?vnp_TxnRef=...&vnp_ResponseCode=...
- *  2. Page này verify với backend (check signature).
- *  3. Nếu isSuccess=true → chờ 3s rồi chuyển sang /checkout/success.
- *  4. Nếu thất bại → hiển thị thông báo + nút "Thử lại".
+ *  2. Backend verify signature + xử lý thanh toán (cập nhật order → Paid, tạo IssuedVoucher)
+ *  3. Frontend hiển thị kết quả + tự động chuyển sang /checkout/success sau 3s.
  *
- * Lưu ý: Việc cập nhật đơn hàng thực sự do backend IPN webhook xử lý.
- * Page này chỉ để hiển thị — đôi khi IPN chưa kịp xử lý xong khi user quay về.
+ * Lưu ý: Trong dev (localhost), IPN webhook không gọi được nên xử lý tại Return URL.
+ * Lên production: dùng ngrok để expose IPN URL, chuyển logic về handleIpn.
  */
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';

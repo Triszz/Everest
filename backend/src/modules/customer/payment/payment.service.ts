@@ -193,8 +193,9 @@ export const paymentService = {
     if (order.paymentStatus === "Paid") throw new AppError("Đơn hàng đã thanh toán", 400, "ALREADY_PAID");
     if (order.paymentStatus === "Cancelled") throw new AppError("Đơn hàng đã bị hủy", 400, "ORDER_CANCELLED");
 
-    // Amount: VND × 100 (VNPAY yêu cầu nhân 100)
-    const amountVnd = Math.round(Number(order.totalAmount) * 100);
+    // Amount: VNPAY SDK tự động nhân 100 (quy ước của VNPAY: 1 VND = 100)
+    // Ví dụ: 70000 VND → gửi 70000, SDK sẽ convert thành 7000000
+    const amountVnd = Math.round(Number(order.totalAmount));
 
     // Tính thời gian hết hạn payment URL (mặc định 15 phút)
     const expireDate = new Date();
@@ -260,9 +261,10 @@ export const paymentService = {
 
   /**
    * Bước 3 — Xử lý Return URL (từ trình duyệt).
-   * KHÔNG xử lý nghiệp vụ ở đây — chỉ trả thông tin để frontend hiển thị.
+   * XỬ LÝ thanh toán tại đây (thay vì chỉ verify) vì IPN webhook không gọi được localhost.
+   * Sau này lên production, dùng ngrok để expose IPN URL → chuyển logic về handleIpn.
    */
-  handleReturn(query: Record<string, string>) {
+  async handleReturn(query: Record<string, string>) {
     console.log("[VNPAY Return] Query nhận được:", JSON.stringify(query, null, 2));
 
     const verify = vnpay.verifyReturnUrl(query as unknown as VerifyReturnUrl);
@@ -270,16 +272,64 @@ export const paymentService = {
 
     const orderId = Number(query.vnp_TxnRef);
     const rspCode = query.vnp_ResponseCode;
+    const bankCode = query.vnp_BankCode || "VNPAY";
+
+    // Nếu chữ ký không hợp lệ → không xử lý
+    if (!verify.isVerified) {
+      console.error(`[VNPAY Return] ❌ Chữ ký không hợp lệ cho order #${orderId}`);
+      return {
+        isSuccess: false,
+        isVerified: false,
+        orderId,
+        message: "Xác thực chữ ký thất bại. Vui lòng liên hệ hỗ trợ.",
+      };
+    }
+
+    // Nếu thanh toán thất bại trên VNPAY
+    if (rspCode !== "00") {
+      console.warn(`[VNPAY Return] Thanh toán thất bại cho order #${orderId}, rspCode=${rspCode}`);
+      return {
+        isSuccess: false,
+        isVerified: true,
+        orderId,
+        message: "Thanh toán không thành công trên VNPAY.",
+      };
+    }
+
+    // Kiểm tra đơn đã xử lý chưa
+    const order = await prisma.order.findFirst({
+      where: { orderId },
+      select: { paymentStatus: true },
+    });
+
+    if (!order) {
+      return {
+        isSuccess: false,
+        isVerified: true,
+        orderId,
+        message: "Không tìm thấy đơn hàng.",
+      };
+    }
+
+    if (order.paymentStatus === "Paid") {
+      console.log(`[VNPAY Return] Order #${orderId} đã được xử lý trước đó.`);
+      return {
+        isSuccess: true,
+        isVerified: true,
+        orderId,
+        message: "Thanh toán thành công. Đơn hàng đã được xác nhận.",
+      };
+    }
+
+    // Xử lý thanh toán thành công
+    console.log(`[VNPAY Return] ✅ Xử lý thanh toán cho order #${orderId}`);
+    await processSuccessfulPayment(orderId, bankCode);
 
     return {
-      isSuccess: verify.isVerified && rspCode === "00",
-      isVerified: verify.isVerified,
+      isSuccess: true,
+      isVerified: true,
       orderId,
-      message: verify.isVerified
-        ? rspCode === "00"
-          ? "Thanh toán thành công. Vui lòng chờ xác nhận từ hệ thống."
-          : "Thanh toán không thành công trên VNPAY."
-        : "Xác thực chữ ký thất bại. Vui lòng liên hệ hỗ trợ.",
+      message: "Thanh toán thành công! Voucher đã được cấp vào tài khoản của bạn.",
     };
   },
 };

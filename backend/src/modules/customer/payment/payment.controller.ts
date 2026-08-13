@@ -21,22 +21,25 @@ export const paymentController = {
   /**
    * GET /api/customer/payment/return
    * Xử lý khi user quay lại từ VNPAY (trình duyệt).
-   * Chỉ trả thông tin hiển thị — không xử lý nghiệp vụ.
+   * XỬ LÝ thanh toán tại đây (vì IPN webhook không gọi được localhost trong dev).
    */
   returnUrl: asyncHandler(async (req, res) => {
     const query = req.query as Record<string, string>;
-    const result = paymentService.handleReturn(query);
+    const result = await paymentService.handleReturn(query);
     res.json(result);
   }),
 
   /**
    * POST /api/customer/payment/ipn
    * Webhook — VNPAY gọi server-to-server khi thanh toán xong.
-   * Đây là nguồn xác thực chính thức.
+   * VNPAY gửi dữ liệu qua POST body (application/x-www-form-urlencoded).
    */
   ipn: asyncHandler(async (req, res) => {
-    const query = req.query as Record<string, string>;
-    const result = await paymentService.handleIpn(query);
+    // VNPAY gửi IPN qua POST body, không phải query params
+    const body = req.body as Record<string, string>;
+    console.log("[VNPAY IPN] Body nhận được:", JSON.stringify(body, null, 2));
+
+    const result = await paymentService.handleIpn(body);
 
     // VNPAY yêu cầu response có dạng text/plain
     res.status(200).type("text/plain").send(`RspCode=${result.code}&Message=${result.message}`);
