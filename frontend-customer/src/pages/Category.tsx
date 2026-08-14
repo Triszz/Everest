@@ -65,7 +65,7 @@ export function CategoryPage() {
 
       {/* Category Title + Sort */}
       <div style={{ background: 'white', borderBottom: '1px solid #E2E8F0', padding: '20px 0' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
           <h1 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 26, fontWeight: 800, color: '#1E293B', margin: 0 }}>
             {category?.categoryName || 'Danh mục'}
           </h1>
@@ -92,7 +92,7 @@ export function CategoryPage() {
       </div>
 
       {/* Content */}
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px' }}>
+      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '32px 24px' }}>
         {loading ? (
           <p style={{ textAlign: 'center', color: '#64748B' }}>Đang tải...</p>
         ) : error ? (

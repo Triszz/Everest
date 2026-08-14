@@ -737,11 +737,11 @@ export function MyVoucher() {
           { label: 'Trang chủ', href: '/' },
           { label: 'Voucher của tôi' },
         ]}
-        maxWidth={1100}
+        maxWidth={1280}
       />
 
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 24px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 24, alignItems: 'start' }}>
+      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '32px 24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 24, alignItems: 'start' }}>
 
           {/* ── LEFT: Voucher grid ── */}
           <div>

@@ -133,7 +133,7 @@ export function Rewards() {
         ]}
       />
 
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px' }}>
+      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '32px 24px' }}>
         {/* Header Card */}
         <div style={{
           background: 'linear-gradient(135deg, #0E76A8 0%, #0A5C87 100%)',

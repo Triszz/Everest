@@ -63,7 +63,7 @@ export function ProfilePage() {
         ]}
       />
       <div style={{ padding: '32px 20px' }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+      <div style={{ maxWidth: 1280, margin: '0 auto' }}>
         {/* Page Header */}
         <div style={{ marginBottom: 32 }}>
           <h1 style={{

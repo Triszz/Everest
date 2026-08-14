@@ -27,7 +27,7 @@ export function Breadcrumb({
   items,
   backHref,
   showBack = true,
-  maxWidth = 1200,
+  maxWidth = 1280,
 }: BreadcrumbProps) {
   const navigate = useNavigate();
 

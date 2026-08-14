@@ -110,7 +110,7 @@ export function CartPage() {
         ]}
       />
 
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px' }}>
+      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '32px 24px' }}>
         {items.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px 20px', background: 'white', borderRadius: 16 }}>
             <ShoppingBag size={64} style={{ color: '#CBD5E1', margin: '0 auto 16px' }} />

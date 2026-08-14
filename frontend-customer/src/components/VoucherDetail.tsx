@@ -153,7 +153,7 @@ export function VoucherDetail() {
         ]}
       />
 
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px' }}>
+      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '32px 24px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, alignItems: 'start' }}>
           {/* LEFT: Image */}
           <div>

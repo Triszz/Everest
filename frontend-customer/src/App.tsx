@@ -13,7 +13,6 @@ import { Checkout } from './pages/Checkout';
 import { PaymentReturn } from './pages/PaymentReturn';
 import { OrderSuccessPage } from './pages/OrderSuccess';
 import { OrdersPage } from './pages/Orders';
-import { Rewards } from './pages/Rewards';
 import { VouchersPage } from './pages/Vouchers';
 import { CategoryPage } from './pages/Category';
 import { ProfilePage } from './pages/Profile';
@@ -65,7 +64,6 @@ function App() {
           <Route path="/payment/return" element={<PaymentReturn />} />
           <Route path="/checkout/success" element={<OrderSuccessPage />} />
           <Route path="/orders" element={<OrdersPage />} />
-          <Route path="/rewards" element={<Rewards />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/settings/edit" element={<EditProfilePage />} />
