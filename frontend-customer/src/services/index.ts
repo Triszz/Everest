@@ -22,6 +22,7 @@ export { profileApi } from "./profileApi";
 export { reviewApi } from "./reviewApi";
 export { bannerApi, popupApi, postApi } from "./contentApi";
 export { feedbackApi } from "./feedbackApi";
+export { notificationApi } from "./notificationApi";
 
 // ── HTTP helpers ────────────────────────────────────────────────────
 export {
@@ -67,5 +68,8 @@ export type {
   PaymentReturnInfo,
   FeedbackPayload,
   FeedbackSubmitResponse,
+  Notification,
+  NotificationType,
+  NotificationListResponse,
 } from "./types";
 export type { ApiError } from "./http";

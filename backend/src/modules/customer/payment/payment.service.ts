@@ -12,6 +12,7 @@ import { VNPay, VnpLocale, ProductCode, HashAlgorithm, ignoreLogger, dateFormat,
 import { prisma } from "../../../config/prisma";
 import { AppError } from "../../../middlewares/errorHandler";
 import { emailService } from "../../auth/email.service";
+import { notificationsService } from "../notifications/notifications.service";
 import { vnpayConfig, validateVnpayConfig } from "../../../config/vnpay";
 
 validateVnpayConfig();
@@ -112,6 +113,55 @@ async function processSuccessfulPayment(
       }
     }
   });
+
+  // Lấy lại issued vouchers + customer để tạo notification
+  const allIssuedAfter = await prisma.issuedVoucher.findMany({
+    where: { orderItem: { orderId } },
+    include: {
+      orderItem: {
+        include: {
+          voucher: { select: { title: true } },
+        },
+      },
+    },
+  });
+
+  // Tạo notification cho buyer
+  try {
+    await notificationsService.notifyOrderPurchased(
+      order.customerId,
+      orderId,
+      Number(order.totalAmount),
+    );
+  } catch (err) {
+    console.error("[payment.service] Tạo notification cho buyer thất bại:", err);
+  }
+
+  // Nếu là quà tặng → tìm user theo receiverEmail và tạo notification
+  if (order.isGift && order.receiverEmail) {
+    try {
+      const receiverUser = await prisma.user.findUnique({
+        where: { email: order.receiverEmail },
+        select: { userId: true, fullName: true },
+      });
+
+      if (receiverUser) {
+        // Lấy voucher code đầu tiên để hiển thị trong notification
+        const firstIssued = allIssuedAfter[0];
+        const gifterName = order.customer?.fullName || "Bạn bè";
+
+        await notificationsService.notifyVoucherGiftReceived(
+          receiverUser.userId,
+          gifterName,
+          firstIssued?.orderItem.voucher.title || "Voucher",
+          firstIssued?.voucherCode || "",
+          order.giftMessage || undefined,
+        );
+      }
+    } catch (err) {
+      console.error("[payment.service] Tạo notification cho receiver thất bại:", err);
+    }
+  }
 
   // Gửi email xác nhận (non-blocking)
   if (order.customer.email) {

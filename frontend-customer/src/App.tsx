@@ -13,7 +13,6 @@ import { Checkout } from './pages/Checkout';
 import { PaymentReturn } from './pages/PaymentReturn';
 import { OrderSuccessPage } from './pages/OrderSuccess';
 import { OrdersPage } from './pages/Orders';
-import { Rewards } from './pages/Rewards';
 import { VouchersPage } from './pages/Vouchers';
 import { CategoryPage } from './pages/Category';
 import { ProfilePage } from './pages/Profile';
@@ -25,6 +24,8 @@ import { ChangePasswordPage } from './pages/ChangePassword';
 import { SessionsPage } from './pages/Sessions';
 import { NotificationsPage } from './pages/Notifications';
 import { SecurityPage } from './pages/Security';
+import { NotificationCenter } from './pages/NotificationCenter';
+import { NotificationDetailPage } from './pages/NotificationDetail';
 import { HelpPage } from './pages/Help';
 import { TermsPage } from './pages/Terms';
 import { PrivacyPage } from './pages/Privacy';
@@ -63,7 +64,6 @@ function App() {
           <Route path="/payment/return" element={<PaymentReturn />} />
           <Route path="/checkout/success" element={<OrderSuccessPage />} />
           <Route path="/orders" element={<OrdersPage />} />
-          <Route path="/rewards" element={<Rewards />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/settings/edit" element={<EditProfilePage />} />
@@ -75,6 +75,8 @@ function App() {
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/feedback" element={<FeedbackPage />} />
+          <Route path="/notifications" element={<NotificationCenter />} />
+          <Route path="/notifications/:id" element={<NotificationDetailPage />} />
         </Routes>
       </main>
       <Footer />

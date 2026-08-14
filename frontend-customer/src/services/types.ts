@@ -256,6 +256,8 @@ export interface CreateOrderPayload {
   buyerInfo: { fullName: string; email: string; phone: string };
   items: { voucherId: number; quantity: number }[];
   sendAsGift?: boolean;
+  receiverEmail?: string;
+  giftMessage?: string;
 }
 
 export interface CreateOrderResponse {
@@ -317,4 +319,29 @@ export interface FeedbackSubmitResponse {
   feedbackId: number;
   status: string;
   createdAt: string;
+}
+
+// ── Notification ────────────────────────────────────────────────────
+
+export type NotificationType =
+  | "ORDER_PURCHASED"
+  | "ORDER_PAID"
+  | "VOUCHER_GIFT_RECEIVED"
+  | "VOUCHER_EXPIRING"
+  | "SYSTEM";
+
+export interface Notification {
+  notificationId: number;
+  type: NotificationType;
+  title: string;
+  message: string;
+  data: Record<string, unknown> | null;
+  status: "Unread" | "Read";
+  createdAt: string;
+}
+
+export interface NotificationListResponse {
+  notifications: Notification[];
+  unreadCount: number;
+  pagination: PaginationMeta;
 }

@@ -26,7 +26,7 @@ export function Newsletter() {
         pointerEvents: 'none',
       }} />
 
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px', position: 'relative' }}>
+      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 24px', position: 'relative' }}>
         <div style={{
           display: 'grid',
           gridTemplateColumns: '1fr auto',

@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import LogoImg from '../assets/images/Logo.png';
-import { cartApi } from '../services';
+import { cartApi, type User } from '../services';
+import { NotificationBell } from './NotificationBell';
 
 export function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [cartCount, setCartCount] = useState(0);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
@@ -82,7 +83,7 @@ export function Header() {
         boxShadow: scrolled ? '0 2px 16px rgba(14,118,168,0.08)' : 'none',
       }}
     >
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px' }}>
+      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 64 }}>
 
           {/* Logo */}
@@ -108,42 +109,12 @@ export function Header() {
             <NavLink to="/" label="Marketplace" isActive={location.pathname === '/'} />
             <NavLink to="/vouchers" label="All Vouchers" isActive={location.pathname === '/vouchers'} />
             <NavLink to="/my-voucher" label="My Vouchers" isActive={location.pathname === '/my-voucher'} />
-            <NavLink to="/rewards" label="Rewards" isActive={location.pathname === '/rewards'} />
           </nav>
 
-          {/* Search + Actions */}
+          {/* Actions */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-
-            {/* Search bar */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              background: '#F8FAFC',
-              border: '1.5px solid #E2E8F0',
-              borderRadius: 10,
-              padding: '8px 14px',
-              width: 240,
-              transition: 'border-color 0.2s',
-            }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="2.2">
-                <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
-              </svg>
-              <input
-                id="header-search"
-                type="text"
-                placeholder="Search vouchers..."
-                style={{
-                  border: 'none',
-                  outline: 'none',
-                  background: 'transparent',
-                  fontSize: 13,
-                  color: '#64748B',
-                  width: '100%',
-                  fontFamily: 'Inter, sans-serif',
-                }}
-              />
-            </div>
+            {/* Notification Bell */}
+            <NotificationBell isLoggedIn={isLoggedIn} />
 
             {/* Cart */}
             <Link
@@ -263,7 +234,7 @@ export function Header() {
                     <DropdownItem to="/profile" icon="user" label="Profile" onClick={() => setMenuOpen(false)} />
                     <DropdownItem to="/orders" icon="orders" label="Đơn hàng của tôi" onClick={() => setMenuOpen(false)} />
                     <DropdownItem to="/settings" icon="settings" label="Settings" onClick={() => setMenuOpen(false)} />
-                    <DropdownItem to="/help" icon="help" label="Help & Support" onClick={() => setMenuOpen(false)} />
+                    <DropdownItem to="/settings/help" icon="help" label="Help & Support" onClick={() => setMenuOpen(false)} />
                     <div style={{ borderTop: '1px solid #F1F5F9', margin: '4px 0' }} />
                     <button
                       onClick={handleLogout}

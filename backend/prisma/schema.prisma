@@ -142,6 +142,7 @@ model User {
   passwordResets          PasswordReset[]
   emailOtps               EmailOtp[]
   notificationPreferences NotificationPreference[]
+  notifications           Notification[]
   sessions                UserSession[]
   posts                   Post[]                   @relation("PostAuthor")
 
@@ -453,6 +454,40 @@ model NotificationPreference {
   user User @relation(fields: [userId], references: [userId], onDelete: Cascade)
 
   @@map("notification_preferences")
+}
+
+enum NotificationType {
+  ORDER_PURCHASED
+  ORDER_PAID
+  VOUCHER_GIFT_RECEIVED
+  VOUCHER_EXPIRING
+  SYSTEM
+
+  @@map("notification_type")
+}
+
+enum NotificationStatus {
+  Unread
+  Read
+
+  @@map("notification_status")
+}
+
+model Notification {
+  notificationId Int               @id @default(autoincrement()) @map("notification_id")
+  userId         String           @map("user_id") @db.Uuid
+  type           NotificationType @default(SYSTEM) @map("type")
+  title          String           @db.VarChar(255)
+  message        String           @db.Text
+  data           Json?            @map("data")
+  status         NotificationStatus @default(Unread) @map("status")
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("notifications")
 }
 
 model UserSession {

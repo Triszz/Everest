@@ -24,7 +24,7 @@ export function FeaturedVouchers() {
   if (loading) {
     return (
       <section style={{ padding: '64px 0', background: '#F8FAFC' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px', textAlign: 'center' }}>
+        <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 24px', textAlign: 'center' }}>
           Đang tải voucher...
         </div>
       </section>
@@ -34,7 +34,7 @@ export function FeaturedVouchers() {
   if (error) {
     return (
       <section style={{ padding: '64px 0', background: '#F8FAFC' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px', textAlign: 'center', color: '#EF4444' }}>
+        <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 24px', textAlign: 'center', color: '#EF4444' }}>
           Không thể tải voucher: {error}
         </div>
       </section>
@@ -43,7 +43,7 @@ export function FeaturedVouchers() {
 
   return (
     <section style={{ padding: '64px 0', background: '#F8FAFC' }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px' }}>
+      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 24px' }}>
 
         {/* Section Header */}
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 32 }}>

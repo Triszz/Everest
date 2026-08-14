@@ -1,7 +1,7 @@
 /**
- * Notification Preferences Schemas
+ * Notification Schemas
  * --------------------------------------------------------------
- * Zod schemas cho Notification Preferences API.
+ * Zod schemas cho Notification Preferences API + Notifications API.
  */
 import { z } from "zod";
 
@@ -19,3 +19,11 @@ export const updateNotificationsSchema = z.object({
 });
 
 export type UpdateNotificationsInput = z.infer<typeof updateNotificationsSchema>;
+
+/** Query cho GET /api/customer/notifications — phân trang */
+export const notificationListSchema = z.object({
+  page: z.coerce.number().int().positive().optional().default(1),
+  pageSize: z.coerce.number().int().positive().max(50).optional().default(20),
+});
+
+export type NotificationListInput = z.infer<typeof notificationListSchema>;

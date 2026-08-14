@@ -6,6 +6,7 @@ import { formatPrice } from '../utils';
 import { QRImage } from '../utils/QRImage';
 import { Copy, Check, ShoppingBag, Home, Ticket, Loader2 } from 'lucide-react';
 import Loading from '../components/Loading';
+import { Breadcrumb } from '../components/Breadcrumb';
 
 type VoucherDisplay = {
   code: string;
@@ -237,18 +238,15 @@ export function OrderSuccessPage() {
 
   return (
     <div style={{ background: '#F8FAFC', minHeight: '100vh' }}>
-      {/* Breadcrumb */}
-      <div style={{ background: 'white', borderBottom: '1px solid #E2E8F0' }}>
-        <div style={{ maxWidth: 900, margin: '0 auto', padding: '12px 24px' }}>
-          <span style={{ fontSize: 13, color: '#64748B' }}>
-            <Link to="/" style={{ color: '#0E76A8', textDecoration: 'none' }}>Trang chủ</Link>
-            <span style={{ margin: '0 8px' }}>/</span>
-            <Link to="/cart" style={{ color: '#0E76A8', textDecoration: 'none' }}>Giỏ hàng</Link>
-            <span style={{ margin: '0 8px' }}>/</span>
-            <span style={{ color: '#1E293B', fontWeight: 600 }}>Đặt hàng thành công</span>
-          </span>
-        </div>
-      </div>
+      <Breadcrumb
+        showBack={false}
+        items={[
+          { label: 'Trang chủ', href: '/' },
+          { label: 'Giỏ hàng', href: '/cart' },
+          { label: 'Đặt hàng thành công' },
+        ]}
+        maxWidth={900}
+      />
 
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '40px 24px' }}>
 

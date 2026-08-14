@@ -24,6 +24,9 @@ export const createOrderSchema = z.object({
     )
     .min(1, "Đơn hàng phải có ít nhất 1 voucher"),
   sendAsGift: z.boolean().optional().default(false),
+  // Thông tin tặng quà — bắt buộc khi sendAsGift = true
+  receiverEmail: z.string().email("Email người nhận không hợp lệ").optional(),
+  giftMessage: z.string().max(500, "Lời chúc tối đa 500 ký tự").optional(),
   // Tương lai: mã giảm giá
   couponCode: z.string().optional(),
 });

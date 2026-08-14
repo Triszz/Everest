@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { HelpCircle, Book, MessageSquare, Mail, Phone, ChevronRight, ExternalLink } from 'lucide-react';
+import { HelpCircle, Book, MessageSquare, Mail, Phone, ChevronRight } from 'lucide-react';
+import { Breadcrumb } from '../components/Breadcrumb';
 
 const FAQS = [
   { q: 'Làm sao để mua voucher?', a: 'Chọn voucher → Thêm vào giỏ hàng → Tiến hành thanh toán → Nhận mã voucher qua email.' },
@@ -24,18 +25,22 @@ export function HelpPage() {
 
   return (
     <div style={{ background: '#F8FAFC', minHeight: '100vh' }}>
-      {/* Header */}
-      <div style={{ background: 'white', borderBottom: '1px solid #E2E8F0' }}>
-        <div style={{ maxWidth: 700, margin: '0 auto', padding: '16px 24px', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button onClick={() => navigate('/settings')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 8, display: 'flex' }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-          </button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <HelpCircle size={22} style={{ color: '#0E76A8' }} />
-            <div>
-              <h1 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 22, fontWeight: 800, color: '#1E293B', margin: 0 }}>Trợ giúp</h1>
-              <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#64748B', margin: 0 }}>Câu hỏi thường gặp và liên hệ hỗ trợ</p>
-            </div>
+      <Breadcrumb
+        backHref="/settings"
+        items={[
+          { label: 'Trang chủ', href: '/' },
+          { label: 'Cài đặt', href: '/settings' },
+          { label: 'Trợ giúp' },
+        ]}
+      />
+
+      {/* Title */}
+      <div style={{ background: 'white', borderBottom: '1px solid #E2E8F0', padding: '16px 0' }}>
+        <div style={{ maxWidth: 700, margin: '0 auto', padding: '0 24px', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <HelpCircle size={22} style={{ color: '#0E76A8' }} />
+          <div>
+            <h1 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 22, fontWeight: 800, color: '#1E293B', margin: 0 }}>Trợ giúp</h1>
+            <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#64748B', margin: 0 }}>Câu hỏi thường gặp và liên hệ hỗ trợ</p>
           </div>
         </div>
       </div>

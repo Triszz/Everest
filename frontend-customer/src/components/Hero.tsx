@@ -33,7 +33,7 @@ export function Hero() {
   if (loading) {
     return (
       <section style={{ background: "#F8FAFC", padding: "64px 0 72px" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px" }}>
+        <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 24px" }}>
           <div style={{ height: 400, background: "#E2E8F0", borderRadius: 16 }} />
         </div>
       </section>
@@ -45,7 +45,7 @@ export function Hero() {
       <section
         style={{ background: "linear-gradient(135deg, #F8FAFC 0%, #E8F4FA 50%, #F8FAFC 100%)", padding: "64px 0 72px" }}
       >
-        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px" }}>
+        <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 24px" }}>
           <HeroContent />
         </div>
       </section>
@@ -56,7 +56,7 @@ export function Hero() {
 
   return (
     <section style={{ background: "#F8FAFC", padding: "32px 0" }}>
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px" }}>
+      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 24px" }}>
         {/* Banner Carousel */}
         <div style={{ position: "relative", borderRadius: 16, overflow: "hidden", marginBottom: 24 }}>
           <Link to="/vouchers" style={{ display: "block", textDecoration: "none" }}>
