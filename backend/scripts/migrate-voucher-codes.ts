@@ -33,7 +33,7 @@
 import "dotenv/config";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
-import crypto from "crypto";
+import { generateUniqueVoucherCode } from "../src/shared/utils/voucher-code";
 
 // Sanity check: confirm DATABASE_URL was loaded from .env
 if (!process.env.DATABASE_URL) {
@@ -48,39 +48,6 @@ if (!process.env.DATABASE_URL) {
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }),
 });
-
-// PHẢI khớp với orders.service.ts (đã fix)
-const VOUCHER_CODE_CHARS =
-  "023456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz";
-const VOUCHER_CODE_ALPHABET_SIZE = VOUCHER_CODE_CHARS.length; // 56
-const VOUCHER_CODE_LENGTH = 8;
-const MAX_RETRY = 5;
-
-function generateVoucherCode(): string {
-  const result: string[] = [];
-  const mask = VOUCHER_CODE_ALPHABET_SIZE * 4; // 224
-  for (let i = 0; i < VOUCHER_CODE_LENGTH; i++) {
-    let byte: number;
-    do {
-      byte = crypto.randomBytes(1)[0];
-    } while (byte >= mask);
-    result.push(VOUCHER_CODE_CHARS[byte % VOUCHER_CODE_ALPHABET_SIZE]);
-  }
-  const raw = result.join("");
-  return `EVR-${raw.slice(0, 4)}-${raw.slice(4)}`;
-}
-
-async function generateUniqueVoucherCode(): Promise<string> {
-  for (let attempt = 0; attempt < MAX_RETRY; attempt++) {
-    // Uppercase để khớp với DB schema sau khi fix production code.
-    const code = generateVoucherCode().toUpperCase();
-    const existing = await prisma.issuedVoucher.findUnique({
-      where: { voucherCode: code },
-    });
-    if (!existing) return code;
-  }
-  throw new Error("Failed to generate unique voucher code");
-}
 
 const VALID_REGEX = /^[0-9AC-HJ-NP-Za-hj-np-z]{4}-[0-9AC-HJ-NP-Za-hj-np-z]{4}$/i;
 
@@ -158,7 +125,7 @@ async function main() {
 
   for (const iv of toReissue) {
     try {
-      const newCode = await generateUniqueVoucherCode();
+      const newCode = await generateUniqueVoucherCode(prisma);
       replacements.set(iv.issuedVoucherId, {
         old: iv.voucherCode,
         new: newCode,
