@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import LogoImg from '../assets/images/Logo.png';
 import { cartApi } from '../services';
+import { NotificationBell } from './NotificationBell';
 
 export function Header() {
   const [scrolled, setScrolled] = useState(false);
@@ -144,6 +145,9 @@ export function Header() {
                 }}
               />
             </div>
+
+            {/* Notification Bell */}
+            <NotificationBell isLoggedIn={isLoggedIn} />
 
             {/* Cart */}
             <Link

@@ -25,6 +25,8 @@ import { ChangePasswordPage } from './pages/ChangePassword';
 import { SessionsPage } from './pages/Sessions';
 import { NotificationsPage } from './pages/Notifications';
 import { SecurityPage } from './pages/Security';
+import { NotificationCenter } from './pages/NotificationCenter';
+import { NotificationDetailPage } from './pages/NotificationDetail';
 import { HelpPage } from './pages/Help';
 import { TermsPage } from './pages/Terms';
 import { PrivacyPage } from './pages/Privacy';
@@ -75,6 +77,8 @@ function App() {
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/feedback" element={<FeedbackPage />} />
+          <Route path="/notifications" element={<NotificationCenter />} />
+          <Route path="/notifications/:id" element={<NotificationDetailPage />} />
         </Routes>
       </main>
       <Footer />

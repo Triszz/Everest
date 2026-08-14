@@ -10,6 +10,7 @@
 import { prisma } from "../../../config/prisma";
 import { AppError } from "../../../middlewares/errorHandler";
 import { emailService } from "../../auth/email.service";
+import { notificationsService } from "../notifications/notifications.service";
 import type { CreateOrderInput, CheckoutInput } from "./orders.schemas";
 import { buildPagination } from "../shared";
 import crypto from "crypto";
@@ -365,6 +366,42 @@ export const ordersService = {
           return acc;
         }, []),
       });
+    }
+
+    // Tạo notification cho buyer
+    try {
+      await notificationsService.notifyOrderPurchased(
+        customerId,
+        orderId,
+        Number(order.totalAmount),
+      );
+    } catch (err) {
+      console.error("[orders.service] Tạo notification cho buyer thất bại:", err);
+    }
+
+    // Nếu là quà tặng → tìm user theo receiverEmail và tạo notification
+    if (order.isGift && order.receiverEmail) {
+      try {
+        const receiverUser = await prisma.user.findUnique({
+          where: { email: order.receiverEmail },
+          select: { userId: true, fullName: true },
+        });
+
+        if (receiverUser) {
+          const firstIssued = result.issuedVouchers[0];
+          const gifterName = order.customer?.fullName || "Bạn bè";
+
+          await notificationsService.notifyVoucherGiftReceived(
+            receiverUser.userId,
+            gifterName,
+            firstIssued?.voucher?.title || "Voucher",
+            firstIssued?.voucherCode || "",
+            order.giftMessage || undefined,
+          );
+        }
+      } catch (err) {
+        console.error("[orders.service] Tạo notification cho receiver thất bại:", err);
+      }
     }
 
     return {

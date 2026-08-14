@@ -320,3 +320,28 @@ export interface FeedbackSubmitResponse {
   status: string;
   createdAt: string;
 }
+
+// ── Notification ────────────────────────────────────────────────────
+
+export type NotificationType =
+  | "ORDER_PURCHASED"
+  | "ORDER_PAID"
+  | "VOUCHER_GIFT_RECEIVED"
+  | "VOUCHER_EXPIRING"
+  | "SYSTEM";
+
+export interface Notification {
+  notificationId: number;
+  type: NotificationType;
+  title: string;
+  message: string;
+  data: Record<string, unknown> | null;
+  status: "Unread" | "Read";
+  createdAt: string;
+}
+
+export interface NotificationListResponse {
+  notifications: Notification[];
+  unreadCount: number;
+  pagination: PaginationMeta;
+}
