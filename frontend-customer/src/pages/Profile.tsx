@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { profileApi, type User as ApiUser } from '../services';
 import Loading from '../components/Loading';
+import { Breadcrumb } from '../components/Breadcrumb';
 
 export function ProfilePage() {
   const navigate = useNavigate();
@@ -53,15 +54,16 @@ export function ProfilePage() {
   }
 
   return (
-    <div style={{
-      minHeight: 'calc(100vh - 200px)',
-      background: '#F8FAFC',
-      padding: '40px 20px',
-    }}>
-      <div style={{
-        maxWidth: 1200,
-        margin: '0 auto',
-      }}>
+    <div style={{ background: '#F8FAFC', minHeight: '100vh' }}>
+      <Breadcrumb
+        showBack={false}
+        items={[
+          { label: 'Trang chủ', href: '/' },
+          { label: 'Hồ sơ của tôi' },
+        ]}
+      />
+      <div style={{ padding: '32px 20px' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto' }}>
         {/* Page Header */}
         <div style={{ marginBottom: 32 }}>
           <h1 style={{
@@ -266,7 +268,8 @@ export function ProfilePage() {
           to { transform: rotate(360deg); }
         }
       `}</style>
-    </div>
+      </div>
+      </div>
   );
 }
 

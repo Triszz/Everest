@@ -5,9 +5,11 @@ import { voucherApi, cartApi, reviewApi } from '../services';
 import type { Voucher, Review } from '../services';
 import { formatPrice, formatDate } from '../utils';
 import Loading from './Loading';
+import { Breadcrumb } from './Breadcrumb';
 
 export function VoucherDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [voucher, setVoucher] = useState<Voucher | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
@@ -143,17 +145,13 @@ export function VoucherDetail() {
 
   return (
     <div style={{ background: '#F8FAFC', minHeight: '100vh' }}>
-      {/* Breadcrumb + Back */}
-      <div style={{ background: 'white', borderBottom: '1px solid #E2E8F0' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '12px 24px' }}>
-          <Link
-            to="/"
-            style={{ fontSize: 13, color: '#64748B', textDecoration: 'none', fontWeight: 500 }}
-          >
-            ← Quay lại Trang chủ
-          </Link>
-        </div>
-      </div>
+      <Breadcrumb
+        items={[
+          { label: 'Trang chủ', href: '/' },
+          { label: 'Khám phá Voucher', href: '/vouchers' },
+          { label: voucher.title },
+        ]}
+      />
 
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, alignItems: 'start' }}>

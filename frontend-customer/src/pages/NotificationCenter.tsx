@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { notificationApi } from '../services';
 import type { Notification } from '../services';
 import Loading from '../components/Loading';
+import { Breadcrumb } from '../components/Breadcrumb';
 
 const NOTIFICATION_ICONS: Record<string, { bg: string; color: string; icon: React.ReactNode }> = {
   ORDER_PAID: {
@@ -85,7 +86,7 @@ export function NotificationCenter() {
     try {
       setLoading(true);
       const res = await notificationApi.list(pageNum, 20);
-      if (res.success) {
+      if (res && res.notifications) {
         const newList = append ? [...notifications, ...res.notifications] : res.notifications;
         setNotifications(newList);
         setTotal(res.pagination.total);
@@ -151,16 +152,14 @@ export function NotificationCenter() {
 
   return (
     <div style={{ background: '#F8FAFC', minHeight: '100vh' }}>
-      {/* Breadcrumb */}
-      <div style={{ background: 'white', borderBottom: '1px solid #E2E8F0' }}>
-        <div style={{ maxWidth: 900, margin: '0 auto', padding: '12px 24px' }}>
-          <span style={{ fontSize: 13, color: '#64748B' }}>
-            <Link to="/" style={{ color: '#0E76A8', textDecoration: 'none' }}>Trang chủ</Link>
-            <span style={{ margin: '0 8px' }}>/</span>
-            <span style={{ color: '#1E293B', fontWeight: 600 }}>Thông báo</span>
-          </span>
-        </div>
-      </div>
+      <Breadcrumb
+        showBack={false}
+        items={[
+          { label: 'Trang chủ', href: '/' },
+          { label: 'Thông báo' },
+        ]}
+        maxWidth={900}
+      />
 
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 24px' }}>
         <div style={{ background: 'white', borderRadius: 16, boxShadow: '0 1px 2px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
@@ -319,7 +318,6 @@ function NotificationItem({
   onMarkRead: () => void;
   onDelete: () => void;
 }) {
-  const data = notification.data as { orderId?: number; voucherCode?: string } | null;
   const linkTarget = `/notifications/${notification.notificationId}`;
 
   const handleClick = () => {
@@ -341,10 +339,10 @@ function NotificationItem({
         transition: 'background 0.15s',
         position: 'relative',
       }}
-      onMouseEnter={e => {
+      onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => {
         if (!isUnread) e.currentTarget.style.background = '#F8FAFC';
       }}
-      onMouseLeave={e => {
+      onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => {
         e.currentTarget.style.background = isUnread ? '#F0F9FF' : 'white';
       }}
     >
@@ -415,11 +413,11 @@ function NotificationItem({
           display: 'flex',
           flexShrink: 0,
         }}
-        onMouseEnter={e => {
+        onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => {
           e.currentTarget.style.background = '#FEE2E2';
           e.currentTarget.style.color = '#EF4444';
         }}
-        onMouseLeave={e => {
+        onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => {
           e.currentTarget.style.background = 'none';
           e.currentTarget.style.color = '#94A3B8';
         }}

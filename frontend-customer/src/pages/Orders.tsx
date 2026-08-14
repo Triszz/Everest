@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { orderApi } from '../services';
 import type { OrderSummary } from '../services';
+import { Breadcrumb } from '../components/Breadcrumb';
 import { formatPrice, formatDate, PAYMENT_STATUS_LABELS } from '../utils';
 import { Loader2, Package, X, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -175,16 +176,13 @@ export function OrdersPage() {
 
   return (
     <div style={{ background: '#F8FAFC', minHeight: '100vh' }}>
-      {/* Breadcrumb */}
-      <div style={{ background: 'white', borderBottom: '1px solid #E2E8F0' }}>
-        <div style={{ maxWidth: 900, margin: '0 auto', padding: '12px 24px' }}>
-          <span style={{ fontSize: 13, color: '#64748B' }}>
-            <Link to="/" style={{ color: '#0E76A8', textDecoration: 'none' }}>Trang chủ</Link>
-            <span style={{ margin: '0 8px' }}>/</span>
-            <span style={{ color: '#1E293B', fontWeight: 600 }}>Đơn hàng của tôi</span>
-          </span>
-        </div>
-      </div>
+      <Breadcrumb
+        items={[
+          { label: 'Trang chủ', href: '/' },
+          { label: 'Đơn hàng của tôi' },
+        ]}
+        maxWidth={900}
+      />
 
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 24px' }}>
 

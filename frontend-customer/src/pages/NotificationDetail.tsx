@@ -15,6 +15,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { notificationApi } from '../services';
 import type { Notification } from '../services';
 import Loading from '../components/Loading';
+import { Breadcrumb } from '../components/Breadcrumb';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -500,45 +501,19 @@ export function NotificationDetailPage() {
 
   return (
     <div style={{ background: '#F8FAFC', minHeight: '100vh' }}>
-      {/* Breadcrumb */}
-      <div style={{ background: 'white', borderBottom: '1px solid #E2E8F0' }}>
-        <div style={{ maxWidth: 800, margin: '0 auto', padding: '12px 24px' }}>
-          <span style={{ fontSize: 13, color: '#64748B', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Link to="/" style={{ color: '#0E76A8', textDecoration: 'none' }}>Trang chủ</Link>
-            <span style={{ color: '#CBD5E1' }}>›</span>
-            <Link to="/notifications" style={{ color: '#0E76A8', textDecoration: 'none' }}>Thông báo</Link>
-            <span style={{ color: '#CBD5E1' }}>›</span>
-            <span style={{ color: '#1E293B', fontWeight: 600 }}>Chi tiết</span>
-          </span>
-        </div>
-      </div>
+      <Breadcrumb
+        backHref="/notifications"
+        items={[
+          { label: 'Trang chủ', href: '/' },
+          { label: 'Thông báo', href: '/notifications' },
+          { label: notification.title.length > 30 ? notification.title.slice(0, 30) + '...' : notification.title },
+        ]}
+        maxWidth={800}
+      />
 
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '32px 24px' }}>
-        {/* ── Toolbar ── */}
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          marginBottom: 28, flexWrap: 'wrap', gap: 12,
-        }}>
-          <button
-            id="btn-back-to-notifications"
-            onClick={() => navigate(-1)}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 8,
-              padding: '10px 18px',
-              background: 'white', color: '#475569',
-              border: '1.5px solid #E2E8F0',
-              borderRadius: 12, cursor: 'pointer',
-              fontFamily: 'Inter, sans-serif', fontSize: 14, fontWeight: 600,
-              transition: 'all 0.2s',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = '#0E76A8'; e.currentTarget.style.color = '#0E76A8'; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = '#E2E8F0'; e.currentTarget.style.color = '#475569'; }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="15 18 9 12 15 6"/>
-            </svg>
-            Quay lại
-          </button>
+        {/* ── Delete action (on the right) ── */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20 }}>
 
           <button
             id="btn-delete-notification"

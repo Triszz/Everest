@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Minus, Plus, Trash2, ShoppingBag } from 'lucide-react';
 import { cartApi } from '../services';
 import type { Cart, CartItem } from '../services';
+import { Breadcrumb } from '../components/Breadcrumb';
 import { formatPrice } from '../utils';
 import Loading from '../components/Loading';
 
@@ -102,16 +103,12 @@ export function CartPage() {
 
   return (
     <div style={{ background: '#F8FAFC', minHeight: '100vh' }}>
-      {/* Breadcrumb */}
-      <div style={{ background: 'white', borderBottom: '1px solid #E2E8F0' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '12px 24px' }}>
-          <span style={{ fontSize: 13, color: '#64748B' }}>
-            <span style={{ color: '#0E76A8', cursor: 'pointer' }}>Trang chủ</span>
-            <span style={{ margin: '0 8px' }}>/</span>
-            <span style={{ color: '#1E293B', fontWeight: 600 }}>Giỏ hàng</span>
-          </span>
-        </div>
-      </div>
+      <Breadcrumb
+        items={[
+          { label: 'Trang chủ', href: '/' },
+          { label: 'Giỏ hàng' },
+        ]}
+      />
 
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px' }}>
         {items.length === 0 ? (

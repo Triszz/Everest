@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { cartApi, orderApi, profileApi, paymentApi } from '../services';
+import { Breadcrumb } from '../components/Breadcrumb';
 import type { CartItem } from '../services';
 import { formatPrice } from '../utils';
 import Loading from '../components/Loading';
@@ -200,18 +201,14 @@ export function Checkout() {
 
   return (
     <div style={{ background: '#F8FAFC', minHeight: '100vh' }}>
-      {/* Breadcrumb */}
-      <div style={{ background: 'white', borderBottom: '1px solid #E2E8F0' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '12px 24px' }}>
-          <span style={{ fontSize: 13, color: '#64748B' }}>
-            <Link to="/" style={{ color: '#0E76A8', textDecoration: 'none' }}>Trang chủ</Link>
-            <span style={{ margin: '0 8px' }}>/</span>
-            <Link to="/cart" style={{ color: '#0E76A8', textDecoration: 'none' }}>Giỏ hàng</Link>
-            <span style={{ margin: '0 8px' }}>/</span>
-            <span style={{ color: '#1E293B', fontWeight: 600 }}>Thanh toán</span>
-          </span>
-        </div>
-      </div>
+      <Breadcrumb
+        backHref="/cart"
+        items={[
+          { label: 'Trang chủ', href: '/' },
+          { label: 'Giỏ hàng', href: '/cart' },
+          { label: 'Thanh toán' },
+        ]}
+      />
 
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 400px', gap: 24, alignItems: 'start' }}>

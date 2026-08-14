@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { voucherApi, categoryApi, partnerApi } from "../services";
 import type { Voucher, Category, Partner } from "../services";
+import { Breadcrumb } from "../components/Breadcrumb";
 import {
   DISCOUNT_OPTIONS,
   PRICE_OPTIONS,
@@ -758,19 +759,16 @@ export function VouchersPage() {
 
   return (
     <div style={{ background: "#F8FAFC", minHeight: "100vh" }}>
+      <Breadcrumb
+        items={[
+          { label: "Trang chủ", href: "/" },
+          { label: "Khám phá Voucher" },
+        ]}
+        maxWidth={1280}
+      />
       {/* ── Header ── */}
       <div style={{ background: "white", borderBottom: "1px solid #E2E8F0" }}>
-        <div style={{ maxWidth: 1280, margin: "0 auto", padding: "20px 24px 0" }}>
-          {/* Breadcrumb */}
-          <div style={{ marginBottom: 12 }}>
-            <span style={{ fontSize: 13, color: "#64748B" }}>
-              <Link to="/" style={{ color: "#0E76A8", textDecoration: "none" }}>
-                Trang chủ
-              </Link>
-              <span style={{ margin: "0 8px" }}>/</span>
-              <span style={{ color: "#1E293B", fontWeight: 600 }}>Danh sách voucher</span>
-            </span>
-          </div>
+        <div style={{ maxWidth: 1280, margin: "0 auto", padding: "16px 24px 0" }}>
 
           <h1
             style={{
