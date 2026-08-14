@@ -14,6 +14,7 @@ import { AppError } from "../../../middlewares/errorHandler";
 import { emailService } from "../../auth/email.service";
 import { notificationsService } from "../notifications/notifications.service";
 import { vnpayConfig, validateVnpayConfig } from "../../../config/vnpay";
+import { generateUniqueVoucherCode } from "../../../shared/utils/voucher-code";
 
 validateVnpayConfig();
 
@@ -45,19 +46,6 @@ function labelPaymentMethod(m: string): string {
 }
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
-
-function generateVoucherCode(voucherTitle: string, index: number): string {
-  const prefix = voucherTitle
-    .split(" ")
-    .filter((w) => w.length > 0)
-    .slice(0, 3)
-    .map((w) => w[0].toUpperCase())
-    .join("")
-    .substring(0, 4);
-  const timestamp = Date.now().toString(36).toUpperCase().slice(-4);
-  const seq = String(index).padStart(2, "0");
-  return `EVR-${prefix}-${timestamp}${seq}`.substring(0, 20);
-}
 
 async function processSuccessfulPayment(
   orderId: number,
@@ -101,10 +89,15 @@ async function processSuccessfulPayment(
       validTo.setDate(validTo.getDate() + (item.voucher.expiryDays || 30));
 
       for (let i = 0; i < item.quantity; i++) {
+        // Dùng shared generator (crypto.randomBytes + rejection sampling)
+        // để đảm bảo format khớp với VOUCHER_CODE_REGEX.
+        // Trước đây code dùng generator riêng (title prefix + base36 timestamp)
+        // tạo code sai format → Staff App QR scan fail với "Mã QR không hợp lệ".
+        const code = await generateUniqueVoucherCode(tx);
         await tx.issuedVoucher.create({
           data: {
             orderItemId: item.orderItemId,
-            voucherCode: generateVoucherCode(item.voucher.title, i + 1),
+            voucherCode: code,
             status: "Unused",
             validFrom: new Date(),
             validTo,
