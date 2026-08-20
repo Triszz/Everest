@@ -97,9 +97,6 @@ export default function Users() {
     updateFilters,
   } = useUsersManagement()
 
-  // ── Stats ─────────────────────────────────────────────────────────────────
-  const activeCount = (users ?? []).filter((u) => u.status === 'Active').length
-
   // ── Handlers ───────────────────────────────────────────────────────────────
 
   const handleToggleLock = async (user: UserResponse) => {
@@ -113,6 +110,11 @@ export default function Users() {
   }
 
   const handleChangeRole = async (user: UserResponse, newRole: UserRole) => {
+    if (user.role === 'Partner_Owner' || user.role === 'Partner_Cashier') return
+    if (newRole === 'Partner_Owner' || newRole === 'Partner_Cashier') {
+      showToast('Chỉ có thể chọn Admin hoặc Customer cho tài khoản này.', 'error')
+      return
+    }
     if (newRole === user.role) return
     try {
       await updateUserRole(user.userId, newRole)
@@ -254,17 +256,19 @@ export default function Users() {
                             <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>block</span>
                           </button>
                         )}
-                        <select
-                          className="admin-input admin-select"
-                          style={{ width: 'auto', padding: '0.375rem 2rem 0.375rem 0.5rem', fontSize: '0.7rem' }}
-                          value={user.role}
-                          onChange={(e) => handleChangeRole(user, e.target.value as UserRole)}
-                        >
-                          <option value="Customer">Customer</option>
-                          <option value="Partner_Owner">Partner Owner</option>
-                          <option value="Partner_Cashier">Partner Cashier</option>
-                          <option value="Admin">Admin</option>
-                        </select>
+                        {user.role === 'Partner_Owner' || user.role === 'Partner_Cashier' ? (
+                          roleChip(user.role)
+                        ) : (
+                          <select
+                            className="admin-input admin-select"
+                            style={{ width: 'auto', padding: '0.375rem 2rem 0.375rem 0.5rem', fontSize: '0.7rem' }}
+                            value={user.role}
+                            onChange={(e) => handleChangeRole(user, e.target.value as UserRole)}
+                          >
+                            <option value="Customer">Customer</option>
+                            <option value="Admin">Admin</option>
+                          </select>
+                        )}
                       </div>
                     </td>
                   </tr>

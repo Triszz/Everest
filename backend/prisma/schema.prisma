@@ -246,8 +246,7 @@ model Policy {
   policyId  Int      @id @default(autoincrement()) @map("policy_id")
   title     String   @unique @map("title") @db.VarChar(255)
   content   String   @map("content") @db.Text
-  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz
-
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
   @@map("policies")
 }
 

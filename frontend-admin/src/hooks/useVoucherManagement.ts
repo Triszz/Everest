@@ -36,9 +36,10 @@ interface Filters {
   limit: number;
   search: string;
   approvalStatus: string;
+  partnerId?: number;
 }
 
-export function useVoucherManagement() {
+export function useVoucherManagement(partnerId?: number) {
   const { showToast } = useToast();
 
   const [vouchers, setVouchers] = useState<VoucherListItem[]>([]);
@@ -49,6 +50,7 @@ export function useVoucherManagement() {
     limit: 20,
     search: '',
     approvalStatus: '',
+    partnerId,
   });
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingStats, setIsLoadingStats] = useState(false);
@@ -64,6 +66,7 @@ export function useVoucherManagement() {
         page: filters.page,
         limit: filters.limit,
         search: filters.search || undefined,
+        partnerId: filters.partnerId,
         approvalStatus: filters.approvalStatus || undefined,
       });
       setVouchers(res.list as VoucherListItem[]);
@@ -145,13 +148,48 @@ export function useVoucherManagement() {
     [fetchVouchers, showToast],
   );
 
+  const updateEndDate = useCallback(
+    async (voucherId: number, endDate: string) => {
+      try {
+        const updated = await adminVouchersApi.updateDates(voucherId, { endDate });
+        setVouchers((prev) => prev.map((v) => (
+          v.voucherId === voucherId ? { ...v, endDate: updated.endDate ?? v.endDate, updatedAt: updated.updatedAt ?? v.updatedAt } : v
+        )));
+        return updated;
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Lỗi khi cập nhật ngày kết thúc';
+        showToast(msg, 'error');
+        throw err;
+      }
+    },
+    [showToast],
+  );
+
+  const expireNow = useCallback(
+    async (voucherId: number) => {
+      try {
+        const updated = await adminVouchersApi.expireNow(voucherId);
+        setVouchers((prev) => prev.map((v) => (
+          v.voucherId === voucherId ? { ...v, endDate: updated.endDate ?? v.endDate, updatedAt: updated.updatedAt ?? v.updatedAt } : v
+        )));
+        showToast('Voucher đã được hết hạn', 'success');
+        return updated;
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Lỗi khi hết hạn voucher';
+        showToast(msg, 'error');
+        throw err;
+      }
+    },
+    [showToast],
+  );
+
   const updateFilters = useCallback((partial: Partial<Filters>) => {
     setFilters((prev) => ({ ...prev, ...partial, page: 1 }));
   }, []);
 
   const resetFilters = useCallback(() => {
-    setFilters({ page: 1, limit: 20, search: '', approvalStatus: '' });
-  }, []);
+    setFilters({ page: 1, limit: 20, search: '', approvalStatus: '', partnerId });
+  }, [partnerId]);
 
   return {
     vouchers,
@@ -169,6 +207,8 @@ export function useVoucherManagement() {
     approveVoucher,
     rejectVoucher,
     toggleDisplayStatus,
+    updateEndDate,
+    expireNow,
     updateFilters,
     resetFilters,
   };

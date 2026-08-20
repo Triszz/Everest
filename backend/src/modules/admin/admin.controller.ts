@@ -40,6 +40,7 @@ import {
   createBannerSchema,
   updateBannerSchema,
   updateBannerStatusSchema,
+  updateVoucherDatesSchema,
   listPopupsSchema,
   getPopupByIdSchema,
   createPopupSchema,
@@ -303,6 +304,19 @@ export const adminController = {
     res.json({ success: true, data, message: msg });
   }),
 
+  updateVoucherDates: asyncHandler(async (req: Request, res: Response) => {
+    const { voucherId } = parseQuery(getVoucherByIdSchema, req.params);
+    const input = parseBody(updateVoucherDatesSchema, req.body);
+    const data = await adminService.updateVoucherDates(voucherId, input);
+    res.json({ success: true, data, message: "Cập nhật thời gian voucher thành công" });
+  }),
+
+  expireVoucherNow: asyncHandler(async (req: Request, res: Response) => {
+    const { voucherId } = parseQuery(getVoucherByIdSchema, req.params);
+    const data = await adminService.expireVoucherNow(voucherId);
+    res.json({ success: true, data, message: "Voucher đã được hết hạn" });
+  }),
+
   getVoucherStats: asyncHandler(async (_req: Request, res: Response) => {
     const data = await adminService.getVoucherStats();
     res.json({ success: true, data });
@@ -367,7 +381,7 @@ export const adminController = {
     const data = await adminService.updateBannerStatus(bannerId, input);
     const msg =
       input.status === "Visible"
-        ? "Hiển thị banner thành công (các banner khác đã được ẩn)"
+        ? "Hiển thị banner thành công"
         : "Ẩn banner thành công";
     res.json({ success: true, data, message: msg });
   }),
@@ -411,7 +425,7 @@ export const adminController = {
     const data = await adminService.updatePopupStatus(popupId, input);
     const msg =
       input.status === "Visible"
-        ? "Hiển thị popup thành công (các popup khác đã được ẩn)"
+        ? "Hiển thị popup thành công"
         : "Ẩn popup thành công";
     res.json({ success: true, data, message: msg });
   }),

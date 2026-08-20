@@ -60,7 +60,7 @@ export const adminService = {
       where.OR = [
         { fullName: { contains: input.search, mode: "insensitive" } },
         { email: { contains: input.search, mode: "insensitive" } },
-        { phoneNumber: { contains: input.search, mode: "insensitive" } },
+        { phoneNumber: { contains: input.search } },
       ];
     }
 
@@ -133,6 +133,24 @@ export const adminService = {
   async updateUserRole(userId: string, input: UpdateUserRoleInput, actorRole: Role) {
     const user = await prisma.user.findUnique({ where: { userId } });
     if (!user) throw new AppError("Người dùng không tồn tại", 404, "NOT_FOUND");
+
+    const partnerRoles: UserRole[] = ["Partner_Owner", "Partner_Cashier"];
+    const editableRoles: UserRole[] = ["Admin", "Customer"];
+    if (partnerRoles.includes(user.role as UserRole)) {
+      throw new AppError(
+        "Không thể thay đổi vai trò của tài khoản Partner hoặc Partner Cashier",
+        400,
+        "PARTNER_ROLE_IMMUTABLE",
+      );
+    }
+    if (!editableRoles.includes(input.role as UserRole)) {
+      throw new AppError(
+        "Chỉ có thể phân quyền tài khoản thành Admin hoặc Customer",
+        400,
+        "INVALID_ROLE_CHANGE",
+      );
+    }
+
     const rolePriority: Record<UserRole, number> = {
       Partner_Cashier: 1,
       Partner_Owner: 2,
@@ -591,7 +609,15 @@ export const adminService = {
       prisma.category.count({ where }),
     ]);
 
-    return buildPaginated(categories, total, page, limit);
+    return buildPaginated(
+      categories.map(({ _count, ...category }) => ({
+        ...category,
+        voucherCount: _count.vouchers,
+      })),
+      total,
+      page,
+      limit,
+    );
   },
 
   async getCategoryById(categoryId: number) {
@@ -601,6 +627,7 @@ export const adminService = {
         categoryId: true,
         categoryName: true,
         description: true,
+        _count: { select: { vouchers: true } },
         vouchers: {
           select: {
             voucherId: true,
@@ -614,19 +641,21 @@ export const adminService = {
       },
     });
     if (!category) throw new AppError("Danh mục không tồn tại", 404, "NOT_FOUND");
-    return category;
+    const { _count, ...categoryData } = category;
+    return { ...categoryData, voucherCount: _count.vouchers };
   },
 
   async createCategory(input: CreateCategoryInput) {
+    const normalizedName = input.categoryName.trim();
     const existing = await prisma.category.findFirst({
-      where: { categoryName: input.categoryName },
+      where: { categoryName: { equals: normalizedName, mode: "insensitive" } },
     });
     if (existing) {
       throw new AppError("Tên danh mục đã tồn tại", 409, "CATEGORY_EXISTS");
     }
 
     const result = await prisma.category.create({
-      data: input,
+      data: { ...input, categoryName: normalizedName },
       select: { categoryId: true, categoryName: true, description: true },
     });
 
@@ -637,13 +666,17 @@ export const adminService = {
     const category = await prisma.category.findUnique({ where: { categoryId } });
     if (!category) throw new AppError("Danh mục không tồn tại", 404, "NOT_FOUND");
 
-    if (input.categoryName && input.categoryName !== category.categoryName) {
-      const duplicate = await prisma.category.findFirst({
-        where: { categoryName: input.categoryName },
-      });
-      if (duplicate) {
-        throw new AppError("Tên danh mục đã tồn tại", 409, "CATEGORY_EXISTS");
+    if (input.categoryName) {
+      const normalizedName = input.categoryName.trim();
+      if (normalizedName !== category.categoryName) {
+        const duplicate = await prisma.category.findFirst({
+          where: { categoryName: { equals: normalizedName, mode: "insensitive" } },
+        });
+        if (duplicate) {
+          throw new AppError("Tên danh mục đã tồn tại", 409, "CATEGORY_EXISTS");
+        }
       }
+      input.categoryName = normalizedName;
     }
 
     const result = await prisma.category.update({
@@ -844,6 +877,61 @@ export const adminService = {
     return result;
   },
 
+  async updateVoucherDates(voucherId: number, input: { endDate: Date }) {
+    const voucher = await prisma.voucher.findUnique({
+      where: { voucherId },
+      select: { startDate: true },
+    });
+    if (!voucher) throw new AppError("Voucher không tồn tại", 404, "NOT_FOUND");
+    if (input.endDate <= voucher.startDate) {
+      throw new AppError("Ngày kết thúc phải lớn hơn ngày bắt đầu", 400, "INVALID_DATE_RANGE");
+    }
+
+    return prisma.voucher.update({
+      where: { voucherId },
+      data: { endDate: input.endDate },
+      select: {
+        voucherId: true,
+        title: true,
+        startDate: true,
+        endDate: true,
+        approvalStatus: true,
+        displayStatus: true,
+        updatedAt: true,
+      },
+    });
+  },
+
+  async expireVoucherNow(voucherId: number) {
+    const now = new Date();
+    const voucher = await prisma.voucher.findUnique({
+      where: { voucherId },
+      select: { startDate: true },
+    });
+    if (!voucher) throw new AppError("Voucher không tồn tại", 404, "NOT_FOUND");
+    if (now <= voucher.startDate) {
+      throw new AppError(
+        "Không thể hết hạn voucher trước khi voucher bắt đầu",
+        400,
+        "VOUCHER_NOT_STARTED",
+      );
+    }
+
+    return prisma.voucher.update({
+      where: { voucherId },
+      data: { endDate: now },
+      select: {
+        voucherId: true,
+        title: true,
+        startDate: true,
+        endDate: true,
+        approvalStatus: true,
+        displayStatus: true,
+        updatedAt: true,
+      },
+    });
+  },
+
   // ─── Policy Management ───────────────────────────────────────────────────────
 
   async listPolicies(_input: ListPoliciesInput) {
@@ -874,17 +962,29 @@ export const adminService = {
   },
 
   async upsertPolicy(input: UpsertPolicyInput) {
-    const result = await prisma.policy.upsert({
-      where: { title: input.title },
-      create: { title: input.title, content: input.content },
-      update: { title: input.title, content: input.content },
-      select: {
-        policyId: true,
-        title: true,
-        content: true,
-        updatedAt: true,
-      },
-    });
+    const select = {
+      policyId: true,
+      title: true,
+      content: true,
+      updatedAt: true,
+    } as const;
+
+    const result = input.policyId
+      ? await prisma.policy.update({
+          where: { policyId: input.policyId },
+          data: {
+            title: input.title,
+            content: input.content,
+            updatedAt: new Date(),
+          },
+          select,
+        })
+      : await prisma.policy.upsert({
+          where: { title: input.title },
+          create: { title: input.title, content: input.content },
+          update: { content: input.content },
+          select,
+        });
 
     return result;
   },
@@ -996,16 +1096,6 @@ export const adminService = {
     if (!banner) throw new AppError("Banner không tồn tại", 404, "NOT_FOUND");
 
     const nextStatus = input.status as BannerStatus;
-
-    // Visibility is a single-active-banner constraint:
-    // - Switching to Visible => every other banner must be Hidden.
-    // - Switching to Hidden  => leave the others untouched.
-    if (nextStatus === "Visible") {
-      await prisma.banner.updateMany({
-        where: { bannerId: { not: bannerId } },
-        data: { status: "Hidden" },
-      });
-    }
 
     const result = await prisma.banner.update({
       where: { bannerId },
@@ -1153,13 +1243,6 @@ export const adminService = {
     if (!popup) throw new AppError("Popup không tồn tại", 404, "NOT_FOUND");
 
     const nextStatus = input.status as PopupStatus;
-
-    if (nextStatus === "Visible") {
-      await prisma.popup.updateMany({
-        where: { popupId: { not: popupId } },
-        data: { status: "Hidden" },
-      });
-    }
 
     const result = await prisma.popup.update({
       where: { popupId },

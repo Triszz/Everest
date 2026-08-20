@@ -86,7 +86,7 @@ export default function PopupManagement() {
     const next: PopupStatus = popup.status === 'Visible' ? 'Hidden' : 'Visible';
     try {
       await togglePopupStatus(popup.popupId, next);
-      showToast(next === 'Visible' ? 'Đã hiển thị popup (các popup khác đã được ẩn)' : 'Đã ẩn popup', 'success');
+      showToast(next === 'Visible' ? 'Đã hiển thị popup' : 'Đã ẩn popup', 'success');
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Lỗi khi đổi trạng thái', 'error');
     }

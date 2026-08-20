@@ -25,7 +25,7 @@ export function useCategoryManagement() {
   const [isFetchingDetail, setIsFetchingDetail] = useState(false);
 
   // Fetch categories list with current page and filters
-  const fetchCategories = useCallback(async (targetPage = 1) => {
+  const fetchCategories = useCallback(async (targetPage = 1, append = false) => {
     setIsLoading(true);
     setError(null);
     try {
@@ -36,7 +36,7 @@ export function useCategoryManagement() {
       };
 
       const result: PaginatedList<CategoryResponse> = await adminCategoriesApi.list(apiParams);
-      setCategories(result.list);
+      setCategories((previous) => (append ? [...previous, ...result.list] : result.list));
       setTotal(result.total);
       setPage(result.page);
       setLimit(result.limit);

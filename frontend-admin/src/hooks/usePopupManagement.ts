@@ -117,15 +117,8 @@ export function usePopupManagement() {
       setIsSaving(true);
       try {
         const updated = await adminPopupsApi.updateStatus(popupId, { status });
-        // Single-active-popup invariant (same as banner).
         setPopups((prev) =>
-          prev.map((p) => {
-            if (p.popupId === popupId) return updated;
-            if (status === 'Visible' && p.status === 'Visible') {
-              return { ...p, status: 'Hidden' as PopupStatus };
-            }
-            return p;
-          }),
+          prev.map((p) => (p.popupId === popupId ? updated : p)),
         );
         return updated;
       } catch (err: unknown) {

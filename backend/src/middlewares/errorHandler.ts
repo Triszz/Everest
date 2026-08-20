@@ -60,11 +60,14 @@ export const errorHandler = (
       stack: err.stack,
     });
     if (err.code === "P2002") {
+      const target = Array.isArray(err.meta?.target)
+        ? err.meta.target.join(", ")
+        : String(err.meta?.target ?? "trường dữ liệu");
       return res.status(409).json({
         success: false,
         error: {
           code: "CONFLICT",
-          message: "Dữ liệu đã tồn tại trong hệ thống",
+          message: `Dữ liệu đã tồn tại trong hệ thống (${target})`,
         },
       });
     }
