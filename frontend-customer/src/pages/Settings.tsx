@@ -1,29 +1,73 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Breadcrumb } from '../components/Breadcrumb';
+import { authFetch, handleResponse } from '../services/http';
+
+const NOTIFICATION_TYPES = [
+  { key: 'n1', label: 'Thông báo đơn hàng', description: 'Cập nhật trạng thái thanh toán, đơn hàng mới' },
+  { key: 'n4', label: 'Tặng voucher', description: 'Thông báo khi có người tặng voucher cho bạn' },
+];
 
 export function SettingsPage() {
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (!storedUser) {
-      navigate('/login');
-    }
-  }, [navigate]);
-
-  const [notifications, setNotifications] = useState({
-    email: true,
-    sms: false,
-    push: true,
-    promotions: true,
-  });
 
   const [privacy, setPrivacy] = useState({
     showProfile: true,
     showEmail: false,
     allowTracking: true,
   });
+
+  const [notificationPrefs, setNotificationPrefs] = useState<Record<string, boolean>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<string>('');
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem('user');
+    if (!storedUser) {
+      navigate('/login');
+    }
+    loadNotificationPrefs();
+  }, [navigate]);
+
+  const loadNotificationPrefs = async () => {
+    try {
+      const res = await authFetch('/api/customer/notifications/preferences');
+      const data = await handleResponse<Record<string, boolean>>(res);
+      if (data.success) {
+        setNotificationPrefs(data.data || {});
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleNotificationPref = (key: string) => {
+    setNotificationPrefs((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleSaveNotifications = async () => {
+    setSaving(true);
+    setMessage('');
+    try {
+      const res = await authFetch('/api/customer/notifications/preferences', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(notificationPrefs),
+      });
+      const data = await handleResponse(res);
+      if (data.success) {
+        setMessage('Đã lưu cài đặt thông báo!');
+        setTimeout(() => setMessage(''), 3000);
+      }
+    } catch (err: any) {
+      setMessage(err.message || 'Lỗi khi lưu cài đặt');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div style={{ background: '#F8FAFC', minHeight: '100vh' }}>
@@ -46,30 +90,40 @@ export function SettingsPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           {/* Notifications */}
           <SettingsSection title="Thông báo" icon="bell">
-            <ToggleOption
-              label="Thông báo qua Email"
-              description="Nhận thông báo qua email về đơn hàng và khuyến mãi"
-              checked={notifications.email}
-              onChange={(v) => setNotifications(n => ({ ...n, email: v }))}
-            />
-            <ToggleOption
-              label="Tin nhắn SMS"
-              description="Nhận tin nhắn cập nhật trạng thái đơn hàng"
-              checked={notifications.sms}
-              onChange={(v) => setNotifications(n => ({ ...n, sms: v }))}
-            />
-            <ToggleOption
-              label="Thông báo đẩy"
-              description="Nhận thông báo tức thì từ ứng dụng"
-              checked={notifications.push}
-              onChange={(v) => setNotifications(n => ({ ...n, push: v }))}
-            />
-            <ToggleOption
-              label="Khuyến mãi & Ưu đãi"
-              description="Cập nhật về voucher mới và ưu đãi đặc biệt"
-              checked={notifications.promotions}
-              onChange={(v) => setNotifications(n => ({ ...n, promotions: v }))}
-            />
+            {loading ? (
+              <div style={{ padding: 20, textAlign: 'center', color: '#64748B' }}>Đang tải...</div>
+            ) : (
+              <>
+                {NOTIFICATION_TYPES.map((type) => (
+                  <ToggleOption
+                    key={type.key}
+                    label={type.label}
+                    description={type.description}
+                    checked={notificationPrefs[type.key] ?? true}
+                    onChange={() => toggleNotificationPref(type.key)}
+                  />
+                ))}
+                <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <button
+                    onClick={handleSaveNotifications}
+                    disabled={saving}
+                    style={{
+                      padding: '10px 24px', background: saving ? '#94A3B8' : '#0E76A8',
+                      color: 'white', border: 'none', borderRadius: 10,
+                      fontSize: 14, fontWeight: 700, cursor: saving ? 'wait' : 'pointer',
+                      fontFamily: 'Manrope, sans-serif',
+                    }}
+                  >
+                    {saving ? 'Đang lưu...' : 'Lưu cài đặt'}
+                  </button>
+                  {message && (
+                    <span style={{ fontSize: 13, color: message.includes('Lỗi') ? '#EF4444' : '#10B981', fontWeight: 600 }}>
+                      {message}
+                    </span>
+                  )}
+                </div>
+              </>
+            )}
           </SettingsSection>
 
           {/* Privacy */}

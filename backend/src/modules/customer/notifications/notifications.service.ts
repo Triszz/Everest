@@ -1,13 +1,21 @@
 /**
  * Notification Service
  * --------------------------------------------------------------
- * Quản lý notification preferences và notification messages của user.
- * - Preferences: cài đặt bật/tắt từng loại thông báo
- * - Notifications: các thông báo thực tế (order, voucher tặng, etc.)
+ * Manages notification preferences and notification messages for users.
+ * - Preferences: toggle on/off each notification type
+ * - Notifications: actual messages (order, voucher gift, etc.)
+ *
+ * Mapping NotificationType -> preference keys (n1-n9):
+ * - n1: Order notifications     -> ORDER_PAID, ORDER_PURCHASED
+ * - n2: Voucher expiring       -> VOUCHER_EXPIRING
+ * - n3: New promotions         -> SYSTEM (promo)
+ * - n4: Voucher gift received   -> VOUCHER_GIFT_RECEIVED
+ * - n5-n9: (not sent from backend yet)
  */
 import { prisma } from "../../../config/prisma";
+import { Prisma } from "../../../generated/prisma/client";
 import type { UpdateNotificationsInput } from "./notifications.schemas";
-import type { NotificationType } from "@prisma/client";
+import { NotificationType } from "../../../generated/prisma/enums";
 import { buildPagination } from "../shared";
 
 const DEFAULT_PREFS: Record<string, boolean> = {
@@ -15,12 +23,22 @@ const DEFAULT_PREFS: Record<string, boolean> = {
   n5: true, n6: true, n7: true, n8: true, n9: true,
 };
 
+/**
+ * Mapping from NotificationType -> preference key.
+ * If type has no mapping -> notification is always sent (not gated by preference).
+ */
+const TYPE_TO_PREF_KEY: Partial<Record<NotificationType, string>> = {
+  ORDER_PAID: "n1",
+  ORDER_PURCHASED: "n1",
+  VOUCHER_EXPIRING: "n2",
+  VOUCHER_GIFT_RECEIVED: "n4",
+};
+
 export const notificationsService = {
   // ============= PREFERENCES =============
 
   /**
-   * Lấy preferences hiện tại của user.
-   * Tạo record mới với default = true nếu chưa có.
+   * Get user preferences. Creates default record if none exists.
    */
   async getPreferences(userId: string): Promise<Record<string, boolean>> {
     let pref = await prisma.notificationPreference.findUnique({
@@ -37,7 +55,7 @@ export const notificationsService = {
   },
 
   /**
-   * Cập nhật preferences (partial update — chỉ update các trường được gửi).
+   * Update preferences (partial update).
    */
   async updatePreferences(
     userId: string,
@@ -58,12 +76,38 @@ export const notificationsService = {
   // ============= NOTIFICATIONS =============
 
   /**
-   * Tạo notification cho user.
-   * @param userId - User nhận notification
-   * @param type - Loại notification
-   * @param title - Tiêu đề
-   * @param message - Nội dung
-   * @param data - Dữ liệu bổ sung (orderId, voucherCode, etc.)
+   * Check if user has this notification type enabled in preferences.
+   * Returns true if:
+   * - No mapping for this type (always send)
+   * - Preference is enabled (true)
+   * - No preference record exists (default to true)
+   */
+  async isNotificationEnabled(
+    userId: string,
+    type: NotificationType,
+  ): Promise<boolean> {
+    const prefKey = TYPE_TO_PREF_KEY[type];
+    if (!prefKey) {
+      return true; // No mapping -> always send
+    }
+
+    const prefs = await this.getPreferences(userId);
+    if (prefs[prefKey] === undefined) {
+      return true; // No pref record -> default to enabled
+    }
+
+    return prefs[prefKey];
+  },
+
+  /**
+   * Create a notification for a user.
+   * ONLY creates if user has enabled this notification type in preferences.
+   *
+   * @param userId - Recipient user
+   * @param type - Notification type
+   * @param title - Title
+   * @param message - Body text
+   * @param data - Extra data (orderId, voucherCode, etc.)
    */
   async createNotification(
     userId: string,
@@ -72,32 +116,38 @@ export const notificationsService = {
     message: string,
     data?: Record<string, unknown>,
   ) {
+    const enabled = await this.isNotificationEnabled(userId, type);
+    if (!enabled) {
+      console.log(`[notifications] Skipped: user=${userId} type=${type} (disabled by preference)`);
+      return null;
+    }
+
     return prisma.notification.create({
       data: {
         userId,
         type,
         title,
         message,
-        data: data || undefined,
+        data: (data as Prisma.InputJsonValue) ?? undefined,
       },
     });
   },
 
   /**
-   * Tạo notification cho buyer khi thanh toán thành công.
+   * Notify buyer when payment is successful.
    */
   async notifyOrderPurchased(customerId: string, orderId: number, totalAmount: number) {
     return this.createNotification(
       customerId,
       "ORDER_PAID",
-      "Thanh toán thành công",
-      `Đơn hàng #${orderId} đã được thanh toán thành công. Tổng thanh toán: ${totalAmount.toLocaleString("vi-VN")}₫`,
+      "Thanh toan thanh cong",
+      `Don hang #${orderId} da duoc thanh toan. Tong: ${totalAmount.toLocaleString("vi-VN")}VND`,
       { orderId, totalAmount },
     );
   },
 
   /**
-   * Tạo notification cho người nhận khi được tặng voucher.
+   * Notify receiver when they receive a voucher gift.
    */
   async notifyVoucherGiftReceived(
     receiverId: string,
@@ -106,10 +156,10 @@ export const notificationsService = {
     voucherCode: string,
     giftMessage?: string,
   ) {
-    const title = `Bạn nhận được voucher tặng từ ${gifterName}!`;
+    const title = `Ban nhan duoc voucher tang tu ${gifterName}!`;
     const message = giftMessage
-      ? `"${giftMessage}" - Voucher "${voucherTitle}" đã được thêm vào tài khoản của bạn.`
-      : `${gifterName} đã tặng bạn voucher "${voucherTitle}". Mã: ${voucherCode}`;
+      ? `"${giftMessage}" - Voucher "${voucherTitle}" da duoc them vao tai khoan.`
+      : `${gifterName} da tang ban voucher "${voucherTitle}". Ma: ${voucherCode}`;
 
     return this.createNotification(
       receiverId,
@@ -121,7 +171,7 @@ export const notificationsService = {
   },
 
   /**
-   * Lấy danh sách notifications của user (phân trang).
+   * Get paginated notifications for a user.
    */
   async getNotifications(
     userId: string,
@@ -157,8 +207,8 @@ export const notificationsService = {
   },
 
   /**
-   * Lấy 1 notification theo ID (kiểm tra ownership).
-   * Tự động đánh dấu là đã đọc nếu đang Unread.
+   * Get a single notification by ID (with ownership check).
+   * Auto-marks as Read if currently Unread.
    */
   async getNotificationById(userId: string, notificationId: number) {
     const notification = await prisma.notification.findFirst({
@@ -166,7 +216,6 @@ export const notificationsService = {
     });
     if (!notification) return null;
 
-    // Auto mark as read
     if (notification.status === "Unread") {
       await prisma.notification.update({
         where: { notificationId },
@@ -187,7 +236,7 @@ export const notificationsService = {
   },
 
   /**
-   * Đếm số notification chưa đọc.
+   * Count unread notifications.
    */
   async getUnreadCount(userId: string): Promise<number> {
     return prisma.notification.count({
@@ -196,7 +245,7 @@ export const notificationsService = {
   },
 
   /**
-   * Đánh dấu 1 notification là đã đọc.
+   * Mark one notification as read.
    */
   async markAsRead(userId: string, notificationId: number) {
     const notification = await prisma.notification.findFirst({
@@ -212,7 +261,7 @@ export const notificationsService = {
   },
 
   /**
-   * Đánh dấu tất cả notifications của user là đã đọc.
+   * Mark all notifications as read.
    */
   async markAllAsRead(userId: string) {
     return prisma.notification.updateMany({
@@ -222,7 +271,7 @@ export const notificationsService = {
   },
 
   /**
-   * Xóa 1 notification.
+   * Delete a notification.
    */
   async deleteNotification(userId: string, notificationId: number) {
     const notification = await prisma.notification.findFirst({
