@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { categoryApi } from '../services/api';
-import type { Category } from '../services/api';
+import { categoryApi } from '../services';
+import type { Category } from '../services';
 
 // Default images for categories (in case API doesn't return images)
 const DEFAULT_IMAGES: Record<number, string> = {
@@ -30,7 +30,7 @@ export function DanhMucNoiBat() {
   if (loading) {
     return (
       <section style={{ padding: '64px 0', background: 'white' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px', textAlign: 'center' }}>
+        <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 24px', textAlign: 'center' }}>
           Đang tải danh mục...
         </div>
       </section>
@@ -40,7 +40,7 @@ export function DanhMucNoiBat() {
   if (error) {
     return (
       <section style={{ padding: '64px 0', background: 'white' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px', textAlign: 'center', color: '#EF4444' }}>
+        <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 24px', textAlign: 'center', color: '#EF4444' }}>
           Không thể tải danh mục: {error}
         </div>
       </section>
@@ -53,7 +53,7 @@ export function DanhMucNoiBat() {
 
   return (
     <section style={{ padding: '64px 0', background: 'white' }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px' }}>
+      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 24px' }}>
 
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 32 }}>
@@ -73,7 +73,7 @@ export function DanhMucNoiBat() {
           </div>
           <Link
             id="categories-view-all"
-            to="/categories"
+            to="/vouchers"
             style={{
               display: 'flex',
               alignItems: 'center',

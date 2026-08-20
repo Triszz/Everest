@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { voucherApi, cartApi } from '../services/api';
-import type { Voucher } from '../services/api';
+import { voucherApi, cartApi } from '../services';
+import type { Voucher } from '../services';
+import { formatPrice } from '../utils';
 import { Loader2 } from 'lucide-react';
 
 export function FeaturedVouchers() {
@@ -23,7 +24,7 @@ export function FeaturedVouchers() {
   if (loading) {
     return (
       <section style={{ padding: '64px 0', background: '#F8FAFC' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px', textAlign: 'center' }}>
+        <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 24px', textAlign: 'center' }}>
           Đang tải voucher...
         </div>
       </section>
@@ -33,7 +34,7 @@ export function FeaturedVouchers() {
   if (error) {
     return (
       <section style={{ padding: '64px 0', background: '#F8FAFC' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px', textAlign: 'center', color: '#EF4444' }}>
+        <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 24px', textAlign: 'center', color: '#EF4444' }}>
           Không thể tải voucher: {error}
         </div>
       </section>
@@ -42,7 +43,7 @@ export function FeaturedVouchers() {
 
   return (
     <section style={{ padding: '64px 0', background: '#F8FAFC' }}>
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px' }}>
+      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 24px' }}>
 
         {/* Section Header */}
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 32 }}>
@@ -112,7 +113,6 @@ export function FeaturedVouchers() {
 }
 
 function VoucherCard({ voucher, onAddToCart }: { voucher: Voucher; onAddToCart?: () => void }) {
-  const formatPrice = (p: string | number) => Number(p).toLocaleString('vi-VN') + 'đ';
   const discount = voucher.originalPrice
     ? Math.round((1 - Number(voucher.salePrice) / Number(voucher.originalPrice)) * 100)
     : 0;

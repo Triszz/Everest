@@ -1,19 +1,16 @@
-import { Link } from 'react-router-dom';
 import { Eye } from 'lucide-react';
+import { Breadcrumb } from '../components/Breadcrumb';
 
 export function PrivacyPage() {
   return (
     <div style={{ background: '#F8FAFC', minHeight: '100vh' }}>
-      {/* Header */}
-      <div style={{ background: 'white', borderBottom: '1px solid #E2E8F0' }}>
-        <div style={{ maxWidth: 800, margin: '0 auto', padding: '16px 24px' }}>
-          <span style={{ fontSize: 13, color: '#64748B' }}>
-            <Link to="/" style={{ color: '#0E76A8', textDecoration: 'none' }}>Trang chủ</Link>
-            <span style={{ margin: '0 8px' }}>/</span>
-            <span style={{ color: '#1E293B', fontWeight: 600 }}>Chính sách bảo mật</span>
-          </span>
-        </div>
-      </div>
+      <Breadcrumb
+        items={[
+          { label: 'Trang chủ', href: '/' },
+          { label: 'Chính sách bảo mật' },
+        ]}
+        maxWidth={800}
+      />
 
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '40px 24px' }}>
         <div style={{ background: 'white', borderRadius: 20, padding: '40px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>

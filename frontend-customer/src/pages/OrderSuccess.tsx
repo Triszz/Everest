@@ -1,120 +1,44 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { orderApi } from '../services/api';
-import type { OrderDetail } from '../services/api';
-import { Copy, Check, ShoppingBag, Home, Ticket, Loader2, RefreshCw } from 'lucide-react';
-
-// ── Mock data — dùng khi chưa có backend hoặc không có orderId ──────────────
-
-const MOCK_VOUCHERS = [
-  {
-    code: 'EVR-KAFF-7291',
-    voucherTitle: 'Voucher Ưu Đãi Giảm 30% Tại Highlands Coffee',
-    partnerName: 'Highlands Coffee Việt Nam',
-    imageUrl: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&h=300&fit=crop',
-    validTo: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-    status: 'Unused' as const,
-  },
-  {
-    code: 'EVR-PHUC-3847',
-    voucherTitle: 'Free Ship Cho Đơn Từ 99K Tại Phúc Long',
-    partnerName: 'Phúc Long Coffee & Tea',
-    imageUrl: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400&h=300&fit=crop',
-    validTo: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
-    status: 'Unused' as const,
-  },
-];
-
-const MOCK_ORDER: OrderDetail = {
-  orderId: 10047,
-  customerId: 'cust-001',
-  totalAmount: 145000,
-  paymentMethod: 'Thanh toán MoMo',
-  paymentStatus: 'Paid',
-  isGift: false,
-  receiverEmail: null,
-  giftMessage: null,
-  createdAt: new Date(Date.now() - 1000 * 60 * 5).toISOString(), // 5 phút trước
-  updatedAt: new Date(Date.now() - 1000 * 60 * 4).toISOString(),
-  items: MOCK_VOUCHERS.map((v, i) => ({
-    orderItemId: i + 1,
-    voucherId: i + 1,
-    quantity: 1,
-    price: i === 0 ? 99000 : 46000,
-    voucher: {
-      title: v.voucherTitle,
-      imageUrl: v.imageUrl,
-      expiryDays: 30,
-      partner: { companyName: v.partnerName },
-    },
-    issuedVouchers: [
-      {
-        issuedVoucherId: i + 1,
-        voucherCode: v.code,
-        status: v.status,
-        validFrom: new Date().toISOString(),
-        validTo: v.validTo,
-        usedAt: null,
-        usedAtBranchId: null,
-        voucher: {
-          title: v.voucherTitle,
-          imageUrl: v.imageUrl,
-          expiryDays: 30,
-          partner: { companyName: v.partnerName },
-        },
-      },
-    ],
-  })),
-};
+import { Link, useSearchParams, useLocation } from 'react-router-dom';
+import { orderApi } from '../services';
+import type { OrderDetail } from '../services';
+import { formatPrice } from '../utils';
+import { QRImage } from '../utils/QRImage';
+import { Copy, Check, ShoppingBag, Home, Ticket, Loader2 } from 'lucide-react';
+import Loading from '../components/Loading';
+import { Breadcrumb } from '../components/Breadcrumb';
 
 type VoucherDisplay = {
   code: string;
+  voucherId: number;
   voucherTitle: string;
   partnerName: string;
   imageUrl: string | null;
   validTo: string;
-  status: 'Unused' | 'Used' | 'Expired' | 'Locked';
+  status: 'Unused' | 'Used' | 'Expired' | 'Locked' | 'Cancelled';
 };
 
 function buildVouchers(order: OrderDetail): VoucherDisplay[] {
-  return order.items.flatMap((item) =>
-    (item.issuedVouchers || []).map((iv) => ({
-      code: iv.voucherCode,
-      voucherTitle: item.voucher?.title || 'Voucher',
-      partnerName: item.voucher?.partner?.companyName || '',
-      imageUrl: item.voucher?.imageUrl || null,
-      validTo: iv.validTo,
-      status: iv.status,
-    }))
+  const items = order.orderItems || [];
+  return items.flatMap((item) =>
+    (item.issuedVouchers || []).map((iv) => {
+      const partner = item.voucher?.partner;
+      const partnerName = typeof partner === 'string' ? partner : partner?.companyName || '';
+      return {
+        code: iv.voucherCode,
+        voucherId: item.voucherId,
+        voucherTitle: item.voucher?.title || 'Voucher',
+        partnerName,
+        imageUrl: item.voucher?.imageUrl || null,
+        validTo: iv.validTo,
+        status: iv.status as VoucherDisplay['status'],
+      };
+    })
   );
-}
-
-// ── QR generator ─────────────────────────────────────────────────────────────
-
-function generateQR(code: string): string {
-  const size = 120;
-  const cellSize = 6;
-  const padding = 8;
-  const gridSize = Math.floor((size - padding * 2) / cellSize);
-
-  let cells = '';
-  for (let row = 0; row < gridSize; row++) {
-    for (let col = 0; col < gridSize; col++) {
-      const idx = row * gridSize + col;
-      const charCode = code.charCodeAt(idx % code.length);
-      if ((charCode + row + col) % 3 === 0) {
-        cells += `<rect x="${padding + col * cellSize}" y="${padding + row * cellSize}" width="${cellSize}" height="${cellSize}" fill="#1E293B"/>`;
-      }
-    }
-  }
-  return `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><rect width="${size}" height="${size}" fill="white"/>${cells}</svg>`;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function formatPrice(p: number) {
-  return p.toLocaleString('vi-VN') + 'đ';
-}
 function formatDate(d: string) {
   try {
     return new Date(d).toLocaleDateString('vi-VN', {
@@ -216,8 +140,7 @@ function VoucherCard({ v }: { v: VoucherDisplay }) {
 
         {/* QR */}
         <div style={{ flexShrink: 0, textAlign: 'center' }}>
-          <img src={generateQR(v.code)} alt="QR" width={80} height={80}
-            style={{ borderRadius: 8, display: 'block', marginBottom: 4 }} />
+          <QRImage code={v.code} size={80} style={{ marginBottom: 4 }} />
           <span style={{ fontSize: 10, color: '#94A3B8' }}>Quét tại quán</span>
         </div>
       </div>
@@ -227,7 +150,20 @@ function VoucherCard({ v }: { v: VoucherDisplay }) {
         <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 17, fontWeight: 800, color: '#1E293B', letterSpacing: 2 }}>
           {v.code}
         </span>
-        <CopyButton code={v.code} />
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Link
+            to={`/voucher/${v.voucherId}`}
+            style={{
+              padding: '8px 16px', background: 'white', color: '#0E76A8',
+              border: '1.5px solid #E2E8F0', borderRadius: 10,
+              fontFamily: 'Inter, sans-serif', fontSize: 12, fontWeight: 700,
+              textDecoration: 'none',
+            }}
+          >
+            Chi tiết
+          </Link>
+          <CopyButton code={v.code} />
+        </div>
       </div>
     </div>
   );
@@ -237,37 +173,33 @@ function VoucherCard({ v }: { v: VoucherDisplay }) {
 
 export function OrderSuccessPage() {
   const [searchParams] = useSearchParams();
-  const orderId = searchParams.get('orderId');
+  const location = useLocation();
+  const queryOrderId = searchParams.get('orderId');
+  const stateOrderId = (location.state as { orderId?: number } | null)?.orderId;
+  const orderId = queryOrderId ?? (stateOrderId ? String(stateOrderId) : null);
 
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [usingMock, setUsingMock] = useState(false);
 
   const fetchOrder = useCallback(async () => {
     if (!orderId) {
-      // Không có orderId → dùng mock ngay
-      setOrder(MOCK_ORDER as unknown as OrderDetail);
-      setUsingMock(true);
+      setError('Không tìm thấy mã đơn hàng.');
       setLoading(false);
       return;
     }
 
     try {
       setLoading(true);
+      setError(null);
       const res = await orderApi.getById(Number(orderId));
       if (res.success && res.data) {
         setOrder(res.data);
-        setUsingMock(false);
       } else {
-        // API trả error → fallback mock
-        setOrder(MOCK_ORDER as unknown as OrderDetail);
-        setUsingMock(true);
+        setError('Không tìm thấy đơn hàng này.');
       }
     } catch {
-      // Network error → fallback mock
-      setOrder(MOCK_ORDER as unknown as OrderDetail);
-      setUsingMock(true);
+      setError('Đã xảy ra lỗi khi tải thông tin đơn hàng.');
     } finally {
       setLoading(false);
     }
@@ -278,14 +210,7 @@ export function OrderSuccessPage() {
   }, [fetchOrder]);
 
   if (loading) {
-    return (
-      <div style={{ minHeight: '100vh', background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ textAlign: 'center' }}>
-          <Loader2 size={48} style={{ animation: 'spin 1s linear infinite', color: '#0E76A8' }} />
-          <p style={{ marginTop: 16, color: '#64748B', fontFamily: 'Inter, sans-serif', fontSize: 14 }}>Đang tải thông tin đơn hàng...</p>
-        </div>
-      </div>
-    );
+    return <Loading size={48} />;
   }
 
   if (!order) {
@@ -309,22 +234,19 @@ export function OrderSuccessPage() {
   }
 
   const vouchers = buildVouchers(order);
-  const expiryDays = order.items[0]?.voucher?.expiryDays ?? 30;
+  const expiryDays = order.orderItems?.[0]?.voucher?.expiryDays ?? 30;
 
   return (
     <div style={{ background: '#F8FAFC', minHeight: '100vh' }}>
-      {/* Breadcrumb */}
-      <div style={{ background: 'white', borderBottom: '1px solid #E2E8F0' }}>
-        <div style={{ maxWidth: 900, margin: '0 auto', padding: '12px 24px' }}>
-          <span style={{ fontSize: 13, color: '#64748B' }}>
-            <Link to="/" style={{ color: '#0E76A8', textDecoration: 'none' }}>Trang chủ</Link>
-            <span style={{ margin: '0 8px' }}>/</span>
-            <Link to="/cart" style={{ color: '#0E76A8', textDecoration: 'none' }}>Giỏ hàng</Link>
-            <span style={{ margin: '0 8px' }}>/</span>
-            <span style={{ color: '#1E293B', fontWeight: 600 }}>Đặt hàng thành công</span>
-          </span>
-        </div>
-      </div>
+      <Breadcrumb
+        showBack={false}
+        items={[
+          { label: 'Trang chủ', href: '/' },
+          { label: 'Giỏ hàng', href: '/cart' },
+          { label: 'Đặt hàng thành công' },
+        ]}
+        maxWidth={900}
+      />
 
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '40px 24px' }}>
 
@@ -359,6 +281,7 @@ export function OrderSuccessPage() {
             <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 15, fontWeight: 800, color: '#0E76A8' }}>#{order.orderId}</span>
           </div>
 
+          {/* Order info */}
           <div style={{ display: 'flex', justifyContent: 'center', gap: 32, marginTop: 16, flexWrap: 'wrap' }}>
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: 13, color: '#94A3B8', marginBottom: 4 }}>Ngày đặt</div>
@@ -370,21 +293,9 @@ export function OrderSuccessPage() {
             </div>
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: 13, color: '#94A3B8', marginBottom: 4 }}>Phương thức</div>
-              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, fontWeight: 600, color: '#1E293B' }}>{order.paymentMethod || 'Thanh toán mô phỏng'}</div>
+              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, fontWeight: 600, color: '#1E293B' }}>{order.paymentMethod || '—'}</div>
             </div>
           </div>
-
-          {/* Mock banner */}
-          {usingMock && (
-            <div style={{ marginTop: 16 }}>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#FEF9C3', border: '1px solid #FDE047', borderRadius: 8, padding: '6px 14px' }}>
-                <RefreshCw size={13} style={{ color: '#CA8A04' }} />
-                <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#92400E' }}>
-                  Đang hiển thị dữ liệu mẫu — kết nối backend để xem đơn thật
-                </span>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* ── Voucher Codes ── */}

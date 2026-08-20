@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import { authApi } from '../services/api';
+import { authApi, ApiResponseError } from '../services';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -30,6 +30,11 @@ export function LoginPage() {
         navigate('/');
       }
     } catch (err: any) {
+      // Nếu chưa verify email → chuyển sang trang nhập OTP
+      if (err instanceof ApiResponseError && err.code === 'EMAIL_NOT_VERIFIED') {
+        navigate(`/verify-email?email=${encodeURIComponent(email)}`);
+        return;
+      }
       setError(err.message || 'Đăng nhập thất bại. Vui lòng thử lại.');
     } finally {
       setLoading(false);

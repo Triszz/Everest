@@ -1,16 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { authApi } from '../services/api';
+import { Breadcrumb } from '../components/Breadcrumb';
 
 export function SettingsPage() {
   const navigate = useNavigate();
-  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    } else {
+    if (!storedUser) {
       navigate('/login');
     }
   }, [navigate]);
@@ -29,48 +26,21 @@ export function SettingsPage() {
   });
 
   return (
-    <div style={{
-      minHeight: 'calc(100vh - 200px)',
-      background: '#F8FAFC',
-      padding: '40px 20px',
-    }}>
-      <div style={{
-        maxWidth: 1000,
-        margin: '0 auto',
-      }}>
+    <div style={{ background: '#F8FAFC', minHeight: '100vh' }}>
+      <Breadcrumb
+        backHref="/profile"
+        items={[
+          { label: 'Trang chủ', href: '/' },
+          { label: 'Hồ sơ', href: '/profile' },
+          { label: 'Cài đặt' },
+        ]}
+      />
+      <div style={{ padding: '32px 20px' }}>
+      <div style={{ maxWidth: 1000, margin: '0 auto' }}>
         {/* Page Header */}
         <div style={{ marginBottom: 32 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-            <button
-              onClick={() => navigate('/profile')}
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                padding: 8,
-                borderRadius: 8,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2">
-                <path d="M19 12H5M12 19l-7-7 7-7"/>
-              </svg>
-            </button>
-            <h1 style={{
-              fontFamily: 'Manrope, sans-serif',
-              fontSize: 28,
-              fontWeight: 800,
-              color: '#1E293B',
-            }}>Cài đặt</h1>
-          </div>
-          <p style={{
-            fontFamily: 'Inter, sans-serif',
-            fontSize: 14,
-            color: '#64748B',
-            marginLeft: 44,
-          }}>Quản lý tài khoản và sở thích của bạn</p>
+          <h1 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 26, fontWeight: 800, color: '#1E293B', marginBottom: 4 }}>Cài đặt</h1>
+          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#64748B' }}>Quản lý tài khoản và sở thích của bạn</p>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -375,6 +345,7 @@ export function SettingsPage() {
             </button>
           </SettingsSection>
         </div>
+      </div>
       </div>
     </div>
   );

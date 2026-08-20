@@ -1,42 +1,63 @@
+/**
+ * Order Service
+ * --------------------------------------------------------------
+ * Core nghiệp vụ đặt hàng cho customer:
+ * - Tạo đơn (Pending) sau khi validate tồn kho + trạng thái voucher
+ * - Checkout: đánh dấu Paid + trừ tồn kho + phát hành voucher code
+ * - Hủy đơn (chỉ khi Pending hoặc restore stock nếu đã Paid)
+ * - Xem danh sách + chi tiết đơn
+ */
 import { prisma } from "../../../config/prisma";
 import { AppError } from "../../../middlewares/errorHandler";
+import { emailService } from "../../auth/email.service";
+import { notificationsService } from "../notifications/notifications.service";
 import type { CreateOrderInput, CheckoutInput } from "./orders.schemas";
+import { buildPagination } from "../shared";
+import { generateUniqueVoucherCode } from "../../../shared/utils/voucher-code";
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
-
-function generateVoucherCode(voucherTitle: string, index: number): string {
-  const prefix = voucherTitle
-    .split(" ")
-    .filter((w) => w.length > 0)
-    .slice(0, 3)
-    .map((w) => w[0].toUpperCase())
-    .join("")
-    .substring(0, 4);
-
-  const timestamp = Date.now().toString(36).toUpperCase().slice(-4);
-  const seq = String(index).padStart(2, "0");
-
-  return `EVR-${prefix}-${timestamp}${seq}`.substring(0, 20);
-}
-
-// ── Queries ────────────────────────────────────────────────────────────────────
+const ORDER_ITEM_SELECT = {
+  orderItemId: true,
+  voucherId: true,
+  quantity: true,
+  price: true,
+  voucher: {
+    select: {
+      voucherId: true,
+      title: true,
+      imageUrl: true,
+      salePrice: true,
+      expiryDays: true,
+      partner: { select: { companyName: true } },
+    },
+  },
+  issuedVouchers: true,
+} as const;
 
 export const ordersService = {
-  // ── Create order (Pending) ───────────────────────────────────────────────────
+  /**
+   * Tạo đơn hàng mới ở trạng thái Pending.
+   * Validate: voucher tồn tại + đã duyệt + trong thời gian bán + đủ tồn kho.
+   * KHÔNG trừ tồn kho ở bước này (chờ checkout).
+   */
   async createOrder(customerId: string, input: CreateOrderInput) {
-    const { buyerInfo, items, sendAsGift } = input;
+    const { buyerInfo, items, sendAsGift, receiverEmail, giftMessage } = input;
 
     if (items.length === 0) {
       throw new AppError("Đơn hàng phải có ít nhất 1 voucher", 400, "EMPTY_ORDER");
     }
 
+    // Validate receiver info when gifting
+    if (sendAsGift) {
+      if (!receiverEmail) {
+        throw new AppError("Email người nhận là bắt buộc khi tặng quà", 400, "MISSING_RECEIVER_EMAIL");
+      }
+    }
+
     // RB-01 + RB-03 + RB-04 + RB-11: validate all vouchers
     const voucherIds = items.map((i) => i.voucherId);
-
     const vouchers = await prisma.voucher.findMany({
       where: { voucherId: { in: voucherIds } },
     });
-
     if (vouchers.length !== voucherIds.length) {
       throw new AppError("Một số voucher không tồn tại", 400, "VOUCHER_NOT_FOUND");
     }
@@ -47,44 +68,38 @@ export const ordersService = {
     for (const item of items) {
       const voucher = vouchers.find((v) => v.voucherId === item.voucherId)!;
 
-      // RB-01: must be approved
       if (voucher.approvalStatus !== "Approved") {
         throw new AppError(
           `Voucher "${voucher.title}" chưa được duyệt`,
           400,
-          "VOUCHER_NOT_APPROVED"
+          "VOUCHER_NOT_APPROVED",
         );
       }
-
-      // RB-03: must be within sale period
       if (now < voucher.startDate || now > voucher.endDate) {
         throw new AppError(
           `Voucher "${voucher.title}" không còn trong thời gian bán`,
           400,
-          "VOUCHER_NOT_AVAILABLE"
+          "VOUCHER_NOT_AVAILABLE",
         );
       }
-
-      // RB-04 + RB-11: stock check
       if (voucher.availableQuantity < item.quantity) {
         throw new AppError(
           `Voucher "${voucher.title}" không đủ tồn kho. Chỉ còn ${voucher.availableQuantity}`,
           400,
-          "INSUFFICIENT_STOCK"
+          "INSUFFICIENT_STOCK",
         );
       }
 
       totalAmount += Number(voucher.salePrice) * item.quantity;
     }
 
-    // Build order
     const order = await prisma.order.create({
       data: {
         customerId,
         totalAmount,
         isGift: sendAsGift,
-        receiverEmail: sendAsGift ? buyerInfo.email : null,
-        giftMessage: sendAsGift ? buyerInfo.email : null,
+        receiverEmail: sendAsGift ? receiverEmail : null,
+        giftMessage: sendAsGift ? giftMessage : null,
         paymentStatus: "Pending",
         orderItems: {
           create: items.map((item) => {
@@ -135,14 +150,18 @@ export const ordersService = {
     };
   },
 
-  // ── Checkout: mark paid + issue voucher codes ──────────────────────────────
+  /**
+   * Thanh toán đơn (mô phỏng):
+   * - Double-check tồn kho tại thời điểm thanh toán
+   * - Trong transaction: mark Paid → trừ tồn kho → phát hành voucher codes
+   */
   async checkoutOrder(customerId: string, orderId: number, input: CheckoutInput) {
     const { paymentMethod } = input;
 
-    // Fetch order with explicit voucher+partner selection
     const order = await prisma.order.findFirst({
       where: { orderId, customerId },
       include: {
+        customer: { select: { email: true, fullName: true } },
         orderItems: {
           include: {
             voucher: {
@@ -158,47 +177,38 @@ export const ordersService = {
       },
     });
 
-    if (!order) {
-      throw new AppError("Không tìm thấy đơn hàng", 404, "ORDER_NOT_FOUND");
-    }
-
+    if (!order) throw new AppError("Không tìm thấy đơn hàng", 404, "ORDER_NOT_FOUND");
     if (order.paymentStatus === "Paid") {
       throw new AppError("Đơn hàng đã thanh toán trước đó", 400, "ALREADY_PAID");
     }
-
     if (order.paymentStatus === "Cancelled") {
       throw new AppError("Đơn hàng đã bị hủy", 400, "ORDER_CANCELLED");
     }
 
-    // RB-15: double-check stock at time of payment
+    // RB-15: re-check stock tại thời điểm thanh toán
     for (const item of order.orderItems) {
       const fresh = await prisma.voucher.findUnique({
         where: { voucherId: item.voucherId },
         select: { availableQuantity: true, title: true },
       });
-
       if (!fresh || fresh.availableQuantity < item.quantity) {
         throw new AppError(
           `Voucher "${item.voucher.title}" không đủ tồn kho tại thời điểm thanh toán. Vui lòng thử lại.`,
           409,
-          "INSUFFICIENT_STOCK_AT_CHECKOUT"
+          "INSUFFICIENT_STOCK_AT_CHECKOUT",
         );
       }
     }
 
-    // ── Transaction: pay + decrement stock + issue vouchers ─────────────────
+    // Transaction: pay + decrement stock + issue voucher codes (RB-05)
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Mark as paid
       const updatedOrder = await tx.order.update({
         where: { orderId },
-        data: {
-          paymentStatus: "Paid",
-          paymentMethod,
-        },
+        data: { paymentStatus: "Paid", paymentMethod },
         include: { orderItems: true },
       });
 
-      // 2. Decrement stock for each item
+      // Trừ tồn kho
       for (const item of order.orderItems) {
         await tx.voucher.update({
           where: { voucherId: item.voucherId },
@@ -206,11 +216,14 @@ export const ordersService = {
         });
       }
 
-      // 3. Issue voucher codes (RB-05)
+      // Phát hành voucher code
       const issuedVouchers = [];
       for (const item of order.orderItems) {
         for (let i = 0; i < item.quantity; i++) {
-          const code = generateVoucherCode(item.voucher.title, i + 1);
+          // generateUniqueVoucherCode đã trả về UPPERCASE (xem shared/utils/voucher-code.ts).
+          // Đảm bảo insert vào DB luôn là uppercase để tránh vi phạm @unique do
+          // PostgreSQL VARCHAR collation mặc định là case-sensitive.
+          const code = await generateUniqueVoucherCode(tx);
           const validTo = new Date();
           validTo.setDate(validTo.getDate() + (item.voucher.expiryDays || 30));
 
@@ -243,6 +256,95 @@ export const ordersService = {
       return { updatedOrder, issuedVouchers };
     });
 
+    // Gửi email xác nhận (không blocking — không ảnh hưởng kết quả thanh toán)
+    // Nếu là quà tặng → gửi đến receiverEmail, kèm tên người tặng
+    // Nếu không → gửi đến customerEmail
+    const isGift = order.isGift;
+    const recipientEmail = isGift ? order.receiverEmail : order.customer?.email;
+    const recipientName = isGift
+      ? order.customer?.fullName || "Người tặng"
+      : order.customer?.fullName || "Khách hàng";
+
+    if (recipientEmail) {
+      // Map price về từ orderItems (issuedVouchers không chứa price)
+      const priceByVoucher = new Map(
+        order.orderItems.map((oi) => [oi.voucher.title, Number(oi.price)]),
+      );
+
+      emailService.sendOrderConfirmation({
+        to: recipientEmail,
+        customerName: recipientName,
+        orderId,
+        totalAmount: Number(order.totalAmount),
+        paymentMethod: paymentMethod || "unknown",
+        items: result.issuedVouchers.reduce<Array<{
+          title: string;
+          partner: string;
+          quantity: number;
+          price: number;
+          voucherCodes: string[];
+          validFrom: Date;
+          validTo: Date;
+        }>>((acc, iv) => {
+          const existing = acc.find(
+            (a) =>
+              a.title === iv.voucher.title &&
+              a.partner === iv.voucher.partner,
+          );
+          if (existing) {
+            existing.voucherCodes.push(iv.voucherCode);
+          } else {
+            acc.push({
+              title: iv.voucher.title,
+              partner: iv.voucher.partner || "",
+              quantity: 1,
+              price: priceByVoucher.get(iv.voucher.title) || 0,
+              voucherCodes: [iv.voucherCode],
+              validFrom: iv.validFrom,
+              validTo: iv.validTo,
+            });
+          }
+          return acc;
+        }, []),
+      });
+    }
+
+    // Tạo notification cho buyer
+    try {
+      await notificationsService.notifyOrderPurchased(
+        customerId,
+        orderId,
+        Number(order.totalAmount),
+      );
+    } catch (err) {
+      console.error("[orders.service] Tạo notification cho buyer thất bại:", err);
+    }
+
+    // Nếu là quà tặng → tìm user theo receiverEmail và tạo notification
+    if (order.isGift && order.receiverEmail) {
+      try {
+        const receiverUser = await prisma.user.findUnique({
+          where: { email: order.receiverEmail },
+          select: { userId: true, fullName: true },
+        });
+
+        if (receiverUser) {
+          const firstIssued = result.issuedVouchers[0];
+          const gifterName = order.customer?.fullName || "Bạn bè";
+
+          await notificationsService.notifyVoucherGiftReceived(
+            receiverUser.userId,
+            gifterName,
+            firstIssued?.voucher?.title || "Voucher",
+            firstIssued?.voucherCode || "",
+            order.giftMessage || undefined,
+          );
+        }
+      } catch (err) {
+        console.error("[orders.service] Tạo notification cho receiver thất bại:", err);
+      }
+    }
+
     return {
       orderId: result.updatedOrder.orderId,
       paymentStatus: result.updatedOrder.paymentStatus,
@@ -251,30 +353,51 @@ export const ordersService = {
     };
   },
 
-  // ── Cancel order ──────────────────────────────────────────────────────────────
+  /**
+   * Hủy đơn hàng.
+   * - Nếu Pending → chỉ cần mark Cancelled.
+   * - Nếu Paid → restore tồn kho + hủy tất cả issued vouchers trong transaction.
+   */
   async cancelOrder(customerId: string, orderId: number) {
     const order = await prisma.order.findFirst({
       where: { orderId, customerId },
+      include: { orderItems: { include: { issuedVouchers: true } } },
     });
 
-    if (!order) {
-      throw new AppError("Không tìm thấy đơn hàng", 404, "ORDER_NOT_FOUND");
-    }
-
-    if (order.paymentStatus === "Paid") {
-      throw new AppError("Không thể hủy đơn đã thanh toán", 400, "CANNOT_CANCEL_PAID_ORDER");
-    }
-
+    if (!order) throw new AppError("Không tìm thấy đơn hàng", 404, "ORDER_NOT_FOUND");
     if (order.paymentStatus === "Cancelled") {
       throw new AppError("Đơn hàng đã bị hủy trước đó", 400, "ALREADY_CANCELLED");
     }
 
+    // Cancel the order
     const cancelled = await prisma.order.update({
       where: { orderId },
       data: { paymentStatus: "Cancelled" },
     });
 
-    // RB-13: no vouchers issued for cancelled order (order is Pending, so no IssuedVoucher was created)
+    // RB-13: nếu đơn đã paid (đã checkout) → restore stock + hủy issued vouchers
+    if (order.paymentStatus === "Pending") {
+      // Pending = chưa checkout → chưa có issued voucher → không cần restore
+      return {
+        orderId: cancelled.orderId,
+        paymentStatus: cancelled.paymentStatus,
+        message: "Đơn hàng đã được hủy thành công",
+      };
+    }
+
+    // Paid → restore stock + hủy tất cả issued vouchers
+    await prisma.$transaction(async (tx) => {
+      for (const item of order.orderItems) {
+        await tx.voucher.update({
+          where: { voucherId: item.voucherId },
+          data: { availableQuantity: { increment: item.quantity } },
+        });
+        await tx.issuedVoucher.updateMany({
+          where: { orderItemId: item.orderItemId },
+          data: { status: "Cancelled" as any },
+        });
+      }
+    });
 
     return {
       orderId: cancelled.orderId,
@@ -283,13 +406,16 @@ export const ordersService = {
     };
   },
 
-  // ── List orders (paginated) ─────────────────────────────────────────────────
-  async listOrders(customerId: string, page = 1, pageSize = 10) {
-    const skip = (page - 1) * pageSize;
+  /**
+   * Danh sách đơn hàng của customer (có phân trang).
+   */
+  async listOrders(customerId: string, page: number, pageSize: number) {
+    const where = { customerId };
+    const { skip, pagination } = buildPagination(page, pageSize, 0);
 
     const [orders, total] = await Promise.all([
       prisma.order.findMany({
-        where: { customerId },
+        where,
         include: {
           orderItems: {
             include: {
@@ -307,7 +433,7 @@ export const ordersService = {
         skip,
         take: pageSize,
       }),
-      prisma.order.count({ where: { customerId } }),
+      prisma.order.count({ where }),
     ]);
 
     return {
@@ -326,16 +452,13 @@ export const ordersService = {
           quantity: i.quantity,
         })),
       })),
-      pagination: {
-        page,
-        pageSize,
-        total,
-        totalPages: Math.ceil(total / pageSize),
-      },
+      pagination: { ...pagination, total },
     };
   },
 
-  // ── Get order detail ─────────────────────────────────────────────────────────
+  /**
+   * Chi tiết 1 đơn hàng (kèm issued vouchers).
+   */
   async getOrder(customerId: string, orderId: number) {
     const order = await prisma.order.findFirst({
       where: { orderId, customerId },
@@ -358,9 +481,7 @@ export const ordersService = {
       },
     });
 
-    if (!order) {
-      throw new AppError("Không tìm thấy đơn hàng", 404, "ORDER_NOT_FOUND");
-    }
+    if (!order) throw new AppError("Không tìm thấy đơn hàng", 404, "ORDER_NOT_FOUND");
 
     return {
       orderId: order.orderId,

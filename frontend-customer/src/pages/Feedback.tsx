@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { MessageSquareWarning, Loader2, CheckCircle2, Send, ChevronRight } from 'lucide-react';
-import { feedbackApi } from '../services/api';
+import { feedbackApi } from '../services';
+import { Breadcrumb } from '../components/Breadcrumb';
 
 // ── Feedback / Khiếu nại Page ────────────────────────────────────────────────
 // Flow: Chọn loại → điền thông tin → gửi → success state
@@ -187,16 +188,13 @@ export function FeedbackPage() {
 
   return (
     <div style={{ background: '#F8FAFC', minHeight: '100vh' }}>
-      {/* Breadcrumb */}
-      <div style={{ background: 'white', borderBottom: '1px solid #E2E8F0' }}>
-        <div style={{ maxWidth: 800, margin: '0 auto', padding: '12px 24px' }}>
-          <span style={{ fontSize: 13, color: '#64748B' }}>
-            <Link to="/" style={{ color: '#0E76A8', textDecoration: 'none' }}>Trang chủ</Link>
-            <span style={{ margin: '0 8px' }}>/</span>
-            <span style={{ color: '#1E293B', fontWeight: 600 }}>Gửi phản hồi & Khiếu nại</span>
-          </span>
-        </div>
-      </div>
+      <Breadcrumb
+        items={[
+          { label: 'Trang chủ', href: '/' },
+          { label: 'Gửi phản hồi & Khiếu nại' },
+        ]}
+        maxWidth={800}
+      />
 
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '40px 24px' }}>
         {/* Page header */}

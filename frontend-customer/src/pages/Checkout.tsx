@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
-import { cartApi, orderApi } from '../services/api';
-import type { CartItem } from '../services/api';
+import { cartApi, orderApi, profileApi, paymentApi } from '../services';
+import { Breadcrumb } from '../components/Breadcrumb';
+import type { CartItem } from '../services';
+import { formatPrice } from '../utils';
+import Loading from '../components/Loading';
 
 export function Checkout() {
   const navigate = useNavigate();
@@ -16,7 +19,8 @@ export function Checkout() {
     phone: '',
   });
   const [sendAsGift, setSendAsGift] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState('atm');
+  const [receiverEmail, setReceiverEmail] = useState('');
+  const [giftMessage, setGiftMessage] = useState('');
   const [voucherCode, setVoucherCode] = useState('');
   const [applyingCode, setApplyingCode] = useState(false);
   const [appliedDiscount, setAppliedDiscount] = useState(0);
@@ -35,16 +39,31 @@ export function Checkout() {
     }
 
     const user = localStorage.getItem('user');
+    let cachedUser: { fullName?: string; email?: string; phone?: string; phoneNumber?: string } | null = null;
     if (user) {
       try {
-        const u = JSON.parse(user);
+        cachedUser = JSON.parse(user);
         setBuyerInfo({
-          fullName: u.fullName || '',
-          email: u.email || '',
-          phone: u.phone || '',
+          fullName: cachedUser?.fullName || '',
+          email: cachedUser?.email || '',
+          phone: cachedUser?.phoneNumber || cachedUser?.phone || '',
         });
       } catch { /* ignore */ }
     }
+
+    // Lấy profile mới nhất từ server để chắc chắn có SĐT (localStorage có thể cũ/thiếu).
+    profileApi.getProfile()
+      .then(res => {
+        if (res.success && res.data) {
+          localStorage.setItem('user', JSON.stringify(res.data));
+          setBuyerInfo({
+            fullName: res.data.fullName || '',
+            email: res.data.email || '',
+            phone: res.data.phoneNumber || '',
+          });
+        }
+      })
+      .catch(() => { /* giữ giá trị từ localStorage nếu API lỗi */ });
 
     cartApi.getCart()
       .then(res => {
@@ -60,8 +79,6 @@ export function Checkout() {
 
   const subtotal = cartItems.reduce((sum, item) => sum + Number(item.voucher.salePrice) * item.quantity, 0);
   const total = subtotal - appliedDiscount;
-
-  const formatPrice = (p: number) => p.toLocaleString('vi-VN') + 'đ';
 
   const handleApplyCode = async () => {
     if (!voucherCode.trim()) return;
@@ -97,6 +114,10 @@ export function Checkout() {
       alert('Vui lòng điền đầy đủ thông tin người mua.');
       return;
     }
+    if (sendAsGift && !receiverEmail.trim()) {
+      alert('Vui lòng nhập email người nhận voucher tặng.');
+      return;
+    }
     if (cartItems.length === 0) {
       navigate('/cart');
       return;
@@ -104,34 +125,39 @@ export function Checkout() {
 
     setSubmitting(true);
     try {
-      // ── Step 1: create order ──
+      // ── Step 1: create order (Pending) ──
       const createRes = await orderApi.create({
         buyerInfo,
         items: cartItems.map(item => ({
-          voucherId: item.voucherId,
+          voucherId: item.voucher.voucherId,
           quantity: item.quantity,
         })),
         sendAsGift,
+        ...(sendAsGift && {
+          receiverEmail: receiverEmail.trim(),
+          giftMessage: giftMessage.trim(),
+        }),
       });
 
       if (!createRes.success || !createRes.data?.orderId) {
         throw new Error(createRes.error?.message || 'Không thể tạo đơn hàng.');
       }
 
-      // ── Step 2: checkout / payment ──
-      const checkoutRes = await orderApi.checkout(createRes.data.orderId, {
-        paymentMethod,
-      });
+      const orderId = createRes.data.orderId;
 
-      if (!checkoutRes.success) {
-        throw new Error(checkoutRes.error?.message || 'Thanh toán thất bại.');
+      // ── Step 2: tạo URL thanh toán VNPAY ──
+      const paymentRes = await paymentApi.create(orderId);
+
+      if (!paymentRes.success || !paymentRes.data?.paymentUrl) {
+        throw new Error(paymentRes.error?.message || 'Không thể tạo liên kết thanh toán.');
       }
 
-      // ── Step 3: clear cart & redirect ──
-      await cartApi.clearCart();
-      navigate('/checkout/success', {
-        state: { orderId: createRes.data.orderId },
-      });
+      // ── Step 3: clear cart trước khi redirect (tránh user back lại) ──
+      cartApi.clearCart().catch(() => { /* ignore — không chặn payment */ });
+
+      // ── Step 4: redirect sang VNPAY sandbox ──
+      // Sau khi thanh toán, VNPAY redirect về VNP_RETURN_URL (/payment/return)
+      window.location.href = paymentRes.data.paymentUrl;
     } catch (err: any) {
       alert(err.message || 'Đã xảy ra lỗi. Vui lòng thử lại.');
       setSubmitting(false);
@@ -139,15 +165,7 @@ export function Checkout() {
   };
 
   if (loadingCart) {
-    return (
-      <div style={{ background: '#F8FAFC', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ textAlign: 'center' }}>
-          <Loader2 size={40} style={{ animation: 'spin 1s linear infinite', color: '#0E76A8', margin: '0 auto 16px', display: 'block' }} />
-          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#64748B' }}>Đang tải giỏ hàng...</p>
-        </div>
-        <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
-      </div>
-    );
+    return <Loading />;
   }
 
   if (cartError) {
@@ -169,22 +187,30 @@ export function Checkout() {
     boxSizing: 'border-box' as const,
   };
 
+  const requiredLabelStyle: React.CSSProperties = {
+    display: 'block', fontSize: 13, fontWeight: 600,
+    color: '#1E293B', marginBottom: 6,
+  };
+
+  const RequiredLabel = ({ children }: { children: React.ReactNode }) => (
+    <label style={requiredLabelStyle}>
+      {children}
+      <span style={{ color: '#EF4444', marginLeft: 4 }} aria-label="bắt buộc">*</span>
+    </label>
+  );
+
   return (
     <div style={{ background: '#F8FAFC', minHeight: '100vh' }}>
-      {/* Breadcrumb */}
-      <div style={{ background: 'white', borderBottom: '1px solid #E2E8F0' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '12px 24px' }}>
-          <span style={{ fontSize: 13, color: '#64748B' }}>
-            <Link to="/" style={{ color: '#0E76A8', textDecoration: 'none' }}>Trang chủ</Link>
-            <span style={{ margin: '0 8px' }}>/</span>
-            <Link to="/cart" style={{ color: '#0E76A8', textDecoration: 'none' }}>Giỏ hàng</Link>
-            <span style={{ margin: '0 8px' }}>/</span>
-            <span style={{ color: '#1E293B', fontWeight: 600 }}>Thanh toán</span>
-          </span>
-        </div>
-      </div>
+      <Breadcrumb
+        backHref="/cart"
+        items={[
+          { label: 'Trang chủ', href: '/' },
+          { label: 'Giỏ hàng', href: '/cart' },
+          { label: 'Thanh toán' },
+        ]}
+      />
 
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px' }}>
+      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '32px 24px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 400px', gap: 24, alignItems: 'start' }}>
 
           {/* LEFT */}
@@ -201,7 +227,7 @@ export function Checkout() {
               </h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#1E293B', marginBottom: 6 }}>Họ và tên</label>
+                  <RequiredLabel>Họ và tên</RequiredLabel>
                   <input type="text" placeholder="Nhập đầy đủ họ và tên" value={buyerInfo.fullName}
                     onChange={e => updateBuyer('fullName', e.target.value)}
                     style={inputStyle} onFocus={e => (e.currentTarget.style.borderColor = '#0E76A8')}
@@ -209,14 +235,14 @@ export function Checkout() {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#1E293B', marginBottom: 6 }}>Email</label>
+                    <RequiredLabel>Email</RequiredLabel>
                     <input type="email" placeholder="example@email.com" value={buyerInfo.email}
                       onChange={e => updateBuyer('email', e.target.value)}
                       style={inputStyle} onFocus={e => (e.currentTarget.style.borderColor = '#0E76A8')}
                       onBlur={e => (e.currentTarget.style.borderColor = 'transparent')} />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#1E293B', marginBottom: 6 }}>Số điện thoại</label>
+                    <RequiredLabel>Số điện thoại</RequiredLabel>
                     <input type="tel" placeholder="0xxx xxx xxx" value={buyerInfo.phone}
                       onChange={e => updateBuyer('phone', e.target.value)}
                       style={inputStyle} onFocus={e => (e.currentTarget.style.borderColor = '#0E76A8')}
@@ -237,15 +263,74 @@ export function Checkout() {
                     <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>
                   </svg>
                 </div>
-                <h3 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 15, fontWeight: 700, color: '#1E293B' }}>Gửi tặng bạn bè</h3>
+                <div>
+                  <h3 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 15, fontWeight: 700, color: '#1E293B', margin: 0 }}>Gửi tặng bạn bè</h3>
+                  <p style={{ fontSize: 12, color: '#64748B', margin: '2px 0 0 0' }}>Mã voucher sẽ được gửi đến người nhận</p>
+                </div>
               </div>
-              <button onClick={() => setSendAsGift(!sendAsGift)}
+              <button onClick={() => {
+                setSendAsGift(!sendAsGift);
+                if (sendAsGift) {
+                  setReceiverEmail('');
+                  setGiftMessage('');
+                }
+              }}
                 style={{ width: 44, height: 24, borderRadius: 12, background: sendAsGift ? '#0E76A8' : '#CBD5E1', border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 0.2s', padding: 0 }}>
                 <span style={{ position: 'absolute', top: 2, left: sendAsGift ? 22 : 2, width: 20, height: 20, borderRadius: '50%', background: 'white', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
               </button>
             </div>
 
-            {/* Payment */}
+            {/* Gift form */}
+            {sendAsGift && (
+              <div style={{ background: 'white', borderRadius: 16, padding: 24, marginBottom: 16, border: '1.5px solid #10B981', boxShadow: '0 1px 2px rgba(16,185,129,0.1)' }}>
+                <h3 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700, color: '#10B981', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                  </svg>
+                  Thông tin người nhận
+                </h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#1E293B', marginBottom: 6 }}>
+                      Email người nhận <span style={{ color: '#EF4444' }}>*</span>
+                    </label>
+                    <input
+                      type="email"
+                      placeholder="Nhập email người bạn muốn tặng"
+                      value={receiverEmail}
+                      onChange={e => setReceiverEmail(e.target.value)}
+                      style={{ width: '100%', padding: '12px 14px', background: '#F0FDF4', border: '1.5px solid #86EFAC', borderRadius: 10, fontSize: 14, color: '#1E293B', fontFamily: 'Inter, sans-serif', outline: 'none', boxSizing: 'border-box' }}
+                      onFocus={e => (e.currentTarget.style.borderColor = '#10B981')}
+                      onBlur={e => (e.currentTarget.style.borderColor = '#86EFAC')}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#1E293B', marginBottom: 6 }}>
+                      Lời chúc (tùy chọn)
+                    </label>
+                    <textarea
+                      placeholder="Viết lời chúc cho người bạn yêu quý..."
+                      value={giftMessage}
+                      onChange={e => setGiftMessage(e.target.value.slice(0, 500))}
+                      rows={3}
+                      style={{ width: '100%', padding: '12px 14px', background: '#F0FDF4', border: '1.5px solid #86EFAC', borderRadius: 10, fontSize: 14, color: '#1E293B', fontFamily: 'Inter, sans-serif', outline: 'none', boxSizing: 'border-box', resize: 'vertical', lineHeight: 1.5 }}
+                      onFocus={e => (e.currentTarget.style.borderColor = '#10B981')}
+                      onBlur={e => (e.currentTarget.style.borderColor = '#86EFAC')}
+                    />
+                    <div style={{ textAlign: 'right', fontSize: 11, color: '#94A3B8', marginTop: 4 }}>
+                      {giftMessage.length}/500
+                    </div>
+                  </div>
+                  <div style={{ padding: '12px 16px', background: '#F0FDF4', borderRadius: 10, border: '1px solid #86EFAC' }}>
+                    <p style={{ fontSize: 12, color: '#64748B', margin: 0, lineHeight: 1.5 }}>
+                      <strong style={{ color: '#10B981' }}>{buyerInfo.fullName || 'Bạn'}</strong> sẽ tặng voucher này cho người nhận qua email. Mã voucher sẽ được gửi kèm lời chúc của bạn.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Payment — VNPAY only */}
             <div style={{ background: 'white', borderRadius: 16, padding: 28, boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
               <h2 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 16, fontWeight: 800, color: '#1E293B', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ width: 36, height: 36, background: '#FEF3C7', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -253,25 +338,15 @@ export function Checkout() {
                     <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
                   </svg>
                 </div>
-                Phương thức thanh toán
+                Thanh toán qua VNPAY
               </h2>
-
-              {[
-                { key: 'atm', label: 'ATM / Internet Banking', sub: 'Hỗ trợ tất cả ngân hàng nội địa' },
-                { key: 'momo', label: 'Ví MoMo', sub: 'Thanh toán nhanh qua ứng dụng MoMo' },
-                { key: 'visa', label: 'Thẻ Visa / Mastercard / JCB', sub: 'Thanh toán quốc tế bảo mật cao' },
-              ].map(opt => (
-                <label key={opt.key} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 18px', border: paymentMethod === opt.key ? '2px solid #0E76A8' : '1.5px solid #E2E8F0', borderRadius: 12, background: 'white', cursor: 'pointer', marginBottom: 10, transition: 'all 0.2s' }}>
-                  <input type="radio" name="payment" checked={paymentMethod === opt.key} onChange={() => setPaymentMethod(opt.key)} style={{ width: 18, height: 18, accentColor: '#0E76A8' }} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: '#1E293B', marginBottom: 2 }}>{opt.label}</div>
-                    <div style={{ fontSize: 12, color: '#64748B' }}>{opt.sub}</div>
-                  </div>
-                  {paymentMethod === opt.key && (
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0E76A8" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                  )}
-                </label>
-              ))}
+              <p style={{ fontSize: 13, color: '#64748B', lineHeight: 1.6, marginBottom: 12 }}>
+                Bạn sẽ được chuyển đến cổng thanh toán VNPAY an toàn. Hỗ trợ tất cả ngân hàng nội địa, thẻ quốc tế và ví điện tử.
+              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', border: '1.5px solid #E2E8F0', borderRadius: 12, background: '#F8FAFC' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                <span style={{ fontSize: 13, color: '#64748B', fontWeight: 600 }}>Thanh toán được bảo mật bởi VNPAY</span>
+              </div>
             </div>
           </div>
 
@@ -352,9 +427,9 @@ export function Checkout() {
               onMouseLeave={e => { if (!submitting) e.currentTarget.style.background = '#0E76A8'; }}
             >
               {submitting ? (
-                <><Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> Đang xử lý...</>
+                <><Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> Đang chuyển đến VNPAY...</>
               ) : (
-                <><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> THANH TOÁN NGAY</>
+                <><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> THANH TOÁN QUA VNPAY</>
               )}
             </button>
 

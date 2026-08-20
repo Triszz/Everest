@@ -6,6 +6,9 @@ import {
   VOUCHER_INPUT_ERROR_STYLE as INPUT_ERROR_STYLE,
   VOUCHER_ERROR_TEXT as ERROR_TEXT,
   VOUCHER_HELP_TEXT as HELP_TEXT,
+  VOUCHER_IMAGE_MAX_BYTES,
+  VOUCHER_IMAGE_ALLOWED_TYPES,
+  VOUCHER_IMAGE_ALLOWED_LABEL,
   type VoucherFormData,
   type VoucherFormErrors,
   EMPTY_FORM,
@@ -86,8 +89,24 @@ export function VoucherForm({
       setErrors(prev => ({ ...prev, imageUrl: 'Vui lòng chọn file ảnh' }));
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      setErrors(prev => ({ ...prev, imageUrl: 'Kích thước ảnh không được quá 5MB' }));
+    if (!VOUCHER_IMAGE_ALLOWED_TYPES.includes(file.type)) {
+      setErrors(prev => ({
+        ...prev,
+        imageUrl: `Định dạng không hỗ trợ. Vui lòng chọn ảnh ${VOUCHER_IMAGE_ALLOWED_LABEL}.`,
+      }));
+      // Reset input so the same file can be re-selected after the user
+      // switches to a supported format.
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+    if (file.size > VOUCHER_IMAGE_MAX_BYTES) {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+      const maxMB = Math.round(VOUCHER_IMAGE_MAX_BYTES / (1024 * 1024));
+      setErrors(prev => ({
+        ...prev,
+        imageUrl: `Ảnh có kích thước ${sizeMB} MB vượt quá giới hạn ${maxMB} MB. Vui lòng chọn ảnh nhỏ hơn.`,
+      }));
+      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
     const reader = new FileReader();
@@ -353,7 +372,7 @@ export function VoucherForm({
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept={VOUCHER_IMAGE_ALLOWED_TYPES.join(',')}
             onChange={handleFileSelect}
             style={{ display: 'none' }}
           />
@@ -415,10 +434,16 @@ export function VoucherForm({
                 <polyline points="17 8 12 3 7 8" />
                 <line x1="12" y1="3" x2="12" y2="15" />
               </svg>
-              Chọn ảnh (tối đa 5MB)
+              Chọn ảnh
             </button>
           )}
-          {errors.imageUrl && <div style={ERROR_TEXT}>{errors.imageUrl}</div>}
+          {errors.imageUrl ? (
+            <div style={ERROR_TEXT}>{errors.imageUrl}</div>
+          ) : (
+            <div style={HELP_TEXT}>
+              Hỗ trợ {VOUCHER_IMAGE_ALLOWED_LABEL}. Kích thước tối đa {Math.round(VOUCHER_IMAGE_MAX_BYTES / (1024 * 1024))} MB mỗi ảnh.
+            </div>
+          )}
         </div>
       </div>
 

@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Monitor, Smartphone, Globe, Clock, Trash2, Loader2, CheckCircle2 } from 'lucide-react';
-import { authApi } from '../services/api';
-
-function formatDate(d: Date) {
-  return d.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-}
+import { useNavigate } from 'react-router-dom';
+import { Monitor, Smartphone, Globe, Clock, Trash2, Loader2 } from 'lucide-react';
+import { authApi } from '../services';
+import Loading from '../components/Loading';
+import { Breadcrumb } from '../components/Breadcrumb';
 
 interface Session {
   id: string;
@@ -102,25 +100,25 @@ export function SessionsPage() {
   const displayed = showAll ? sessions : sessions.slice(0, 2);
 
   if (loadingSessions) {
-    return (
-      <div style={{ background: '#F8FAFC', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Loader2 size={32} style={{ animation: 'spin 1s linear infinite', color: '#0E76A8' }} />
-      </div>
-    );
+    return <Loading />;
   }
 
   return (
     <div style={{ background: '#F8FAFC', minHeight: '100vh' }}>
-      {/* Header */}
-      <div style={{ background: 'white', borderBottom: '1px solid #E2E8F0' }}>
-        <div style={{ maxWidth: 700, margin: '0 auto', padding: '16px 24px', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button onClick={() => navigate('/settings')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 8, display: 'flex' }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-          </button>
-          <div>
-            <h1 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 22, fontWeight: 800, color: '#1E293B', margin: 0 }}>Phiên đăng nhập</h1>
-            <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#64748B', margin: 0 }}>Quản lý các thiết bị đã đăng nhập</p>
-          </div>
+      <Breadcrumb
+        backHref="/settings"
+        items={[
+          { label: 'Trang chủ', href: '/' },
+          { label: 'Cài đặt', href: '/settings' },
+          { label: 'Phiên đăng nhập' },
+        ]}
+      />
+
+      {/* Title */}
+      <div style={{ background: 'white', borderBottom: '1px solid #E2E8F0', padding: '16px 0' }}>
+        <div style={{ maxWidth: 700, margin: '0 auto', padding: '0 24px' }}>
+          <h1 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 22, fontWeight: 800, color: '#1E293B', margin: 0 }}>Phiên đăng nhập</h1>
+          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#64748B', margin: 0 }}>Quản lý các thiết bị đã đăng nhập</p>
         </div>
       </div>
 

@@ -1,14 +1,20 @@
+/**
+ * Banner Service
+ * --------------------------------------------------------------
+ * Quản lý banner quảng cáo hiển thị trên customer UI (carousel trang chủ).
+ * Chỉ đọc — không có endpoint tạo/sửa từ phía customer (do admin/partner quản lý).
+ */
 import { prisma } from "../../../config/prisma";
 
 export const bannersService = {
+  /**
+   * Lấy tất cả banner đang hiển thị (status = Visible), sắp xếp mới nhất trước.
+   * Dùng cho carousel trang chủ customer.
+   */
   async listActiveBanners() {
-    const banners = await prisma.banner.findMany({
-      where: {
-        status: "Visible",
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
+    return prisma.banner.findMany({
+      where: { status: "Visible" },
+      orderBy: { createdAt: "desc" },
       select: {
         bannerId: true,
         title: true,
@@ -16,7 +22,5 @@ export const bannersService = {
         status: true,
       },
     });
-
-    return banners;
   },
 };

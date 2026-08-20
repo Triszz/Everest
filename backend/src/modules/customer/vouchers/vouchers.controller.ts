@@ -1,56 +1,67 @@
+/**
+ * Voucher Controller
+ * --------------------------------------------------------------
+ * Parse query/params qua shared helpers, gọi vouchersService.
+ * Mount trong app.ts ở `/api/vouchers`.
+ */
 import { Request, Response } from "express";
-import { ZodError } from "zod";
 import { vouchersService } from "./vouchers.service";
 import { asyncHandler } from "../../../middlewares/asyncHandler";
-import { AppError } from "../../../middlewares/errorHandler";
+import { parseOrThrow } from "../shared/helpers";
 import {
   voucherQuerySchema,
-  voucherIdParam,
+  voucherOptionalIdParam,
   reviewQuerySchema,
 } from "./vouchers.schemas";
 
-const parseQueryOrThrow = <T>(schema: { parse: (v: unknown) => T }, value: unknown): T => {
-  try {
-    return schema.parse(value);
-  } catch (err) {
-    if (err instanceof ZodError) {
-      const issue = err.issues[0];
-      throw new AppError(issue.message, 400, "VALIDATION_ERROR");
-    }
-    throw err;
-  }
-};
-
-const parseIdParamOrThrow = (req: Request): number => {
-  try {
-    return voucherIdParam.parse(req.params).id;
-  } catch {
-    throw new AppError("ID voucher không hợp lệ", 400, "VALIDATION_ERROR");
-  }
-};
-
 export const vouchersController = {
+  /**
+   * GET /api/vouchers
+   * List + filter + sort + paginate voucher.
+   */
   listVouchers: asyncHandler(async (req: Request, res: Response) => {
-    const query = parseQueryOrThrow(voucherQuerySchema, req.query);
+    const query = parseOrThrow(voucherQuerySchema, req.query);
     const result = await vouchersService.listVouchers(query);
     res.json({ success: true, ...result });
   }),
 
+  /**
+   * GET /api/vouchers/featured
+   * Top 8 voucher nổi bật cho trang chủ.
+   */
   getFeatured: asyncHandler(async (_req: Request, res: Response) => {
     const vouchers = await vouchersService.getFeaturedVouchers();
     res.json({ success: true, data: vouchers });
   }),
 
+  /**
+   * GET /api/vouchers/:id (hoặc :voucherId)
+   * Chi tiết 1 voucher.
+   */
   getVoucherById: asyncHandler(async (req: Request, res: Response) => {
-    const id = parseIdParamOrThrow(req);
-    const voucher = await vouchersService.getVoucherById(id);
+    const voucherId = parseOrThrow(voucherOptionalIdParam, req.params);
+    const voucher = await vouchersService.getVoucherById(voucherId);
     res.json({ success: true, data: voucher });
   }),
 
+  /**
+   * GET /api/vouchers/:voucherId/reviews
+   * Danh sách review của voucher.
+   */
   getVoucherReviews: asyncHandler(async (req: Request, res: Response) => {
-    const id = parseIdParamOrThrow(req);
-    const { page, limit } = parseQueryOrThrow(reviewQuerySchema, req.query);
-    const result = await vouchersService.getVoucherReviews(id, page, limit);
+    const voucherId = parseOrThrow(voucherOptionalIdParam, req.params);
+    const { page, limit } = parseOrThrow(reviewQuerySchema, req.query);
+    const result = await vouchersService.getVoucherReviews(voucherId, page, limit);
     res.json({ success: true, ...result });
+  }),
+
+  /**
+   * GET /api/customer/search/partners
+   * Danh sách đối tác cho dropdown filter (BR-CUS-03).
+   * Chuyển từ search module cũ.
+   */
+  listPartners: asyncHandler(async (_req: Request, res: Response) => {
+    const data = await vouchersService.listPartnersForFilter();
+    res.json({ success: true, data });
   }),
 };

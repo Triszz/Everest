@@ -2,20 +2,21 @@ import { Link } from 'react-router-dom';
 import LogoImg from '../assets/images/Logo.png';
 
 const FOOTER_LINKS = {
-  'Về Chúng Tôi': [
-    { label: 'Giới thiệu', to: '/about' },
-    { label: 'Tuyển dụng', to: '/careers' },
-    { label: 'Báo chí', to: '/press' },
+  'Khám Phá': [
+    { label: 'Tất cả Voucher', to: '/vouchers' },
+    { label: 'Voucher của tôi', to: '/my-voucher' },
+    { label: 'Giỏ hàng', to: '/cart' },
   ],
   'Hỗ Trợ Khách Hàng': [
-    { label: 'Trung tâm trợ giúp', to: '/help' },
-    { label: 'Quy trình hoàn tiền', to: '/refund' },
+    { label: 'Trung tâm trợ giúp', to: '/settings/help' },
+    { label: 'Phản hồi & Khiếu nại', to: '/feedback' },
     { label: 'Chính sách bảo mật', to: '/privacy' },
+    { label: 'Điều khoản sử dụng', to: '/terms' },
   ],
-  'Đối Tác': [
-    { label: 'Đăng ký đối tác', to: '/partner/register' },
-    { label: 'Cổng thông tin Merchant', to: '/partner/portal' },
-    { label: 'Hợp tác doanh nghiệp', to: '/enterprise' },
+  'Tài Khoản': [
+    { label: 'Hồ sơ cá nhân', to: '/profile' },
+    { label: 'Đơn hàng của tôi', to: '/orders' },
+    { label: 'Cài đặt tài khoản', to: '/settings' },
   ],
 };
 
@@ -55,7 +56,7 @@ export function Footer() {
   return (
     <footer style={{ background: '#F8FAFC', borderTop: '1px solid #E2E8F0' }}>
       {/* Main footer content */}
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '52px 24px 40px' }}>
+      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '52px 24px 40px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr 1fr 1fr', gap: 48 }}>
 
           {/* Brand column */}

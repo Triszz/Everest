@@ -1,10 +1,17 @@
+/**
+ * Feedback Schemas
+ * --------------------------------------------------------------
+ * Zod schemas cho Feedback API.
+ *
+ * Phân chia:
+ * - Customer (submit): chỉ cần type, subject, message, email, phone, orderId, voucherCode
+ * - Admin (list/get/update): listFeedbackQuery, feedbackIdParam
+ */
 import { z } from "zod";
 
-const FEEDBACK_TYPES = ["general", "order", "voucher", "complaint"] as const;
-const STATUS_VALUES = ["Open", "InProgress", "Resolved", "Closed"] as const;
+// ── Customer: Submit ──────────────────────────────────────────────────────────
 
-// ── Submit feedback ─────────────────────────────────────────────────────────────
-
+/** Body cho POST /api/feedback — gửi phản hồi/kiến nghị (guest hoặc authenticated). */
 export const submitFeedbackSchema = z.object({
   type: z.enum(["general", "order", "voucher", "complaint"]),
   subject: z
@@ -16,29 +23,22 @@ export const submitFeedbackSchema = z.object({
     .min(20, "Nội dung phải có ít nhất 20 ký tự")
     .max(1000, "Nội dung tối đa 1000 ký tự"),
   email: z.string().email("Email không hợp lệ"),
-  phone: z
-    .string()
-    .max(15, "Số điện thoại không hợp lệ")
-    .optional(),
+  phone: z.string().max(15, "Số điện thoại không hợp lệ").optional(),
   orderId: z.coerce
     .number("orderId phải là số")
-    .int("orderId phải là số nguyên")
-    .positive("orderId phải lớn hơn 0")
+    .int()
+    .positive()
     .optional(),
-  voucherCode: z
-    .string()
-    .max(50, "Mã voucher tối đa 50 ký tự")
-    .optional(),
+  voucherCode: z.string().max(50).optional(),
 });
 
-// ── List (admin) ───────────────────────────────────────────────────────────────
+// ── Admin: List/Get/Update ───────────────────────────────────────────────────
 
 export const listFeedbackQuery = z.object({
-  status: z.enum(STATUS_VALUES).optional(),
-  type: z.enum(FEEDBACK_TYPES).optional(),
+  status: z.enum(["Open", "InProgress", "Resolved", "Closed"]).optional(),
+  type: z.enum(["general", "order", "voucher", "complaint"]).optional(),
   page: z.coerce.number("page phải là số").int().positive().optional().default(1),
-  pageSize: z
-    .coerce
+  pageSize: z.coerce
     .number("pageSize phải là số")
     .int()
     .positive()
@@ -53,8 +53,6 @@ export const feedbackIdParam = z.object({
     .int()
     .positive("feedbackId phải lớn hơn 0"),
 });
-
-// ── Types ─────────────────────────────────────────────────────────────────────
 
 export type SubmitFeedbackInput = z.infer<typeof submitFeedbackSchema>;
 export type ListFeedbackQuery = z.infer<typeof listFeedbackQuery>;

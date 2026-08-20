@@ -59,10 +59,34 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   line-height: 1.6;
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-headline);
+}
+
+/* Form inputs & editable areas retain text selection and text cursor */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="search"],
+input[type="tel"],
+input[type="url"],
+textarea,
+[contenteditable="true"],
+.selectable {
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Interactive elements use pointer cursor */
+a, button, select, label, [role="button"], summary, input[type="button"], input[type="submit"], input[type="checkbox"], input[type="radio"] {
+  cursor: pointer;
 }
 
 /* ===== UTILITIES ===== */
@@ -78,6 +102,17 @@ h1, h2, h3, h4, h5, h6 {
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* ===== POPUP ANIMATIONS ===== */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
 }
 
 /* ===== SCROLLBAR ===== */

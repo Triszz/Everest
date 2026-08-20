@@ -1,25 +1,30 @@
+/**
+ * Cart Schemas
+ * --------------------------------------------------------------
+ * Zod schemas cho validate body/params của Cart API.
+ */
 import { z } from "zod";
 
-const coerceToNumber = (errorMsg: string) =>
-  z.coerce.number(errorMsg);
-
+/** POST /api/cart/items — Thêm voucher vào giỏ. */
 export const addToCartSchema = z.object({
-  voucher_id: coerceToNumber("voucher_id phải là số"),
-  quantity: coerceToNumber("quantity phải là số").refine(
-    (val) => val > 0,
-    { message: "Số lượng phải lớn hơn 0" }
-  ),
+  voucher_id: z.coerce.number("voucher_id phải là số").int().positive(),
+  quantity: z.coerce
+    .number("quantity phải là số")
+    .int()
+    .positive({ message: "Số lượng phải lớn hơn 0" }),
 });
 
+/** PUT /api/cart/items/:itemId — Cập nhật số lượng. */
 export const updateCartItemSchema = z.object({
-  quantity: coerceToNumber("quantity phải là số").refine(
-    (val) => val > 0,
-    { message: "Số lượng phải lớn hơn 0" }
-  ),
+  quantity: z.coerce
+    .number("quantity phải là số")
+    .int()
+    .positive({ message: "Số lượng phải lớn hơn 0" }),
 });
 
+/** Params cho /cart/items/:itemId */
 export const cartItemIdParam = z.object({
-  itemId: coerceToNumber("itemId phải là số"),
+  itemId: z.coerce.number("itemId phải là số").int().positive(),
 });
 
 export type AddToCartInput = z.infer<typeof addToCartSchema>;

@@ -1,8 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Minus, Plus, Trash2, ShoppingBag, Loader2 } from 'lucide-react';
-import { cartApi } from '../services/api';
-import type { Cart, CartItem } from '../services/api';
+import { Minus, Plus, Trash2, ShoppingBag } from 'lucide-react';
+import { cartApi } from '../services';
+import type { Cart, CartItem } from '../services';
+import { Breadcrumb } from '../components/Breadcrumb';
+import { formatPrice } from '../utils';
+import Loading from '../components/Loading';
 
 export function CartPage() {
   const navigate = useNavigate();
@@ -69,14 +72,7 @@ export function CartPage() {
   };
 
   if (loading && !cart) {
-    return (
-      <div style={{ background: '#F8FAFC', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ textAlign: 'center' }}>
-          <Loader2 size={40} style={{ animation: 'spin 1s linear infinite', color: '#0E76A8' }} />
-          <p style={{ marginTop: 16, color: '#64748B' }}>Đang tải giỏ hàng...</p>
-        </div>
-      </div>
-    );
+    return <Loading />;
   }
 
   if (error) {
@@ -107,18 +103,14 @@ export function CartPage() {
 
   return (
     <div style={{ background: '#F8FAFC', minHeight: '100vh' }}>
-      {/* Breadcrumb */}
-      <div style={{ background: 'white', borderBottom: '1px solid #E2E8F0' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '12px 24px' }}>
-          <span style={{ fontSize: 13, color: '#64748B' }}>
-            <span style={{ color: '#0E76A8', cursor: 'pointer' }}>Trang chủ</span>
-            <span style={{ margin: '0 8px' }}>/</span>
-            <span style={{ color: '#1E293B', fontWeight: 600 }}>Giỏ hàng</span>
-          </span>
-        </div>
-      </div>
+      <Breadcrumb
+        items={[
+          { label: 'Trang chủ', href: '/' },
+          { label: 'Giỏ hàng' },
+        ]}
+      />
 
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px' }}>
+      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '32px 24px' }}>
         {items.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px 20px', background: 'white', borderRadius: 16 }}>
             <ShoppingBag size={64} style={{ color: '#CBD5E1', margin: '0 auto 16px' }} />
@@ -185,93 +177,120 @@ export function CartPage() {
 
                     {/* Info */}
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                      <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                          <div>
-                            <h3 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 16, fontWeight: 700, color: '#1E293B', marginBottom: 4 }}>
-                              {item.voucher.title}
-                            </h3>
-                            <p style={{ fontSize: 12, color: '#64748B', marginBottom: 4 }}>
-                              {item.voucher.partner.companyName}
-                            </p>
-                            <p style={{ fontSize: 12, color: '#64748B' }}>
-                              {item.voucher.expiryDays} ngày sử dụng
-                            </p>
-                          </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                        <div>
+                          <h3 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 16, fontWeight: 700, color: '#1E293B', marginBottom: 4 }}>
+                            {item.voucher.title}
+                          </h3>
+                          <p style={{ fontSize: 12, color: '#64748B', marginBottom: 4 }}>
+                            {item.voucher.partner.companyName}
+                          </p>
+                          <p style={{ fontSize: 12, color: '#64748B' }}>
+                            {item.voucher.expiryDays} ngày sử dụng
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => removeItem(item.cartItemId)}
+                          disabled={actionLoading === item.cartItemId}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#94A3B8',
+                            cursor: 'pointer',
+                            padding: 4,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            opacity: actionLoading === item.cartItemId ? 0.5 : 1,
+                          }}
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+                        {/* Quantity control */}
+                        <div style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 0,
+                          background: '#F8FAFC',
+                          borderRadius: 10,
+                          border: '1.5px solid #E2E8F0',
+                          overflow: 'hidden',
+                        }}>
                           <button
-                            onClick={() => removeItem(item.cartItemId)}
-                            disabled={actionLoading === item.cartItemId}
+                            onClick={() => updateQuantity(item.cartItemId, item.quantity - 1)}
+                            disabled={actionLoading === item.cartItemId || item.quantity <= 1}
                             style={{
-                              background: 'none',
+                              width: 34,
+                              height: 34,
                               border: 'none',
-                              color: '#94A3B8',
-                              cursor: 'pointer',
-                              padding: 4,
+                              background: 'transparent',
+                              color: item.quantity <= 1 ? '#CBD5E1' : '#1E293B',
+                              cursor: item.quantity <= 1 ? 'not-allowed' : 'pointer',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              opacity: actionLoading === item.cartItemId ? 0.5 : 1,
+                              transition: 'background 0.15s',
+                              fontSize: 16,
+                              fontWeight: 600,
+                            }}
+                            onMouseEnter={e => {
+                              if (item.quantity > 1) e.currentTarget.style.background = '#E2E8F0';
+                            }}
+                            onMouseLeave={e => {
+                              e.currentTarget.style.background = 'transparent';
                             }}
                           >
-                            <Trash2 size={18} />
+                            −
                           </button>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
-                          <div>
-                            <span style={{ fontSize: 14, fontWeight: 700, color: '#EF4444' }}>
-                              {(item.voucher.salePrice * item.quantity).toLocaleString('vi-VN')}đ
-                            </span>
-                            {item.voucher.originalPrice > item.voucher.salePrice && (
-                              <span style={{ fontSize: 12, color: '#94A3B8', textDecoration: 'line-through', marginLeft: 8 }}>
-                                {item.voucher.originalPrice.toLocaleString('vi-VN')}đ
-                              </span>
-                            )}
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#F8FAFC', borderRadius: 10, padding: '4px 8px', border: '1.5px solid #E2E8F0' }}>
-                            <button
-                              onClick={() => updateQuantity(item.cartItemId, item.quantity - 1)}
-                              disabled={actionLoading === item.cartItemId || item.quantity <= 1}
-                              style={{
-                                width: 28,
-                                height: 28,
-                                borderRadius: 8,
-                                border: 'none',
-                                background: 'white',
-                                color: '#1E293B',
-                                cursor: item.quantity <= 1 ? 'not-allowed' : 'pointer',
-                                opacity: item.quantity <= 1 ? 0.5 : 1,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
-                              }}
-                            >
-                              <Minus size={16} />
-                            </button>
-                            <span style={{ minWidth: 24, textAlign: 'center', fontWeight: 700, fontSize: 14, color: '#1E293B' }}>
-                              {actionLoading === item.cartItemId ? '...' : item.quantity}
-                            </span>
-                            <button
-                              onClick={() => updateQuantity(item.cartItemId, item.quantity + 1)}
-                              disabled={actionLoading === item.cartItemId || item.quantity >= item.voucher.availableQuantity}
-                              style={{
-                                width: 28,
-                                height: 28,
-                                borderRadius: 8,
-                                border: 'none',
-                                background: 'white',
-                                color: '#1E293B',
-                                cursor: item.quantity >= item.voucher.availableQuantity ? 'not-allowed' : 'pointer',
-                                opacity: item.quantity >= item.voucher.availableQuantity ? 0.5 : 1,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
-                              }}
-                            >
-                              <Plus size={16} />
-                            </button>
-                          </div>
+                          <div style={{
+                            width: 1,
+                            height: 18,
+                            background: '#E2E8F0',
+                          }} />
+                          <span style={{
+                            minWidth: 36,
+                            textAlign: 'center',
+                            fontWeight: 700,
+                            fontSize: 14,
+                            color: '#1E293B',
+                            fontFamily: 'Inter, sans-serif',
+                            userSelect: 'none',
+                          }}>
+                            {actionLoading === item.cartItemId ? '...' : item.quantity}
+                          </span>
+                          <div style={{
+                            width: 1,
+                            height: 18,
+                            background: '#E2E8F0',
+                          }} />
+                          <button
+                            onClick={() => updateQuantity(item.cartItemId, item.quantity + 1)}
+                            disabled={actionLoading === item.cartItemId || item.quantity >= item.voucher.availableQuantity}
+                            style={{
+                              width: 34,
+                              height: 34,
+                              border: 'none',
+                              background: 'transparent',
+                              color: item.quantity >= item.voucher.availableQuantity ? '#CBD5E1' : '#1E293B',
+                              cursor: item.quantity >= item.voucher.availableQuantity ? 'not-allowed' : 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'background 0.15s',
+                              fontSize: 16,
+                              fontWeight: 600,
+                            }}
+                            onMouseEnter={e => {
+                              if (item.quantity < item.voucher.availableQuantity) e.currentTarget.style.background = '#E2E8F0';
+                            }}
+                            onMouseLeave={e => {
+                              e.currentTarget.style.background = 'transparent';
+                            }}
+                          >
+                            +
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -286,17 +305,6 @@ export function CartPage() {
                 Thông tin đơn hàng
               </h2>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: '#64748B' }}>
-                  <span>Tạm tính ({items.length} sản phẩm)</span>
-                  <span style={{ color: '#1E293B', fontWeight: 600 }}>{total.toLocaleString('vi-VN')}đ</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: '#64748B' }}>
-                  <span>Phí vận chuyển</span>
-                  <span style={{ color: '#10B981', fontWeight: 600 }}>Miễn phí</span>
-                </div>
-              </div>
-
               <div
                 style={{
                   display: 'flex',
@@ -308,7 +316,7 @@ export function CartPage() {
                 }}
               >
                 <span style={{ fontSize: 15, fontWeight: 700, color: '#1E293B' }}>Tổng cộng</span>
-                <span style={{ fontSize: 18, fontWeight: 800, color: '#EF4444' }}>{total.toLocaleString('vi-VN')}đ</span>
+                <span style={{ fontSize: 18, fontWeight: 800, color: '#EF4444' }}>{formatPrice(total)}</span>
               </div>
 
               <button

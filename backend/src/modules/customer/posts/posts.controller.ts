@@ -1,45 +1,34 @@
+/**
+ * Post Controller
+ * --------------------------------------------------------------
+ * Controller gọi postsService, parse query/params qua schemas.
+ */
 import { Request, Response } from "express";
-import { ZodError } from "zod";
-import { z } from "zod";
 import { postsService } from "./posts.service";
 import { asyncHandler } from "../../../middlewares/asyncHandler";
+import { parseOrThrow, parseParams } from "../shared/helpers";
+import { listPostsQuery, postIdParam } from "./posts.schemas";
 import { AppError } from "../../../middlewares/errorHandler";
 
-const listPostsQuerySchema = z.object({
-  page: z.coerce.number().int().positive().optional().default(1),
-  limit: z.coerce.number().int().positive().max(50).optional().default(20),
-});
-
-const getPostByIdSchema = z.object({
-  postId: z.string().regex(/^\d+$/, "postId phải là số nguyên").transform(Number),
-});
-
 export const postsController = {
+  /**
+   * GET /api/posts?page=1&limit=20
+   * Danh sách bài viết đã published, có phân trang.
+   */
   listPublishedPosts: asyncHandler(async (req: Request, res: Response) => {
-    let query: z.infer<typeof listPostsQuerySchema>;
-    try {
-      query = listPostsQuerySchema.parse(req.query);
-    } catch (err) {
-      if (err instanceof ZodError) {
-        throw new AppError(err.issues[0].message, 400, "VALIDATION_ERROR");
-      }
-      throw err;
-    }
-    const data = await postsService.listPublishedPosts(query.page, query.limit);
+    const { page, limit } = parseOrThrow(listPostsQuery, req.query);
+    const data = await postsService.listPublishedPosts(page, limit);
     res.json({ success: true, data });
   }),
 
+  /**
+   * GET /api/posts/:postId
+   * Chi tiết 1 bài viết. Trả 404 nếu không tồn tại hoặc chưa published.
+   */
   getPublishedPostById: asyncHandler(async (req: Request, res: Response) => {
-    let params: z.infer<typeof getPostByIdSchema>;
-    try {
-      params = getPostByIdSchema.parse(req.params);
-    } catch (err) {
-      if (err instanceof ZodError) {
-        throw new AppError(err.issues[0].message, 400, "VALIDATION_ERROR");
-      }
-      throw err;
-    }
-    const post = await postsService.getPublishedPostById(params.postId);
+    const { postId: rawId } = parseParams(req, postIdParam);
+    const postId = Number(rawId);
+    const post = await postsService.getPublishedPostById(postId);
     if (!post) throw new AppError("Bài viết không tồn tại", 404, "NOT_FOUND");
     res.json({ success: true, data: post });
   }),

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { profileApi, type User } from '../services/api';
+import { profileApi, type User } from '../services';
+import Loading from '../components/Loading';
+import { Breadcrumb } from '../components/Breadcrumb';
 
 export function EditProfilePage() {
   const navigate = useNavigate();
@@ -85,68 +87,25 @@ export function EditProfilePage() {
   };
 
   if (loading) {
-    return (
-      <div style={{
-        minHeight: 'calc(100vh - 200px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}>
-        <div style={{
-          width: 40,
-          height: 40,
-          border: '3px solid #E2E8F0',
-          borderTopColor: '#0E76A8',
-          borderRadius: '50%',
-          animation: 'spin 1s linear infinite',
-        }} />
-      </div>
-    );
+    return <Loading />;
   }
 
   return (
-    <div style={{
-      minHeight: 'calc(100vh - 200px)',
-      background: '#F8FAFC',
-      padding: '40px 20px',
-    }}>
-      <div style={{
-        maxWidth: 640,
-        margin: '0 auto',
-      }}>
+    <div style={{ background: '#F8FAFC', minHeight: '100vh' }}>
+      <Breadcrumb
+        backHref="/profile"
+        items={[
+          { label: 'Trang chủ', href: '/' },
+          { label: 'Hồ sơ', href: '/profile' },
+          { label: 'Chỉnh sửa hồ sơ' },
+        ]}
+      />
+      <div style={{ padding: '32px 20px' }}>
+      <div style={{ maxWidth: 640, margin: '0 auto' }}>
         {/* Page Header */}
         <div style={{ marginBottom: 32 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-            <button
-              onClick={() => navigate('/profile')}
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                padding: 8,
-                borderRadius: 8,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2">
-                <path d="M19 12H5M12 19l-7-7 7-7"/>
-              </svg>
-            </button>
-            <h1 style={{
-              fontFamily: 'Manrope, sans-serif',
-              fontSize: 28,
-              fontWeight: 800,
-              color: '#1E293B',
-            }}>Chỉnh sửa hồ sơ</h1>
-          </div>
-          <p style={{
-            fontFamily: 'Inter, sans-serif',
-            fontSize: 14,
-            color: '#64748B',
-            marginLeft: 44,
-          }}>Cập nhật thông tin cá nhân của bạn</p>
+          <h1 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 26, fontWeight: 800, color: '#1E293B', marginBottom: 4 }}>Chỉnh sửa hồ sơ</h1>
+          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#64748B' }}>Cập nhật thông tin cá nhân của bạn</p>
         </div>
 
         {/* Form Card */}
@@ -409,6 +368,7 @@ export function EditProfilePage() {
             </div>
           </div>
         </form>
+      </div>
       </div>
 
       <style>{`

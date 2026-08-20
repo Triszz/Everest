@@ -1,7 +1,19 @@
+/**
+ * hooks/useActivePopup.ts
+ * ------------------------------------------------------------------
+ * Hook lấy popup đang active (1 popup mới nhất) từ backend.
+ *
+ * Trả về:
+ *  - `popup`    : Dữ liệu popup (null nếu không có).
+ *  - `isLoading`: Đang fetch.
+ *  - `error`    : Lỗi nếu có.
+ *  - `isVisible`: Có đang hiển thị popup hay không.
+ *  - `dismiss()`: Đóng popup (set isVisible = false).
+ *  - `refetch()`: Reload popup từ server.
+ * ------------------------------------------------------------------
+ */
 import { useEffect, useState, useCallback } from 'react';
-import { popupApi, type Popup } from '../services/api';
-
-const STORAGE_KEY = 'everest_popup_dismissed_id';
+import { popupApi, type Popup } from '../services';
 
 export function useActivePopup() {
   const [popup, setPopup] = useState<Popup | null>(null);
@@ -16,20 +28,10 @@ export function useActivePopup() {
       const res = await popupApi.getActive();
       const active = res.data;
       setPopup(active);
-
-      // Only show if not previously dismissed for this popup id.
-      if (active) {
-        const dismissedId = localStorage.getItem(STORAGE_KEY);
-        if (dismissedId && Number(dismissedId) === active.popupId) {
-          setIsVisible(false);
-        } else {
-          setIsVisible(true);
-        }
-      } else {
-        setIsVisible(false);
-      }
+      setIsVisible(active ? true : false);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Không thể tải popup');
+      setIsVisible(false);
     } finally {
       setIsLoading(false);
     }
@@ -41,14 +43,11 @@ export function useActivePopup() {
 
   const dismiss = useCallback(() => {
     setIsVisible(false);
-    if (popup) {
-      localStorage.setItem(STORAGE_KEY, String(popup.popupId));
-    }
-  }, [popup]);
+  }, []);
 
   const refetch = useCallback(() => {
     fetchActive();
   }, [fetchActive]);
 
-  return { popup, isLoading, isVisible, error, dismiss, refetch };
+  return { popup, isLoading, error, isVisible, dismiss, refetch };
 }

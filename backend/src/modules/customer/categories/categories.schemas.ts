@@ -1,21 +1,25 @@
+/**
+ * Category Schemas
+ * --------------------------------------------------------------
+ * Zod schemas cho validate query/params của Categories API.
+ */
 import { z } from "zod";
 
-const coerceToNumber = (errorMsg: string) =>
-  z.string().pipe(
-    z.string().transform((val) => {
-      const num = parseInt(val, 10);
-      if (isNaN(num)) throw new Error(errorMsg);
-      return num;
-    })
-  );
-
+/** Params cho route /categories/:id — id là số nguyên dương. */
 export const categoryIdParam = z.object({
-  id: coerceToNumber("id phải là số"),
+  id: z.coerce.number("id phải là số").int().positive(),
 });
 
+/** Query cho route /categories/:id/vouchers */
 export const categoryVoucherQuerySchema = z.object({
-  page: coerceToNumber("page phải là số dương").refine((val) => val > 0).optional().default(1),
-  limit: coerceToNumber("limit phải là số dương").refine((val) => val > 0 && val <= 100).optional().default(20),
+  page: z.coerce.number("page phải là số").int().positive().optional().default(1),
+  limit: z.coerce
+    .number("limit phải là số")
+    .int()
+    .positive()
+    .max(100)
+    .optional()
+    .default(20),
   sort: z
     .enum(["price_asc", "price_desc", "popular", "newest"])
     .optional()

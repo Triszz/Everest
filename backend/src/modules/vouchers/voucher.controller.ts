@@ -14,7 +14,10 @@ const parse = <T>(schema: { parse: (v: unknown) => T }, value: unknown): T => {
     try {
         return schema.parse(value);
     } catch (err) {
-        if (err instanceof ZodError) throw new AppError(err.issues[0].message, 400, 'VALIDATION_ERROR');
+        if (err instanceof ZodError) {
+            console.error("[ZodError in parse]", JSON.stringify(err.issues, null, 2));
+            throw new AppError(err.issues[0].message, 400, 'VALIDATION_ERROR');
+        }
         throw err;
     }
 };

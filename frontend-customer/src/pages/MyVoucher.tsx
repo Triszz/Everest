@@ -1,9 +1,12 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { orderApi } from '../services/api';
-import type { IssuedVoucher } from '../services/api';
+import { Link, useNavigate } from 'react-router-dom';
+import { orderApi, reviewApi } from '../services';
+import type { IssuedVoucher } from '../services';
+import { formatDate, ISSUED_STATUS_LABELS } from '../utils';
+import { QRImage } from '../utils/QRImage';
+import { Breadcrumb } from '../components/Breadcrumb';
 import {
-  Ticket, Copy, Check, QrCode, Clock, MapPin, Star,
+  Ticket, Copy, Check, QrCode, Clock, MapPin, Star, Eye,
   Loader2, RefreshCw, ShoppingBag, ChevronRight,
 } from 'lucide-react';
 
@@ -124,58 +127,17 @@ const MOCK_VOUCHERS: IssuedVoucher[] = [
 
 type Tab = 'all' | 'unused' | 'used' | 'expired';
 
-// ── QR generator ─────────────────────────────────────────────────────────────
-
-function generateQR(code: string): string {
-  const size = 120;
-  const cellSize = 6;
-  const padding = 8;
-  const gridSize = Math.floor((size - padding * 2) / cellSize);
-  let cells = '';
-  for (let row = 0; row < gridSize; row++) {
-    for (let col = 0; col < gridSize; col++) {
-      const idx = row * gridSize + col;
-      const charCode = code.charCodeAt(idx % code.length);
-      if ((charCode + row + col) % 3 === 0) {
-        cells += `<rect x="${padding + col * cellSize}" y="${padding + row * cellSize}" width="${cellSize}" height="${cellSize}" fill="#1E293B"/>`;
-      }
-    }
-  }
-  return `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><rect width="${size}" height="${size}" fill="white"/>${cells}</svg>`;
-}
-
-function generateQRLarge(code: string): string {
-  const size = 200;
-  const cellSize = 8;
-  const padding = 12;
-  const gridSize = Math.floor((size - padding * 2) / cellSize);
-  let cells = '';
-  for (let row = 0; row < gridSize; row++) {
-    for (let col = 0; col < gridSize; col++) {
-      const idx = row * gridSize + col;
-      const charCode = code.charCodeAt(idx % code.length);
-      if ((charCode + row + col) % 3 === 0) {
-        cells += `<rect x="${padding + col * cellSize}" y="${padding + row * cellSize}" width="${cellSize}" height="${cellSize}" fill="#1E293B"/>`;
-      }
-    }
-  }
-  return `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><rect width="${size}" height="${size}" fill="white"/>${cells}</svg>`;
-}
+// ── QR rendering ─────────────────────────────────────────────────────────────
+// QR chuẩn ISO/IEC 18004 do <QRImage /> sinh ra — quét được bằng camera.
+// Trước đây dùng fake pattern ngẫu nhiên (không scan được) — đã thay bằng thư viện `qrcode`.
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function formatDate(d: string) {
-  return new Date(d).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-}
-
+/** Map trạng thái IssuedVoucher → UI config (label + màu). */
 function statusConfig(status: string) {
-  switch (status) {
-    case 'Unused':   return { label: 'Có thể dùng', bg: '#ECFDF5', text: '#10B981', dot: '#10B981' };
-    case 'Used':     return { label: 'Đã sử dụng',  bg: '#FEF3C7', text: '#F59E0B', dot: '#F59E0B' };
-    case 'Expired':   return { label: 'Đã hết hạn',  bg: '#FEE2E2', text: '#EF4444', dot: '#EF4444' };
-    case 'Locked':   return { label: 'Đã khóa',     bg: '#F1F5F9', text: '#64748B', dot: '#64748B' };
-    default:         return { label: status,          bg: '#F1F5F9', text: '#64748B', dot: '#64748B' };
-  }
+  const cfg = ISSUED_STATUS_LABELS[status as keyof typeof ISSUED_STATUS_LABELS];
+  if (cfg) return { label: cfg.label, bg: cfg.bg, text: cfg.color, dot: cfg.color };
+  return { label: status, bg: '#F1F5F9', text: '#64748B', dot: '#64748B' };
 }
 
 function daysLeft(validTo: string) {
@@ -270,7 +232,7 @@ function VoucherCard({ v, onClick }: { v: IssuedVoucher; onClick: (v: IssuedVouc
           padding: '3px 8px', borderRadius: 6,
           background: 'rgba(0,0,0,0.55)', color: 'white',
         }}>
-          {v.voucher?.partner?.companyName}
+          {(typeof v.voucher?.partner === 'string' ? v.voucher.partner : v.voucher?.partner?.companyName) || ''}
         </span>
       </div>
 
@@ -310,9 +272,25 @@ function VoucherCard({ v, onClick }: { v: IssuedVoucher; onClick: (v: IssuedVouc
                 : `Còn ${left} ngày`}
             </span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#0E76A8' }}>
-            <QrCode size={13} />
-            <span style={{ fontSize: 12, fontWeight: 600 }}>Xem QR</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {v.voucher?.voucherId && (
+              <Link
+                to={`/voucher/${v.voucher.voucherId}`}
+                onClick={e => e.stopPropagation()}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 3,
+                  fontSize: 12, fontWeight: 600, color: '#0E76A8',
+                  textDecoration: 'none',
+                }}
+              >
+                <Eye size={13} />
+                Chi tiết
+              </Link>
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#0E76A8' }}>
+              <QrCode size={13} />
+              <span style={{ fontSize: 12, fontWeight: 600 }}>Xem QR</span>
+            </div>
           </div>
         </div>
       </div>
@@ -334,20 +312,23 @@ function VoucherModal({ v, onClose }: { v: IssuedVoucher; onClose: () => void })
         position: 'fixed', inset: 0, zIndex: 1000,
         background: 'rgba(15,23,42,0.6)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: 24, backdropFilter: 'blur(4px)',
+        padding: 16, backdropFilter: 'blur(4px)',
       }}
     >
       <div
         onClick={e => e.stopPropagation()}
         style={{
-          background: 'white', borderRadius: 24,
-          maxWidth: 520, width: '100%', overflow: 'hidden',
+          background: 'white', borderRadius: 20,
+          maxWidth: 480, width: '100%',
+          maxHeight: '90vh',
+          display: 'flex', flexDirection: 'column',
+          overflowY: 'auto',
           boxShadow: '0 24px 64px rgba(0,0,0,0.2)',
           animation: 'slideUp 0.25s ease-out',
         }}
       >
         {/* Header image */}
-        <div style={{ position: 'relative', height: 200, overflow: 'hidden' }}>
+        <div style={{ position: 'relative', height: 120, overflow: 'hidden', flexShrink: 0 }}>
           <img
             src={v.voucher?.imageUrl || 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=600&h=400&fit=crop'}
             alt={v.voucher?.title}
@@ -359,108 +340,141 @@ function VoucherModal({ v, onClose }: { v: IssuedVoucher; onClose: () => void })
           <button
             onClick={onClose}
             style={{
-              position: 'absolute', top: 12, right: 12,
-              width: 36, height: 36, borderRadius: '50%',
+              position: 'absolute', top: 10, right: 10,
+              width: 32, height: 32, borderRadius: '50%',
               background: 'rgba(0,0,0,0.4)', border: 'none',
               cursor: 'pointer', color: 'white',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               backdropFilter: 'blur(4px)',
             }}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
           </button>
 
           {/* Status badge */}
           <span style={{
-            position: 'absolute', top: 14, left: 14,
-            fontSize: 12, fontWeight: 700,
-            padding: '4px 12px', borderRadius: 8,
+            position: 'absolute', top: 10, left: 10,
+            fontSize: 11, fontWeight: 700,
+            padding: '4px 10px', borderRadius: 8,
             background: sc.bg, color: sc.text,
           }}>
             {sc.label}
           </span>
 
           {/* Title */}
-          <div style={{ position: 'absolute', bottom: 16, left: 20, right: 20 }}>
-            <h2 style={{
-              fontFamily: 'Manrope, sans-serif', fontSize: 17, fontWeight: 800,
-              color: 'white', marginBottom: 4,
+          <div style={{ position: 'absolute', bottom: 10, left: 14, right: 14 }}>
+            <h3 style={{
+              fontFamily: 'Manrope, sans-serif', fontSize: 15, fontWeight: 800,
+              color: 'white', margin: 0,
               textShadow: '0 1px 4px rgba(0,0,0,0.5)',
             }}>
               {v.voucher?.title}
-            </h2>
-            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', fontWeight: 500 }}>
-              {v.voucher?.partner?.companyName}
-            </p>
+            </h3>
           </div>
         </div>
 
         {/* QR + Code section */}
-        <div style={{ padding: '24px 24px 0', display: 'flex', gap: 20, alignItems: 'center' }}>
+        <div style={{ padding: '16px 16px 0', display: 'flex', gap: 14, alignItems: 'center' }}>
           {/* QR */}
           <div style={{ flexShrink: 0, textAlign: 'center' }}>
-            <img
-              src={generateQRLarge(v.voucherCode)}
-              alt="QR Code"
-              width={120} height={120}
-              style={{ borderRadius: 12, display: 'block', marginBottom: 6 }}
-            />
+            <QRImage code={v.voucherCode} size={90} style={{ marginBottom: 4 }} />
             <span style={{ fontSize: 10, color: '#94A3B8' }}>Quét tại quán</span>
           </div>
 
           {/* Code */}
           <div style={{ flex: 1 }}>
-            <p style={{ fontSize: 12, color: '#94A3B8', marginBottom: 6, fontFamily: 'Inter, sans-serif' }}>Mã voucher</p>
+            <p style={{ fontSize: 11, color: '#94A3B8', marginBottom: 4, fontFamily: 'Inter, sans-serif' }}>Mã voucher</p>
             <div style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
-              padding: '12px 14px', background: '#F8FAFC',
-              borderRadius: 12, border: '2px dashed #0E76A8', marginBottom: 12,
+              padding: '8px 10px', background: '#F8FAFC',
+              borderRadius: 10, border: '2px dashed #0E76A8', marginBottom: 8,
             }}>
-              <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 18, fontWeight: 800, color: '#0E76A8', letterSpacing: 2 }}>
+              <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 15, fontWeight: 800, color: '#0E76A8', letterSpacing: 1 }}>
                 {v.voucherCode}
               </span>
               <CopyButton code={v.voucherCode} />
             </div>
-            <p style={{ fontSize: 12, color: '#64748B', fontFamily: 'Inter, sans-serif', lineHeight: 1.5 }}>
-              Hạn sử dụng: <strong>{formatDate(v.validTo)}</strong>
-              {!isExpired && v.status !== 'Used' && <span style={{ color: '#10B981', fontWeight: 700 }}> · Còn {left} ngày</span>}
+            <p style={{ fontSize: 11, color: '#64748B', fontFamily: 'Inter, sans-serif', lineHeight: 1.4 }}>
+              Hạn: <strong>{formatDate(v.validTo)}</strong>
+              {!isExpired && v.status !== 'Used' && <span style={{ color: '#10B981', fontWeight: 700 }}> · {left} ngày</span>}
             </p>
           </div>
         </div>
 
         {/* Meta info */}
-        <div style={{ padding: '16px 24px 24px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ padding: '12px 16px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {/* Valid period */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: '#F8FAFC', borderRadius: 12 }}>
-            <Clock size={18} style={{ color: '#0E76A8', flexShrink: 0 }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: '#F8FAFC', borderRadius: 10 }}>
+            <Clock size={16} style={{ color: '#0E76A8', flexShrink: 0 }} />
             <div>
-              <p style={{ fontSize: 12, color: '#94A3B8', marginBottom: 2 }}>Hiệu lực</p>
-              <p style={{ fontSize: 13, fontWeight: 600, color: '#1E293B' }}>
+              <p style={{ fontSize: 11, color: '#94A3B8', marginBottom: 1 }}>Hiệu lực</p>
+              <p style={{ fontSize: 12, fontWeight: 600, color: '#1E293B' }}>
                 {formatDate(v.validFrom)} → {formatDate(v.validTo)}
-                {` (${v.voucher?.expiryDays} ngày)`}
               </p>
             </div>
           </div>
 
           {/* Partner */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: '#F8FAFC', borderRadius: 12 }}>
-            <MapPin size={18} style={{ color: '#0E76A8', flexShrink: 0 }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: '#F8FAFC', borderRadius: 10 }}>
+            <MapPin size={16} style={{ color: '#0E76A8', flexShrink: 0 }} />
             <div>
-              <p style={{ fontSize: 12, color: '#94A3B8', marginBottom: 2 }}>Đối tác</p>
-              <p style={{ fontSize: 13, fontWeight: 600, color: '#1E293B' }}>{v.voucher?.partner?.companyName}</p>
+              <p style={{ fontSize: 11, color: '#94A3B8', marginBottom: 1 }}>Đối tác</p>
+              <p style={{ fontSize: 12, fontWeight: 600, color: '#1E293B' }}>{(typeof v.voucher?.partner === 'string' ? v.voucher.partner : v.voucher?.partner?.companyName) || ''}</p>
             </div>
           </div>
 
           {/* Used info */}
           {v.status === 'Used' && v.usedAt && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: '#FEF3C7', borderRadius: 12 }}>
-              <Star size={18} style={{ color: '#F59E0B', flexShrink: 0 }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: '#FEF3C7', borderRadius: 10 }}>
+              <Star size={16} style={{ color: '#F59E0B', flexShrink: 0 }} />
               <div>
-                <p style={{ fontSize: 12, color: '#92400E', marginBottom: 2 }}>Đã sử dụng</p>
-                <p style={{ fontSize: 13, fontWeight: 600, color: '#78350F' }}>Ngày {formatDate(v.usedAt)}</p>
+                <p style={{ fontSize: 11, color: '#92400E', marginBottom: 1 }}>Đã sử dụng</p>
+                <p style={{ fontSize: 12, fontWeight: 600, color: '#78350F' }}>Ngày {formatDate(v.usedAt)}</p>
               </div>
+            </div>
+          )}
+
+          {/* Review section - only show for Used vouchers */}
+          {v.status === 'Used' && v.voucher && (
+            <ReviewSection
+              voucherId={v.voucher.voucherId}
+              issuedVoucherId={v.issuedVoucherId}
+              hasReviewed={v.hasReviewed}
+            />
+          )}
+
+          {/* View detail button — chỉ hiện khi voucher vẫn khả dụng */}
+          {v.voucher?.voucherId && v.isAvailable !== false && (
+            <Link
+              to={`/voucher/${v.voucher.voucherId}`}
+              onClick={onClose}
+              style={{
+                marginTop: 4, padding: '10px 14px',
+                background: '#0E76A8', color: 'white',
+                border: 'none', borderRadius: 10,
+                fontSize: 13, fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                fontFamily: 'Manrope, sans-serif',
+                textDecoration: 'none',
+              }}
+            >
+              <Eye size={14} />
+              Xem chi tiết voucher
+            </Link>
+          )}
+
+          {/* Notice khi voucher không còn khả dụng */}
+          {v.isAvailable === false && (
+            <div style={{
+              marginTop: 4, padding: '10px 14px',
+              background: '#FEF3C7', borderRadius: 10,
+              fontSize: 12, color: '#92400E', fontFamily: 'Inter, sans-serif',
+              textAlign: 'center', lineHeight: 1.4,
+            }}>
+              Voucher này hiện không khả dụng trên hệ thống. Vui lòng liên hệ đối tác để được hỗ trợ.
             </div>
           )}
         </div>
@@ -476,9 +490,201 @@ function VoucherModal({ v, onClose }: { v: IssuedVoucher; onClose: () => void })
   );
 }
 
+// ── Review Section Component ──────────────────────────────────────────────────
+
+interface ReviewSectionProps {
+  voucherId: number;
+  issuedVoucherId: number;
+  hasReviewed?: boolean;
+}
+
+function ReviewSection({ voucherId, issuedVoucherId, hasReviewed }: ReviewSectionProps) {
+  const [showForm, setShowForm] = useState(false);
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (comment.trim().length < 10) {
+      setError('Nhận xét cần ít nhất 10 ký tự.');
+      return;
+    }
+
+    setSubmitting(true);
+    setError('');
+
+    try {
+      const res = await reviewApi.create(voucherId, {
+        rating,
+        comment: comment.trim(),
+        issuedVoucherId,
+      });
+
+      if (res.success) {
+        setSuccess(true);
+        setComment('');
+        setRating(5);
+        setShowForm(false);
+        setTimeout(() => setSuccess(false), 4000);
+      } else {
+        setError(res.error?.message || 'Gửi đánh giá thất bại.');
+      }
+    } catch {
+      setError('Đã xảy ra lỗi. Vui lòng thử lại.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (success) {
+    return (
+      <div style={{
+        padding: '12px 14px',
+        background: '#ECFDF5',
+        border: '1px solid #A7F3D0',
+        borderRadius: 10,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+      }}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5">
+          <path d="M20 6L9 17l-5-5"/>
+        </svg>
+        <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#065F46', fontWeight: 600 }}>
+          Cảm ơn bạn! Đánh giá đã được gửi thành công.
+        </span>
+      </div>
+    );
+  }
+
+  if (showForm) {
+    return (
+      <form onSubmit={handleSubmit} style={{
+        padding: '12px 14px',
+        background: '#F8FAFC',
+        border: '1.5px solid #BAE6FD',
+        borderRadius: 12,
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+          <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700, color: '#1E293B' }}>
+            {hasReviewed ? 'Cập nhật đánh giá' : 'Đánh giá voucher'}
+          </span>
+          <button type="button" onClick={() => setShowForm(false)} style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            color: '#64748B', fontSize: 20, lineHeight: 1, padding: 0,
+          }}>×</button>
+        </div>
+
+        {/* Star rating */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2, marginBottom: 10 }}>
+          {[1, 2, 3, 4, 5].map((star) => (
+            <button key={star} type="button" onClick={() => setRating(star)} style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              fontSize: 24, lineHeight: 1, padding: '2px',
+            }}>
+              <svg width="24" height="24" viewBox="0 0 24 24"
+                fill={star <= rating ? '#F59E0B' : 'none'}
+                stroke={star <= rating ? '#F59E0B' : '#CBD5E1'}
+                strokeWidth="1.5">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+            </button>
+          ))}
+          <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: 13, fontWeight: 700, color: '#F59E0B', marginLeft: 4 }}>
+            {rating}/5
+          </span>
+        </div>
+
+        {/* Comment textarea */}
+        <textarea
+          value={comment}
+          onChange={(e) => { setComment(e.target.value); setError(''); }}
+          placeholder="Chia sẻ trải nghiệm của bạn..."
+          maxLength={500}
+          rows={2}
+          style={{
+            width: '100%', padding: '8px 10px',
+            border: '1.5px solid #E2E8F0', borderRadius: 8,
+            fontFamily: 'Inter, sans-serif', fontSize: 13,
+            resize: 'vertical', outline: 'none',
+            boxSizing: 'border-box',
+          }}
+        />
+        <p style={{ marginTop: 4, fontSize: 11, color: '#94A3B8', fontFamily: 'Inter, sans-serif' }}>
+          Tối thiểu 10 ký tự. {comment.length}/500
+        </p>
+
+        {error && (
+          <p style={{ marginTop: 4, fontSize: 12, color: '#EF4444', fontFamily: 'Inter, sans-serif' }}>
+            {error}
+          </p>
+        )}
+
+        {/* Buttons */}
+        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          <button type="button" onClick={() => setShowForm(false)} style={{
+            flex: 1, padding: '8px 12px', background: 'white', color: '#64748B',
+            border: '1.5px solid #E2E8F0', borderRadius: 8,
+            fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 600,
+            cursor: 'pointer',
+          }}>Hủy</button>
+          <button type="submit" disabled={submitting || comment.trim().length < 10} style={{
+            flex: 1, padding: '8px 12px',
+            background: submitting || comment.trim().length < 10 ? '#E2E8F0' : '#10B981',
+            color: 'white', border: 'none', borderRadius: 8,
+            fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 700,
+            cursor: submitting || comment.trim().length < 10 ? 'not-allowed' : 'pointer',
+          }}>
+            {submitting ? 'Đang gửi...' : (hasReviewed ? 'Cập nhật' : 'Gửi đánh giá')}
+          </button>
+        </div>
+      </form>
+    );
+  }
+
+  // Show review button
+  return (
+    <button
+      onClick={() => setShowForm(true)}
+      style={{
+        marginTop: 4,
+        width: '100%',
+        padding: '10px 14px',
+        background: hasReviewed ? '#F0FDF4' : '#FEF3C7',
+        border: `1.5px solid ${hasReviewed ? '#A7F3D0' : '#FDE68A'}`,
+        borderRadius: 10,
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+      }}
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24"
+        fill={hasReviewed ? '#10B981' : 'none'}
+        stroke={hasReviewed ? '#10B981' : '#F59E0B'}
+        strokeWidth="2">
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+      </svg>
+      <span style={{
+        fontFamily: 'Inter, sans-serif',
+        fontSize: 13,
+        fontWeight: 700,
+        color: hasReviewed ? '#10B981' : '#92400E',
+      }}>
+        {hasReviewed ? 'Xem lại đánh giá của bạn' : 'Đánh giá voucher này'}
+      </span>
+    </button>
+  );
+}
+
 // ── Main Page ────────────────────────────────────────────────────────────────
 
 export function MyVoucher() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>('all');
   const [vouchers, setVouchers] = useState<IssuedVoucher[]>([]);
   const [loading, setLoading] = useState(false);
@@ -526,19 +732,16 @@ export function MyVoucher() {
 
   return (
     <div style={{ background: '#F8FAFC', minHeight: '100vh' }}>
-      {/* Breadcrumb */}
-      <div style={{ background: 'white', borderBottom: '1px solid #E2E8F0' }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto', padding: '12px 24px' }}>
-          <span style={{ fontSize: 13, color: '#64748B' }}>
-            <Link to="/" style={{ color: '#0E76A8', textDecoration: 'none' }}>Trang chủ</Link>
-            <span style={{ margin: '0 8px' }}>/</span>
-            <span style={{ color: '#1E293B', fontWeight: 600 }}>Voucher của tôi</span>
-          </span>
-        </div>
-      </div>
+      <Breadcrumb
+        items={[
+          { label: 'Trang chủ', href: '/' },
+          { label: 'Voucher của tôi' },
+        ]}
+        maxWidth={1280}
+      />
 
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 24px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 24, alignItems: 'start' }}>
+      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '32px 24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 24, alignItems: 'start' }}>
 
           {/* ── LEFT: Voucher grid ── */}
           <div>
@@ -691,37 +894,30 @@ export function MyVoucher() {
                 <Clock size={16} style={{ color: '#0E76A8' }} />
                 Đơn hàng gần đây
               </h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {[
-                  { id: 10047, date: '15/07/2026', status: 'Hoàn thành', sc: { bg: '#ECFDF5', text: '#10B981' } },
-                  { id: 10045, date: '10/07/2026', status: 'Hoàn thành', sc: { bg: '#ECFDF5', text: '#10B981' } },
-                  { id: 10040, date: '05/07/2026', status: 'Hoàn thành', sc: { bg: '#ECFDF5', text: '#10B981' } },
-                ].map(order => (
-                  <Link
-                    key={order.id}
-                    to={`/checkout/success?orderId=${order.id}`}
-                    style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      padding: '10px 12px', background: '#F8FAFC', borderRadius: 10,
-                      textDecoration: 'none', transition: 'background 0.2s',
-                      border: '1px solid transparent',
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.background = '#EEF4FA'; e.currentTarget.style.borderColor = '#BAE6FD'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.borderColor = 'transparent'; }}
-                  >
-                    <div>
-                      <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 600, color: '#1E293B', marginBottom: 1 }}>#{order.id}</div>
-                      <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: '#94A3B8' }}>{order.date}</div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: order.sc.bg, color: order.sc.text }}>
-                        {order.status}
-                      </span>
-                      <ChevronRight size={14} style={{ color: '#94A3B8' }} />
-                    </div>
-                  </Link>
-                ))}
-              </div>
+
+              <Link
+                to="/orders"
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '12px 14px',
+                  background: '#F8FAFC', borderRadius: 10,
+                  textDecoration: 'none',
+                  border: '1px solid transparent',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = '#EEF4FA'; e.currentTarget.style.borderColor = '#BAE6FD'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.borderColor = 'transparent'; }}
+              >
+                <div>
+                  <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 600, color: '#1E293B', marginBottom: 2 }}>
+                    Xem tất cả đơn hàng
+                  </div>
+                  <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: '#94A3B8' }}>
+                    Theo dõi trạng thái đơn hàng
+                  </div>
+                </div>
+                <ChevronRight size={16} style={{ color: '#0E76A8' }} />
+              </Link>
             </div>
           </div>
 

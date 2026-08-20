@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Breadcrumb } from '../components/Breadcrumb';
 
 interface RewardTier {
   id: number;
@@ -126,18 +126,14 @@ export function Rewards() {
 
   return (
     <div style={{ background: '#F8FAFC', minHeight: '100vh' }}>
-      {/* Breadcrumb */}
-      <div style={{ background: 'white', borderBottom: '1px solid #E2E8F0' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '12px 24px' }}>
-          <span style={{ fontSize: 13, color: '#64748B' }}>
-            <Link to="/" style={{ color: '#0E76A8', textDecoration: 'none' }}>Trang chủ</Link>
-            <span style={{ margin: '0 8px' }}>/</span>
-            <span style={{ color: '#1E293B', fontWeight: 600 }}>Rewards</span>
-          </span>
-        </div>
-      </div>
+      <Breadcrumb
+        items={[
+          { label: 'Trang chủ', href: '/' },
+          { label: 'Rewards' },
+        ]}
+      />
 
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px' }}>
+      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '32px 24px' }}>
         {/* Header Card */}
         <div style={{
           background: 'linear-gradient(135deg, #0E76A8 0%, #0A5C87 100%)',

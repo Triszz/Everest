@@ -2,6 +2,7 @@ import { Router } from "express";
 import { authController } from "./auth.controller";
 import { authService } from "./auth.service";
 import { passwordService } from "./password.service";
+import emailOtpRouter from "./email-otp.routes";
 import { asyncHandler } from "../../middlewares/asyncHandler";
 import { AppError } from "../../middlewares/errorHandler";
 import { authenticate } from "../../middlewares/authenticate";
@@ -15,6 +16,10 @@ router.post("/login", authController.login);
 router.post("/register", authController.registerCustomer);
 router.post("/register/partner", authController.registerPartner);
 router.post("/refresh", authController.refresh);
+
+// ── Email OTP ───────────────────────────────────────────────────
+// Mount toàn bộ router OTP (send / resend / verify) tại /email-otp
+router.use("/email-otp", emailOtpRouter);
 
 // ── Forgot / Reset Password ───────────────────────────────────────
 router.post(

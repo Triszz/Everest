@@ -1,11 +1,15 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { UtensilsCrossed, Wifi, ShoppingBag, Car, Loader2, CheckCircle2 } from 'lucide-react';
-import { voucherApi, cartApi, reviewApi } from '../services/api';
-import type { Voucher, Review } from '../services/api';
+import { voucherApi, cartApi, reviewApi } from '../services';
+import type { Voucher, Review } from '../services';
+import { formatPrice, formatDate } from '../utils';
+import Loading from './Loading';
+import { Breadcrumb } from './Breadcrumb';
 
 export function VoucherDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [voucher, setVoucher] = useState<Voucher | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,11 +46,7 @@ export function VoucherDetail() {
   }, [id]);
 
   if (loading) {
-    return (
-      <div style={{ background: '#F8FAFC', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        Đang tải...
-      </div>
-    );
+    return <Loading />;
   }
 
   if (error || !voucher) {
@@ -58,7 +58,6 @@ export function VoucherDetail() {
     );
   }
 
-  const formatPrice = (p: string | number) => Number(p).toLocaleString('vi-VN') + 'đ';
   const discount = voucher.originalPrice
     ? Math.round((1 - Number(voucher.salePrice) / Number(voucher.originalPrice)) * 100)
     : 0;
@@ -128,6 +127,11 @@ export function VoucherDetail() {
         setReviewComment('');
         setReviewRating(5);
         setShowReviewForm(false);
+        // Reload reviews to show the newly created one
+        const reviewsRes = await voucherApi.getReviews(voucher.voucherId);
+        if (reviewsRes.success && reviewsRes.data) {
+          setReviews(reviewsRes.data);
+        }
         setTimeout(() => setReviewSuccess(false), 3000);
       } else {
         throw new Error(res.error?.message || 'Gửi đánh giá thất bại.');
@@ -141,19 +145,15 @@ export function VoucherDetail() {
 
   return (
     <div style={{ background: '#F8FAFC', minHeight: '100vh' }}>
-      {/* Breadcrumb + Back */}
-      <div style={{ background: 'white', borderBottom: '1px solid #E2E8F0' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '12px 24px' }}>
-          <Link
-            to="/"
-            style={{ fontSize: 13, color: '#64748B', textDecoration: 'none', fontWeight: 500 }}
-          >
-            ← Quay lại Trang chủ
-          </Link>
-        </div>
-      </div>
+      <Breadcrumb
+        items={[
+          { label: 'Trang chủ', href: '/' },
+          { label: 'Khám phá Voucher', href: '/vouchers' },
+          { label: voucher.title },
+        ]}
+      />
 
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px' }}>
+      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '32px 24px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, alignItems: 'start' }}>
           {/* LEFT: Image */}
           <div>
@@ -428,7 +428,7 @@ export function VoucherDetail() {
                               ))}
                             </div>
                           </div>
-                          <span style={{ marginLeft: 'auto', fontSize: 12, color: '#94A3B8', fontFamily: 'Inter, sans-serif' }}>{new Date(review.createdAt).toLocaleDateString('vi-VN')}</span>
+                          <span style={{ marginLeft: 'auto', fontSize: 12, color: '#94A3B8', fontFamily: 'Inter, sans-serif' }}>{formatDate(review.createdAt)}</span>
                         </div>
                         <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#334155', lineHeight: 1.6, margin: '4px 0 0 46px' }}>{review.comment || 'Không có bình luận'}</p>
                       </div>

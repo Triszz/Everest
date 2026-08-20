@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Loader2, CheckCircle2, ShieldCheck } from 'lucide-react';
-import { profileApi } from '../services/api';
+import { profileApi } from '../services';
 
 export function ChangePasswordPage() {
   const navigate = useNavigate();
