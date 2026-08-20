@@ -50,6 +50,7 @@ export interface VoucherQuery {
   partner_name?: string;
   discount_min?: number;
   area?: string;
+  availability?: "available" | "low_stock" | "sold_out";
   sort?: "price_asc" | "price_desc" | "popular" | "newest";
   page?: number;
   limit?: number;

@@ -54,6 +54,10 @@ export const voucherQuerySchema = z.object({
   partner_name: z.string().optional(),
   discount_min: intFromString("discount_min phải là số").optional(),
   area: z.string().optional(),
+  // Filter theo tình trạng: available (còn bán), low_stock (sắp hết), sold_out (hết hàng)
+  availability: z
+    .enum(["available", "low_stock", "sold_out"])
+    .optional(),
   sort: z
     .enum(["price_asc", "price_desc", "popular", "newest"])
     .optional()

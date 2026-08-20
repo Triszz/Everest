@@ -37,6 +37,7 @@ export const vouchersService = {
       partner_name,
       discount_min,
       area,
+      availability,
       sort,
       page,
       limit,
@@ -78,6 +79,24 @@ export const vouchersService = {
       where.voucherBranches = {
         some: { branch: { address: { contains: area, mode: "insensitive" } } },
       };
+    }
+
+    // Filter by availability (stock status)
+    if (availability) {
+      switch (availability) {
+        case "available":
+          // Còn bán: availableQuantity > 10
+          where.availableQuantity = { gt: 10 };
+          break;
+        case "low_stock":
+          // Sắp hết: 1 <= availableQuantity <= 10
+          where.availableQuantity = { gte: 1, lte: 10 };
+          break;
+        case "sold_out":
+          // Hết hàng: availableQuantity = 0
+          where.availableQuantity = 0;
+          break;
+      }
     }
 
     const orderBy: Prisma.VoucherOrderByWithRelationInput = {};

@@ -3,12 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { voucherApi, categoryApi, partnerApi } from "../services";
 import type { Voucher, Category, Partner } from "../services";
 import { Breadcrumb } from "../components/Breadcrumb";
-import {
-  DISCOUNT_OPTIONS,
-  PRICE_OPTIONS,
-  SORT_OPTIONS,
-  AREA_OPTIONS,
-} from "../utils";
+import { DISCOUNT_OPTIONS, PRICE_OPTIONS, SORT_OPTIONS, AREA_OPTIONS } from "../utils";
 import { useDebounce } from "../hooks";
 import {
   Search,
@@ -34,7 +29,16 @@ import {
   LayoutGrid,
   MapPin,
   Store,
+  Package,
 } from "lucide-react";
+
+// ── Availability filter options ─────────────────────────────────────────────────
+const AVAILABILITY_OPTIONS = [
+  { value: "", label: "Tất cả" },
+  { value: "available", label: "Còn bán" },
+  { value: "low_stock", label: "Sắp hết" },
+  { value: "sold_out", label: "Hết hàng" },
+];
 
 const CATEGORY_ICONS: Record<number, React.ElementType> = {
   1: Utensils,
@@ -148,6 +152,7 @@ export function VouchersPage() {
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
   const [localSearch, setLocalSearch] = useState(searchParams.get("search") || "");
+  const resultsRef = useRef<HTMLDivElement>(null);
 
   // Phương pháp C: debounce + prefetch
   const debouncedSearch = useDebounce(localSearch, 400);
@@ -178,6 +183,7 @@ export function VouchersPage() {
   const area = searchParams.get("area") || "";
   const partnerId = searchParams.get("partner_id") || "";
   const partnerName = searchParams.get("partner_name") || "";
+  const availability = searchParams.get("availability") || "";
 
   // Derive active filter chips cho hiển thị
   const activeFilters: FilterChip[] = [
@@ -200,6 +206,14 @@ export function VouchersPage() {
         ]
       : []),
     ...(partnerName ? [{ key: "partner_name", label: `🔍 "${partnerName}"` }] : []),
+    ...(availability
+      ? [
+          {
+            key: "availability",
+            label: `📦 ${AVAILABILITY_OPTIONS.find((o) => o.value === availability)?.label || availability}`,
+          },
+        ]
+      : []),
   ];
 
   const updateParams = (key: string, value: string) => {
@@ -279,6 +293,7 @@ export function VouchersPage() {
       ...(area && { area }),
       ...(partnerId && { partner_id: Number(partnerId) }),
       ...(partnerName && { partner_name: partnerName }),
+      ...(availability && { availability }),
     };
 
     voucherApi
@@ -297,7 +312,23 @@ export function VouchersPage() {
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [currentPage, sort, debouncedSearch, categoriesParam, discount, priceRange, area, partnerId, partnerName]);
+  }, [
+    currentPage,
+    sort,
+    debouncedSearch,
+    categoriesParam,
+    discount,
+    priceRange,
+    area,
+    partnerId,
+    partnerName,
+    availability,
+  ]);
+
+  // Auto-scroll to results when filters change
+  useEffect(() => {
+    resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [currentPage, sort, debouncedSearch, categoriesParam, discount, priceRange, area, partnerId, partnerName, availability]);
 
   const hasActiveFilters = activeFilters.length > 0;
 
@@ -728,6 +759,59 @@ export function VouchersPage() {
         </div>
       </div>
 
+      {/* Availability filter */}
+      <div>
+        <h3
+          style={{
+            fontFamily: "Manrope, sans-serif",
+            fontSize: 14,
+            fontWeight: 800,
+            color: "#1E293B",
+            marginBottom: 12,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          <Package size={14} /> Tình trạng
+        </h3>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {AVAILABILITY_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => updateParams("availability", opt.value)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "9px 12px",
+                borderRadius: 10,
+                background: availability === opt.value ? "#F0FDF4" : "transparent",
+                border: availability === opt.value ? "1.5px solid #86EFAC" : "1.5px solid #E2E8F0",
+                cursor: "pointer",
+                transition: "all 0.15s",
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: "Inter, sans-serif",
+                  fontSize: 13,
+                  fontWeight: availability === opt.value ? 700 : 400,
+                  color: availability === opt.value ? "#166534" : "#334155",
+                }}
+              >
+                {opt.label}
+              </span>
+              {availability === opt.value && (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2.5">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Clear all */}
       {hasActiveFilters && (
         <button
@@ -759,17 +843,10 @@ export function VouchersPage() {
 
   return (
     <div style={{ background: "#F8FAFC", minHeight: "100vh" }}>
-      <Breadcrumb
-        items={[
-          { label: "Trang chủ", href: "/" },
-          { label: "Khám phá Voucher" },
-        ]}
-        maxWidth={1280}
-      />
+      <Breadcrumb items={[{ label: "Trang chủ", href: "/" }, { label: "Khám phá Voucher" }]} maxWidth={1280} />
       {/* ── Header ── */}
       <div style={{ background: "white", borderBottom: "1px solid #E2E8F0" }}>
         <div style={{ maxWidth: 1280, margin: "0 auto", padding: "16px 24px 0" }}>
-
           <h1
             style={{
               fontFamily: "Manrope, sans-serif",
@@ -1084,7 +1161,7 @@ export function VouchersPage() {
             {/* Count */}
             <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#64748B", whiteSpace: "nowrap" }}>
               {loading ? "..." : `${vouchers.length} voucher`}
-              {(localSearch || categoryIds.length > 0 || discount || priceRange || area || partnerId) &&
+              {(localSearch || categoryIds.length > 0 || discount || priceRange || area || partnerId || availability) &&
                 !loading &&
                 ` được tìm thấy`}
             </span>
@@ -1167,7 +1244,7 @@ export function VouchersPage() {
 
           {/* Loading — skeleton cards */}
           {loading && (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 18 }}>
+            <div ref={resultsRef} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 18 }}>
               {Array.from({ length: 12 }).map((_, i) => (
                 <VoucherSkeleton key={i} />
               ))}
@@ -1241,7 +1318,7 @@ export function VouchersPage() {
           {/* Grid — voucher cards */}
           {!loading && !error && vouchers.length > 0 && (
             <>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 18 }}>
+              <div ref={resultsRef} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 18 }}>
                 {vouchers.map((voucher) => {
                   // BR-CUS-03: dùng discountPercent đã tính sẵn từ backend
                   const discount_pct =
