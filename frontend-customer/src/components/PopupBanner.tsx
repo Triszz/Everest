@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useActivePopup } from '../hooks/useActivePopup';
 import type { Popup } from '../services/api';
 

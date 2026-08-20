@@ -2,11 +2,10 @@ import { Router } from "express";
 import { adminController } from "./admin.controller";
 import { authenticate } from "../../middlewares/authenticate";
 import { roleGuard } from "../../middlewares/roleGuard";
-import { auditContext } from "../../middlewares/auditContext";
 
 const router = Router();
 
-router.use(authenticate, roleGuard("Admin"), auditContext);
+router.use(authenticate, roleGuard("Admin"));
 
 router.get("/users", adminController.listUsers);
 router.get("/users/:userId", adminController.getUserById);

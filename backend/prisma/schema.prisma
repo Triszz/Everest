@@ -449,8 +449,6 @@ model AdminAuditLog {
   targetType   AuditTargetType? @map("target_type")           // USER, VOUCHER, ORDER, ...
   targetId     String?        @map("target_id") @db.VarChar(100)
   description  String         @db.VarChar(500)
-  ipAddress    String?        @map("ip_address") @db.VarChar(45)
-  userAgent    String?        @map("user_agent") @db.VarChar(500)
   metadata     Json?
   createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz
 

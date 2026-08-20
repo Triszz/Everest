@@ -1,6 +1,5 @@
 import { prisma } from "../../config/prisma";
 import { AppError } from "../../middlewares/errorHandler";
-import { buildAuditPayload, writeAudit, type AuditActor } from "./audit.helper";
 import type { AccountStatus, Role } from "../../shared/types";
 import type { UserRole, VoucherApprovalStatus } from "../../generated/prisma/enums";
 import type { PartnerStatus } from "../../generated/prisma/enums";
@@ -108,7 +107,7 @@ export const adminService = {
     return user;
   },
 
-  async updateUserStatus(userId: string, input: UpdateUserStatusInput, actor: AuditActor) {
+  async updateUserStatus(userId: string, input: UpdateUserStatusInput) {
     const user = await prisma.user.findUnique({ where: { userId } });
     if (!user) throw new AppError("Người dùng không tồn tại", 404, "NOT_FOUND");
     if (user.role === "Admin") {
@@ -128,20 +127,10 @@ export const adminService = {
       },
     });
 
-    await writeAudit(
-      buildAuditPayload(actor, {
-        action: "UPDATE_USER_STATUS",
-        targetType: "USER",
-        targetId: userId,
-        description: `${input.status === "Banned" ? "Cấm" : "Mở khóa"} tài khoản ${user.fullName ?? userId}`,
-        metadata: { newStatus: input.status },
-      }),
-    );
-
     return result;
   },
 
-  async updateUserRole(userId: string, input: UpdateUserRoleInput, actorRole: Role, actor: AuditActor) {
+  async updateUserRole(userId: string, input: UpdateUserRoleInput, actorRole: Role) {
     const user = await prisma.user.findUnique({ where: { userId } });
     if (!user) throw new AppError("Người dùng không tồn tại", 404, "NOT_FOUND");
     const rolePriority: Record<UserRole, number> = {
@@ -178,16 +167,6 @@ export const adminService = {
         updatedAt: true,
       },
     });
-
-    await writeAudit(
-      buildAuditPayload(actor, {
-        action: "UPDATE_USER_ROLE",
-        targetType: "USER",
-        targetId: userId,
-        description: `Đổi quyền ${user.fullName ?? userId} → ${input.role}`,
-        metadata: { newRole: input.role },
-      }),
-    );
 
     return result;
   },
@@ -282,7 +261,7 @@ export const adminService = {
     return partner;
   },
 
-  async approvePartner(partnerId: number, input: ApprovePartnerInput, actor: AuditActor) {
+  async approvePartner(partnerId: number, input: ApprovePartnerInput) {
     const partner = await prisma.partner.findUnique({ where: { partnerId } });
     if (!partner) throw new AppError("Đối tác không tồn tại", 404, "NOT_FOUND");
     if (partner.status === "Approved") {
@@ -305,20 +284,10 @@ export const adminService = {
       },
     });
 
-    await writeAudit(
-      buildAuditPayload(actor, {
-        action: "APPROVE_PARTNER",
-        targetType: "PARTNER",
-        targetId: partnerId,
-        description: `Duyệt đối tác #${partnerId}${input.note ? `: ${input.note}` : ""}`,
-        metadata: { note: input.note, companyName: result.companyName },
-      }),
-    );
-
     return result;
   },
 
-  async rejectPartner(partnerId: number, input: RejectPartnerInput, actor: AuditActor) {
+  async rejectPartner(partnerId: number, input: RejectPartnerInput) {
     const partner = await prisma.partner.findUnique({ where: { partnerId } });
     if (!partner) throw new AppError("Đối tác không tồn tại", 404, "NOT_FOUND");
     if (partner.status === "Rejected") {
@@ -341,20 +310,10 @@ export const adminService = {
       },
     });
 
-    await writeAudit(
-      buildAuditPayload(actor, {
-        action: "REJECT_PARTNER",
-        targetType: "PARTNER",
-        targetId: partnerId,
-        description: `Từ chối đối tác #${partnerId} (${result.companyName}): ${input.reason}`,
-        metadata: { reason: input.reason, companyName: result.companyName },
-      }),
-    );
-
     return result;
   },
 
-  async togglePartnerLock(partnerId: number, input: TogglePartnerLockInput, actor: AuditActor) {
+  async togglePartnerLock(partnerId: number, input: TogglePartnerLockInput) {
     const partner = await prisma.partner.findUnique({ where: { partnerId } });
     if (!partner) throw new AppError("Đối tác không tồn tại", 404, "NOT_FOUND");
 
@@ -389,18 +348,6 @@ export const adminService = {
         affected: { branches: branchResult.count, cashiers: cashierResult.count },
       };
     });
-
-    await writeAudit(
-      buildAuditPayload(actor, {
-        action: "TOGGLE_PARTNER_LOCK",
-        targetType: "PARTNER",
-        targetId: partnerId,
-        description: input.locked
-          ? `Khóa đối tác #${partnerId} (${result.affected.branches} chi nhánh, ${result.affected.cashiers} nhân viên)`
-          : `Mở khóa đối tác #${partnerId} (${result.affected.branches} chi nhánh, ${result.affected.cashiers} nhân viên)`,
-        metadata: { locked: input.locked, affected: result.affected, companyName: result.partner.companyName },
-      }),
-    );
 
     return result;
   },
@@ -511,7 +458,7 @@ export const adminService = {
     return buildPaginated(branches, total, input.page, input.limit);
   },
 
-  async createBranch(partnerId: number, input: CreateBranchInput, actor: AuditActor) {
+  async createBranch(partnerId: number, input: CreateBranchInput) {
     const partner = await prisma.partner.findUnique({ where: { partnerId } });
     if (!partner) throw new AppError("Đối tác không tồn tại", 404, "NOT_FOUND");
 
@@ -527,20 +474,10 @@ export const adminService = {
       },
     });
 
-    await writeAudit(
-      buildAuditPayload(actor, {
-        action: "CREATE_BRANCH",
-        targetType: "BRANCH",
-        targetId: result.branchId,
-        description: `Tạo chi nhánh "${input.branchName}" cho đối tác #${partnerId}`,
-        metadata: { partnerId, branchName: input.branchName },
-      }),
-    );
-
     return result;
   },
 
-  async updateBranch(partnerId: number, branchId: number, input: UpdateBranchInput, actor: AuditActor) {
+  async updateBranch(partnerId: number, branchId: number, input: UpdateBranchInput) {
     const branch = await prisma.branch.findUnique({ where: { branchId, partnerId } });
     if (!branch) throw new AppError("Chi nhánh không tồn tại", 404, "NOT_FOUND");
 
@@ -557,20 +494,10 @@ export const adminService = {
       },
     });
 
-    await writeAudit(
-      buildAuditPayload(actor, {
-        action: "UPDATE_BRANCH",
-        targetType: "BRANCH",
-        targetId: branchId,
-        description: `Cập nhật chi nhánh #${branchId} (${result.branchName ?? ""})`,
-        metadata: { changes: input, branchName: result.branchName },
-      }),
-    );
-
     return result;
   },
 
-  async deleteBranch(partnerId: number, branchId: number, actor: AuditActor) {
+  async deleteBranch(partnerId: number, branchId: number) {
     const branch = await prisma.branch.findUnique({ where: { branchId, partnerId } });
     if (!branch) throw new AppError("Chi nhánh không tồn tại", 404, "NOT_FOUND");
 
@@ -591,20 +518,10 @@ export const adminService = {
     const branchName = branch.branchName;
     await prisma.branch.delete({ where: { branchId } });
 
-    await writeAudit(
-      buildAuditPayload(actor, {
-        action: "DELETE_BRANCH",
-        targetType: "BRANCH",
-        targetId: branchId,
-        description: `Xóa chi nhánh #${branchId} ("${branchName}") của đối tác #${partnerId}`,
-        metadata: { partnerId, branchName },
-      }),
-    );
-
     return { branchId, deletedAt: new Date() };
   },
 
-  async toggleBranchLock(partnerId: number, branchId: number, input: ToggleBranchLockInput, actor: AuditActor) {
+  async toggleBranchLock(partnerId: number, branchId: number, input: ToggleBranchLockInput) {
     const branch = await prisma.branch.findUnique({ where: { branchId, partnerId } });
     if (!branch) throw new AppError("Chi nhánh không tồn tại", 404, "NOT_FOUND");
 
@@ -641,16 +558,6 @@ export const adminService = {
 
       return updated;
     });
-
-    await writeAudit(
-      buildAuditPayload(actor, {
-        action: "TOGGLE_BRANCH_LOCK",
-        targetType: "BRANCH",
-        targetId: branchId,
-        description: input.locked ? `Khóa chi nhánh #${branchId} ("${result.branchName}")` : `Mở khóa chi nhánh #${branchId} ("${result.branchName}")`,
-        metadata: { locked: input.locked, branchName: result.branchName },
-      }),
-    );
 
     return result;
   },
@@ -711,7 +618,7 @@ export const adminService = {
     return category;
   },
 
-  async createCategory(input: CreateCategoryInput, actor: AuditActor) {
+  async createCategory(input: CreateCategoryInput) {
     const existing = await prisma.category.findFirst({
       where: { categoryName: input.categoryName },
     });
@@ -724,20 +631,10 @@ export const adminService = {
       select: { categoryId: true, categoryName: true, description: true },
     });
 
-    await writeAudit(
-      buildAuditPayload(actor, {
-        action: "CREATE_CATEGORY",
-        targetType: "CATEGORY",
-        targetId: result.categoryId,
-        description: `Tạo danh mục "${input.categoryName}"`,
-        metadata: { categoryName: input.categoryName },
-      }),
-    );
-
     return result;
   },
 
-  async updateCategory(categoryId: number, input: UpdateCategoryInput, actor: AuditActor) {
+  async updateCategory(categoryId: number, input: UpdateCategoryInput) {
     const category = await prisma.category.findUnique({ where: { categoryId } });
     if (!category) throw new AppError("Danh mục không tồn tại", 404, "NOT_FOUND");
 
@@ -756,20 +653,10 @@ export const adminService = {
       select: { categoryId: true, categoryName: true, description: true },
     });
 
-    await writeAudit(
-      buildAuditPayload(actor, {
-        action: "UPDATE_CATEGORY",
-        targetType: "CATEGORY",
-        targetId: categoryId,
-        description: `Cập nhật danh mục #${categoryId} (${result.categoryName})`,
-        metadata: { changes: input, categoryName: result.categoryName },
-      }),
-    );
-
     return result;
   },
 
-  async deleteCategory(categoryId: number, actor: AuditActor) {
+  async deleteCategory(categoryId: number) {
     const category = await prisma.category.findUnique({ where: { categoryId } });
     if (!category) throw new AppError("Danh mục không tồn tại", 404, "NOT_FOUND");
 
@@ -784,16 +671,6 @@ export const adminService = {
 
     const categoryName = category.categoryName;
     await prisma.category.delete({ where: { categoryId } });
-
-    await writeAudit(
-      buildAuditPayload(actor, {
-        action: "DELETE_CATEGORY",
-        targetType: "CATEGORY",
-        targetId: categoryId,
-        description: `Xóa danh mục #${categoryId} (${categoryName})`,
-        metadata: { categoryName },
-      }),
-    );
 
     return { categoryId, deletedAt: new Date() };
   },
@@ -883,7 +760,7 @@ export const adminService = {
     return voucher;
   },
 
-  async approveVoucher(voucherId: number, input: ApproveVoucherInput, actor: AuditActor) {
+  async approveVoucher(voucherId: number, input: ApproveVoucherInput) {
     const voucher = await prisma.voucher.findUnique({ where: { voucherId } });
     if (!voucher) throw new AppError("Voucher không tồn tại", 404, "NOT_FOUND");
     if (voucher.approvalStatus === "Approved") {
@@ -905,20 +782,10 @@ export const adminService = {
       },
     });
 
-    await writeAudit(
-      buildAuditPayload(actor, {
-        action: "APPROVE_VOUCHER",
-        targetType: "VOUCHER",
-        targetId: voucherId,
-        description: `Duyệt voucher #${voucherId} (${result.title})`,
-        metadata: { title: result.title, note: input.note },
-      }),
-    );
-
     return result;
   },
 
-  async rejectVoucher(voucherId: number, input: RejectVoucherInput, actor: AuditActor) {
+  async rejectVoucher(voucherId: number, input: RejectVoucherInput) {
     const voucher = await prisma.voucher.findUnique({ where: { voucherId } });
     if (!voucher) throw new AppError("Voucher không tồn tại", 404, "NOT_FOUND");
     if (voucher.approvalStatus === "Rejected") {
@@ -940,16 +807,6 @@ export const adminService = {
       },
     });
 
-    await writeAudit(
-      buildAuditPayload(actor, {
-        action: "REJECT_VOUCHER",
-        targetType: "VOUCHER",
-        targetId: voucherId,
-        description: `Từ chối voucher #${voucherId} (${result.title}): ${input.reason}`,
-        metadata: { reason: input.reason, title: result.title },
-      }),
-    );
-
     return result;
   },
 
@@ -969,7 +826,6 @@ export const adminService = {
   async setVoucherDisplayStatus(
     voucherId: number,
     input: { displayStatus: "Visible" | "Hidden" },
-    actor: AuditActor,
   ) {
     const voucher = await prisma.voucher.findUnique({ where: { voucherId } });
     if (!voucher) throw new AppError("Voucher không tồn tại", 404, "NOT_FOUND");
@@ -985,16 +841,6 @@ export const adminService = {
         updatedAt: true,
       },
     });
-
-    await writeAudit(
-      buildAuditPayload(actor, {
-        action: "TOGGLE_VOUCHER_DISPLAY",
-        targetType: "VOUCHER",
-        targetId: voucherId,
-        description: input.displayStatus === "Visible" ? `Hiển thị voucher #${voucherId} (${result.title})` : `Ẩn voucher #${voucherId} (${result.title})`,
-        metadata: { displayStatus: input.displayStatus, title: result.title },
-      }),
-    );
 
     return result;
   },
@@ -1028,7 +874,7 @@ export const adminService = {
     return policy;
   },
 
-  async upsertPolicy(input: UpsertPolicyInput, actor: AuditActor) {
+  async upsertPolicy(input: UpsertPolicyInput) {
     const result = await prisma.policy.upsert({
       where: { title: input.title },
       create: { title: input.title, content: input.content },
@@ -1041,32 +887,12 @@ export const adminService = {
       },
     });
 
-    await writeAudit(
-      buildAuditPayload(actor, {
-        action: "UPSERT_POLICY",
-        targetType: "POLICY",
-        targetId: result.policyId,
-        description: `${result.policyId === 0 ? "Tạo" : "Cập nhật"} chính sách "${input.title}"`,
-        metadata: { title: input.title, policyId: result.policyId },
-      }),
-    );
-
     return result;
   },
 
-  async deletePolicy(policyId: number, actor: AuditActor) {
+  async deletePolicy(policyId: number) {
     const policy = await prisma.policy.findUnique({ where: { policyId }, select: { title: true } });
     await prisma.policy.delete({ where: { policyId } });
-
-    await writeAudit(
-      buildAuditPayload(actor, {
-        action: "DELETE_POLICY",
-        targetType: "POLICY",
-        targetId: policyId,
-        description: `Xóa chính sách #${policyId}${policy?.title ? ` (${policy.title})` : ""}`,
-        metadata: { title: policy?.title ?? null },
-      }),
-    );
 
     return { deleted: true, policyId };
   },
@@ -1123,7 +949,7 @@ export const adminService = {
     return banner;
   },
 
-  async createBanner(input: CreateBannerInput, actor: AuditActor) {
+  async createBanner(input: CreateBannerInput) {
     const result = await prisma.banner.create({
       data: {
         title: input.title,
@@ -1140,20 +966,10 @@ export const adminService = {
       },
     });
 
-    await writeAudit(
-      buildAuditPayload(actor, {
-        action: "CREATE_BANNER",
-        targetType: "BANNER",
-        targetId: result.bannerId,
-        description: `Tạo banner "${input.title}"`,
-        metadata: { title: input.title },
-      }),
-    );
-
     return result;
   },
 
-  async updateBanner(bannerId: number, input: UpdateBannerInput, actor: AuditActor) {
+  async updateBanner(bannerId: number, input: UpdateBannerInput) {
     const banner = await prisma.banner.findUnique({ where: { bannerId } });
     if (!banner) throw new AppError("Banner không tồn tại", 404, "NOT_FOUND");
 
@@ -1173,20 +989,10 @@ export const adminService = {
       },
     });
 
-    await writeAudit(
-      buildAuditPayload(actor, {
-        action: "UPDATE_BANNER",
-        targetType: "BANNER",
-        targetId: bannerId,
-        description: `Cập nhật banner #${bannerId} (${result.title})`,
-        metadata: { changes: input, title: result.title },
-      }),
-    );
-
     return result;
   },
 
-  async updateBannerStatus(bannerId: number, input: UpdateBannerStatusInput, actor: AuditActor) {
+  async updateBannerStatus(bannerId: number, input: UpdateBannerStatusInput) {
     const banner = await prisma.banner.findUnique({ where: { bannerId } });
     if (!banner) throw new AppError("Banner không tồn tại", 404, "NOT_FOUND");
 
@@ -1215,34 +1021,14 @@ export const adminService = {
       },
     });
 
-    await writeAudit(
-      buildAuditPayload(actor, {
-        action: "UPDATE_BANNER_STATUS",
-        targetType: "BANNER",
-        targetId: bannerId,
-        description: nextStatus === "Visible" ? `Hiển thị banner #${bannerId} (${result.title})` : `Ẩn banner #${bannerId} (${result.title})`,
-        metadata: { status: nextStatus, title: result.title },
-      }),
-    );
-
     return result;
   },
 
-  async deleteBanner(bannerId: number, actor: AuditActor) {
+  async deleteBanner(bannerId: number) {
     const banner = await prisma.banner.findUnique({ where: { bannerId } });
     if (!banner) throw new AppError("Banner không tồn tại", 404, "NOT_FOUND");
     const title = banner.title;
     await prisma.banner.delete({ where: { bannerId } });
-
-    await writeAudit(
-      buildAuditPayload(actor, {
-        action: "DELETE_BANNER",
-        targetType: "BANNER",
-        targetId: bannerId,
-        description: `Xóa banner #${bannerId}${title ? ` (${title})` : ""}`,
-        metadata: { title: title ?? null },
-      }),
-    );
 
     return { deleted: true, bannerId, deletedAt: new Date() };
   },
@@ -1308,7 +1094,7 @@ export const adminService = {
     return popup;
   },
 
-  async createPopup(input: CreatePopupInput, actor: AuditActor) {
+  async createPopup(input: CreatePopupInput) {
     const result = await prisma.popup.create({
       data: {
         title: input.title,
@@ -1331,20 +1117,10 @@ export const adminService = {
       },
     });
 
-    await writeAudit(
-      buildAuditPayload(actor, {
-        action: "CREATE_POPUP",
-        targetType: "POPUP",
-        targetId: result.popupId,
-        description: `Tạo popup "${input.title}"`,
-        metadata: { title: input.title },
-      }),
-    );
-
     return result;
   },
 
-  async updatePopup(popupId: number, input: UpdatePopupInput, actor: AuditActor) {
+  async updatePopup(popupId: number, input: UpdatePopupInput) {
     const popup = await prisma.popup.findUnique({ where: { popupId } });
     if (!popup) throw new AppError("Popup không tồn tại", 404, "NOT_FOUND");
 
@@ -1370,20 +1146,10 @@ export const adminService = {
       },
     });
 
-    await writeAudit(
-      buildAuditPayload(actor, {
-        action: "UPDATE_POPUP",
-        targetType: "POPUP",
-        targetId: popupId,
-        description: `Cập nhật popup #${popupId} (${result.title})`,
-        metadata: { changes: input, title: result.title },
-      }),
-    );
-
     return result;
   },
 
-  async updatePopupStatus(popupId: number, input: UpdatePopupStatusInput, actor: AuditActor) {
+  async updatePopupStatus(popupId: number, input: UpdatePopupStatusInput) {
     const popup = await prisma.popup.findUnique({ where: { popupId } });
     if (!popup) throw new AppError("Popup không tồn tại", 404, "NOT_FOUND");
 
@@ -1412,34 +1178,14 @@ export const adminService = {
       },
     });
 
-    await writeAudit(
-      buildAuditPayload(actor, {
-        action: "UPDATE_POPUP_STATUS",
-        targetType: "POPUP",
-        targetId: popupId,
-        description: nextStatus === "Visible" ? `Hiển thị popup #${popupId} (${result.title})` : `Ẩn popup #${popupId} (${result.title})`,
-        metadata: { status: nextStatus, title: result.title },
-      }),
-    );
-
     return result;
   },
 
-  async deletePopup(popupId: number, actor: AuditActor) {
+  async deletePopup(popupId: number) {
     const popup = await prisma.popup.findUnique({ where: { popupId } });
     if (!popup) throw new AppError("Popup không tồn tại", 404, "NOT_FOUND");
     const title = popup.title;
     await prisma.popup.delete({ where: { popupId } });
-
-    await writeAudit(
-      buildAuditPayload(actor, {
-        action: "DELETE_POPUP",
-        targetType: "POPUP",
-        targetId: popupId,
-        description: `Xóa popup #${popupId}${title ? ` (${title})` : ""}`,
-        metadata: { title: title ?? null },
-      }),
-    );
 
     return { deleted: true, popupId, deletedAt: new Date() };
   },
@@ -1521,7 +1267,7 @@ export const adminService = {
     return post;
   },
 
-  async createPost(authorId: string, input: CreatePostInput, actor: AuditActor) {
+  async createPost(authorId: string, input: CreatePostInput) {
     const status = (input.status ?? "Hidden") as PostStatus;
     const result = await prisma.post.create({
       data: {
@@ -1553,20 +1299,10 @@ export const adminService = {
       },
     });
 
-    await writeAudit(
-      buildAuditPayload(actor, {
-        action: "CREATE_POST",
-        targetType: "POST",
-        targetId: result.postId,
-        description: `Tạo bài viết "${input.title}"`,
-        metadata: { title: input.title, status: result.status },
-      }),
-    );
-
     return result;
   },
 
-  async updatePost(postId: number, input: UpdatePostInput, actor: AuditActor) {
+  async updatePost(postId: number, input: UpdatePostInput) {
     const post = await prisma.post.findUnique({ where: { postId } });
     if (!post) throw new AppError("Bài viết không tồn tại", 404, "NOT_FOUND");
 
@@ -1598,20 +1334,10 @@ export const adminService = {
       },
     });
 
-    await writeAudit(
-      buildAuditPayload(actor, {
-        action: "UPDATE_POST",
-        targetType: "POST",
-        targetId: postId,
-        description: `Cập nhật bài viết #${postId} (${result.title})`,
-        metadata: { changes: input, title: result.title },
-      }),
-    );
-
     return result;
   },
 
-  async updatePostStatus(postId: number, input: UpdatePostStatusInput, actor: AuditActor) {
+  async updatePostStatus(postId: number, input: UpdatePostStatusInput) {
     const post = await prisma.post.findUnique({ where: { postId } });
     if (!post) throw new AppError("Bài viết không tồn tại", 404, "NOT_FOUND");
 
@@ -1646,34 +1372,14 @@ export const adminService = {
       },
     });
 
-    await writeAudit(
-      buildAuditPayload(actor, {
-        action: "UPDATE_POST_STATUS",
-        targetType: "POST",
-        targetId: postId,
-        description: nextStatus === "Visible" ? `Đăng bài viết #${postId} (${result.title})` : `Ẩn bài viết #${postId} (${result.title})`,
-        metadata: { status: nextStatus, title: result.title },
-      }),
-    );
-
     return result;
   },
 
-  async deletePost(postId: number, actor: AuditActor) {
+  async deletePost(postId: number) {
     const post = await prisma.post.findUnique({ where: { postId } });
     if (!post) throw new AppError("Bài viết không tồn tại", 404, "NOT_FOUND");
     const title = post.title;
     await prisma.post.delete({ where: { postId } });
-
-    await writeAudit(
-      buildAuditPayload(actor, {
-        action: "DELETE_POST",
-        targetType: "POST",
-        targetId: postId,
-        description: `Xóa bài viết #${postId}${title ? ` (${title})` : ""}`,
-        metadata: { title: title ?? null },
-      }),
-    );
 
     return { deleted: true, postId, deletedAt: new Date() };
   },
@@ -1788,7 +1494,7 @@ export const adminService = {
     return order;
   },
 
-  async cancelOrder(_actorId: string, orderId: number, input: CancelOrderInput, actor: AuditActor) {
+  async cancelOrder(orderId: number, input: CancelOrderInput) {
     const order = await prisma.order.findUnique({
       where: { orderId },
       include: { orderItems: { include: { issuedVouchers: true } } },
@@ -1834,7 +1540,7 @@ export const adminService = {
         data: {
           paymentStatus: "Cancelled",
           cancelledAt: now,
-          cancelledBy: actor.userId,
+          cancelledBy: undefined,
           cancelReason: input.reason,
         },
         select: {
@@ -1848,20 +1554,10 @@ export const adminService = {
       });
     });
 
-    await writeAudit(
-      buildAuditPayload(actor, {
-        action: "CANCEL_ORDER",
-        targetType: "ORDER",
-        targetId: orderId,
-        description: `Hủy đơn hàng #${orderId}: ${input.reason ?? ""}`,
-        metadata: { reason: input.reason, totalAmount: Number(order.totalAmount) },
-      }),
-    );
-
     return result;
   },
 
-  async refundOrder(_actorId: string, orderId: number, input: RefundOrderInput, actor: AuditActor) {
+  async refundOrder(orderId: number, input: RefundOrderInput) {
     const order = await prisma.order.findUnique({ where: { orderId } });
     if (!order) throw new AppError("Đơn hàng không tồn tại", 404, "NOT_FOUND");
     if (order.paymentStatus !== "Paid") {
@@ -1888,7 +1584,7 @@ export const adminService = {
       where: { orderId },
       data: {
         refundedAt: new Date(),
-        refundedBy: actor.userId,
+        refundedBy: undefined,
         refundReason: input.reason,
         refundAmount,
       },
@@ -1902,16 +1598,6 @@ export const adminService = {
         updatedAt: true,
       },
     });
-
-    await writeAudit(
-      buildAuditPayload(actor, {
-        action: "REFUND_ORDER",
-        targetType: "ORDER",
-        targetId: orderId,
-        description: `Hoàn tiền đơn hàng #${orderId}${input.amount ? ` (${input.amount.toLocaleString('vi-VN')}đ)` : ""}: ${input.reason ?? ""}`,
-        metadata: { amount: input.amount, reason: input.reason, totalAmount: Number(order.totalAmount) },
-      }),
-    );
 
     return result;
   },
