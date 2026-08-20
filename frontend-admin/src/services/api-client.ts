@@ -130,9 +130,12 @@ async function request<T>(
 
     if (!res.ok) {
       const errBody = json as ApiError;
+      const msg = errBody?.error?.message;
+      const code = errBody?.error?.code;
+      console.warn(`[api] ${method} ${path} → ${res.status}`, code, msg);
       throw new ApiException(
-        errBody?.error?.message || 'Đã xảy ra lỗi, vui lòng thử lại',
-        errBody?.error?.code || 'UNKNOWN_ERROR',
+        msg || `Yêu cầu thất bại (${res.status})`,
+        code || 'REQUEST_FAILED',
         res.status,
       );
     }
