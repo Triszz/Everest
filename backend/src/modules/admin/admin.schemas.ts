@@ -130,13 +130,22 @@ export const listCategoriesSchema = z.object({
 });
 
 export const createCategorySchema = z.object({
-  categoryName: z.string().min(2, "Tên danh mục không được để trống").max(100),
-  description: z.string().max(500).optional(),
+  categoryName: z
+    .string()
+    .trim()
+    .min(2, "Tên danh mục phải có ít nhất 2 ký tự")
+    .max(100),
+  description: z.string().trim().max(500).optional(),
 });
 
 export const updateCategorySchema = z.object({
-  categoryName: z.string().min(2).max(100).optional(),
-  description: z.string().max(500).optional().nullable(),
+  categoryName: z
+    .string()
+    .trim()
+    .min(2, "Tên danh mục phải có ít nhất 2 ký tự")
+    .max(100)
+    .optional(),
+  description: z.string().trim().max(500).optional().nullable(),
 });
 
 export const getCategoryByIdSchema = z.object({
@@ -202,7 +211,12 @@ export const toggleVoucherDisplaySchema = z.object({
   }),
 });
 
+export const updateVoucherDatesSchema = z.object({
+  endDate: z.coerce.date({ message: "Ngày kết thúc không hợp lệ" }),
+});
+
 export type SetVoucherDisplayStatusInput = z.infer<typeof toggleVoucherDisplaySchema>;
+export type UpdateVoucherDatesInput = z.infer<typeof updateVoucherDatesSchema>;
 
 export type ListVouchersInput = z.infer<typeof listVouchersSchema>;
 export type GetVoucherByIdInput = z.infer<typeof getVoucherByIdSchema>;
@@ -218,8 +232,14 @@ export const getPolicyByIdSchema = z.object({
 });
 
 export const upsertPolicySchema = z.object({
-  title: z.string().min(1, "Tiêu đề không được để trống").max(255),
-  content: z.string().min(1, "Nội dung không được để trống"),
+  policyId: z.coerce.number().int().positive().optional(),
+  title: z.string().trim().min(1, "Tiêu đề không được để trống").max(255),
+  content: z
+    .string()
+    .refine(
+      (value) => value.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim().length > 0,
+      "Nội dung không được để trống",
+    ),
 });
 
 export const deletePolicySchema = z.object({

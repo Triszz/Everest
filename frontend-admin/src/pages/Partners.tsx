@@ -234,6 +234,15 @@ export default function Partners() {
                             <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>store</span>
                             Chi nhánh
                           </button>
+                          <button
+                            className="admin-btn admin-btn-ghost"
+                            style={{ padding: '0.375rem 0.625rem', fontSize: '0.75rem' }}
+                            onClick={() => navigate(`/vouchers?partnerId=${partner.partnerId}`)}
+                            title="Xem voucher của đối tác"
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>confirmation_number</span>
+                            Voucher
+                          </button>
 
                           {partner.status === 'Pending' && (
                             <>

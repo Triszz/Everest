@@ -13,6 +13,7 @@ import Vouchers from './pages/Vouchers'
 import Orders from './pages/Orders'
 import Content from './pages/Content'
 import PostEditor from './pages/PostEditor'
+import PolicyEditor from './pages/PolicyEditor'
 import AuditLogs from './pages/AuditLogs'
 
 export default function App() {
@@ -44,6 +45,8 @@ export default function App() {
               <Route path="/content" element={<Content />} />
               <Route path="/content/posts/new" element={<PostEditor />} />
               <Route path="/content/posts/:postId" element={<PostEditor />} />
+              <Route path="/policies/create" element={<PolicyEditor />} />
+              <Route path="/policies/:policyId" element={<PolicyEditor />} />
               <Route path="/audit-logs" element={<AuditLogs />} />
             </Route>
           </Routes>

@@ -246,8 +246,7 @@ model Policy {
   policyId  Int      @id @default(autoincrement()) @map("policy_id")
   title     String   @unique @map("title") @db.VarChar(255)
   content   String   @map("content") @db.Text
-  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz
-
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
   @@map("policies")
 }
 
@@ -514,8 +513,6 @@ model AdminAuditLog {
   targetType   AuditTargetType? @map("target_type")           // USER, VOUCHER, ORDER, ...
   targetId     String?        @map("target_id") @db.VarChar(100)
   description  String         @db.VarChar(500)
-  ipAddress    String?        @map("ip_address") @db.VarChar(45)
-  userAgent    String?        @map("user_agent") @db.VarChar(500)
   metadata     Json?
   createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz
 

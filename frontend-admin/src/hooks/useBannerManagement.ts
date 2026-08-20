@@ -113,19 +113,8 @@ export function useBannerManagement() {
       setIsSaving(true);
       try {
         const updated = await adminBannersApi.updateStatus(bannerId, { status });
-        // Backend invariant: at most one banner is Visible.
-        // Patch the list locally instead of refetching so other cards
-        // (status toggles, page state, scroll position) stay put.
         setBanners((prev) =>
-          prev.map((b) => {
-            if (b.bannerId === bannerId) return updated;
-            // If we just turned this banner Visible, every other banner
-            // must now be Hidden to match the backend invariant.
-            if (status === 'Visible' && b.status === 'Visible') {
-              return { ...b, status: 'Hidden' as BannerStatus };
-            }
-            return b;
-          }),
+          prev.map((b) => (b.bannerId === bannerId ? updated : b)),
         );
         return updated;
       } catch (err: unknown) {

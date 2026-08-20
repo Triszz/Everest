@@ -2,11 +2,10 @@ import { Router } from "express";
 import { adminController } from "./admin.controller";
 import { authenticate } from "../../middlewares/authenticate";
 import { roleGuard } from "../../middlewares/roleGuard";
-import { auditContext } from "../../middlewares/auditContext";
 
 const router = Router();
 
-router.use(authenticate, roleGuard("Admin"), auditContext);
+router.use(authenticate, roleGuard("Admin"));
 
 router.get("/users", adminController.listUsers);
 router.get("/users/:userId", adminController.getUserById);
@@ -40,6 +39,8 @@ router.get("/vouchers/stats", adminController.getVoucherStats);
 router.post("/vouchers/:voucherId/approve", adminController.approveVoucher);
 router.post("/vouchers/:voucherId/reject", adminController.rejectVoucher);
 router.patch("/vouchers/:voucherId/display", adminController.setVoucherDisplayStatus);
+router.patch("/vouchers/:voucherId/dates", adminController.updateVoucherDates);
+router.post("/vouchers/:voucherId/expire", adminController.expireVoucherNow);
 
 router.get("/policies", adminController.listPolicies);
 router.get("/policies/:policyId", adminController.getPolicyById);

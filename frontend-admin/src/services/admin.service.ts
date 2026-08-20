@@ -68,6 +68,7 @@ export interface CategoryResponse {
   categoryId: number;
   categoryName: string;
   description: string | null;
+  voucherCount?: number;
 }
 
 export interface VoucherResponse {
@@ -302,6 +303,7 @@ export const adminBranchesApi = {
   ): Promise<null> {
     return del<null>(
       `/api/admin/partners/${partnerId}/branches/${branchId}`,
+      undefined,
       { auth: true, headers: body ? { 'x-reason': encodeURIComponent(body.reason || '') } : undefined },
     ).then((res) => res.data);
   },
@@ -362,7 +364,7 @@ export const adminCategoriesApi = {
   },
 
   delete(categoryId: number): Promise<null> {
-    return del<null>(`/api/admin/categories/${categoryId}`, {
+    return del<null>(`/api/admin/categories/${categoryId}`, undefined, {
       auth: true,
     }).then((res) => res.data);
   },
@@ -419,6 +421,22 @@ export const adminVouchersApi = {
     ).then((res) => res.data);
   },
 
+  updateDates(voucherId: number, body: { endDate: string }): Promise<Partial<VoucherResponse>> {
+    return patch<Partial<VoucherResponse>>(
+      `/api/admin/vouchers/${voucherId}/dates`,
+      body,
+      { auth: true },
+    ).then((res) => res.data);
+  },
+
+  expireNow(voucherId: number): Promise<Partial<VoucherResponse>> {
+    return post<Partial<VoucherResponse>>(
+      `/api/admin/vouchers/${voucherId}/expire`,
+      undefined,
+      { auth: true },
+    ).then((res) => res.data);
+  },
+
   approve(voucherId: number, body?: { note?: string }): Promise<VoucherResponse> {
     return post<VoucherResponse>(
       `/api/admin/vouchers/${voucherId}/approve`,
@@ -454,7 +472,7 @@ export const adminPoliciesApi = {
     return get<PolicyResponse>(`/api/admin/policies/${policyId}`, { auth: true }).then((res) => res.data);
   },
 
-  upsert(body: { title: string; content: string }): Promise<PolicyResponse> {
+  upsert(body: { policyId?: number; title: string; content: string }): Promise<PolicyResponse> {
     return put<PolicyResponse>(`/api/admin/policies`, body, { auth: true }).then((res) => res.data);
   },
 
@@ -537,7 +555,7 @@ export const adminBannersApi = {
   },
 
   delete(bannerId: number): Promise<null> {
-    return del<null>(`/api/admin/banners/${bannerId}`, {
+    return del<null>(`/api/admin/banners/${bannerId}`, undefined, {
       auth: true,
     }).then((res) => res.data);
   },
@@ -626,7 +644,7 @@ export const adminPopupsApi = {
   },
 
   delete(popupId: number): Promise<null> {
-    return del<null>(`/api/admin/popups/${popupId}`, {
+    return del<null>(`/api/admin/popups/${popupId}`, undefined, {
       auth: true,
     }).then((res) => res.data);
   },
@@ -719,7 +737,7 @@ export const adminPostsApi = {
   },
 
   delete(postId: number): Promise<null> {
-    return del<null>(`/api/admin/posts/${postId}`, {
+    return del<null>(`/api/admin/posts/${postId}`, undefined, {
       auth: true,
     }).then((res) => res.data);
   },

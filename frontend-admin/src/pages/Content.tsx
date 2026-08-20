@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import ReactQuill from 'react-quill-new'
 import { useToast } from '../components/shared/Toast'
 import { useCategoryManagement } from '../hooks/useCategoryManagement'
 import { usePolicyManagement } from '../hooks/usePolicyManagement'
@@ -33,14 +35,33 @@ const mockArticles: Article[] = [
   { id: 'ART-004', title: 'Giới thiệu đối tác California Fitness', category: 'Tin tức', status: 'PUBLISHED', createdAt: '15/05/2024', author: 'Admin Le' },
 ]
 
+const formatPolicyDate = (iso: string) => {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return '—'
+  return date.toLocaleString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 type ContentTab = 'categories' | 'banners' | 'popups' | 'posts' | 'policies'
 
 export default function Content() {
   const { showToast } = useToast()
-  const [activeTab, setActiveTab] = useState<ContentTab>('categories')
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const initialTab = searchParams.get('tab')
+  const [activeTab, setActiveTab] = useState<ContentTab>(initialTab === 'policies' ? 'policies' : 'categories')
+  const [isLoadingCategoryTab, setIsLoadingCategoryTab] = useState(false)
   const {
     categories: rawCategories,
     total,
+    page,
+    limit,
+    totalPages,
     isLoading,
     error,
     fetchCategories,
@@ -55,7 +76,6 @@ export default function Content() {
     fetchPolicies,
     savePolicy,
     deletePolicy,
-    setCurrentPolicy,
   } = usePolicyManagement()
   const {
     banners,
@@ -68,6 +88,7 @@ export default function Content() {
     deleteBanner: deleteBannerHook,
   } = useBannerManagement()
   const categories: CategoryResponse[] = rawCategories ?? []
+  const categoryLoadMoreRef = useRef<HTMLDivElement>(null)
   const policies: Policy[] = rawPolicies.map((p) => ({ id: String(p.policyId), title: p.title, content: p.content, updatedAt: p.updatedAt, updatedBy: '', version: 1 }))
 
   useEffect(() => {
@@ -76,6 +97,20 @@ export default function Content() {
   useEffect(() => {
     if (activeTab === 'banners') fetchBanners()
   }, [activeTab])
+
+  useEffect(() => {
+    const loadMoreElement = categoryLoadMoreRef.current
+    if (!loadMoreElement || activeTab !== 'categories' || page >= totalPages || isLoading) return
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) fetchCategories(page + 1, true)
+      },
+      { rootMargin: '240px' },
+    )
+    observer.observe(loadMoreElement)
+    return () => observer.disconnect()
+  }, [activeTab, fetchCategories, isLoading, page, totalPages])
   const [catFormName, setCatFormName] = useState('')
   const [catFormDesc, setCatFormDesc] = useState('')
   const [isSavingCat, setIsSavingCat] = useState(false)
@@ -92,14 +127,17 @@ export default function Content() {
   }
 
   const handleSaveCategory = async () => {
-    if (!catFormName.trim()) { showToast('Tên danh mục không được để trống', 'error'); return }
+    const trimmedName = catFormName.trim()
+    if (!trimmedName) { showToast('Tên danh mục không được để trống', 'error'); return }
+    if (trimmedName.length < 2) { showToast('Tên danh mục phải có ít nhất 2 ký tự', 'error'); return }
     setIsSavingCat(true)
     try {
+      const payload = { categoryName: trimmedName, description: catFormDesc.trim() || undefined }
       if (editCategory) {
-        await updateCategory(editCategory.categoryId, { categoryName: catFormName.trim(), description: catFormDesc.trim() || undefined })
+        await updateCategory(editCategory.categoryId, payload)
         showToast('Đã cập nhật danh mục!', 'success')
       } else {
-        await createCategory({ categoryName: catFormName.trim(), description: catFormDesc.trim() || undefined })
+        await createCategory(payload)
         showToast('Đã tạo danh mục mới!', 'success')
       }
       setShowCategoryModal(false)
@@ -109,13 +147,26 @@ export default function Content() {
       setIsSavingCat(false)
     }
   }
+
+  const handleTabChange = async (tab: ContentTab) => {
+    if (tab === activeTab) return
+    setActiveTab(tab)
+    if (tab === 'categories') {
+      setIsLoadingCategoryTab(true)
+      try {
+        await fetchCategories(1)
+      } finally {
+        setIsLoadingCategoryTab(false)
+      }
+    }
+  }
   const [editBanner, setEditBanner] = useState<BannerResponse | null>(null)
   const [editPolicy, setEditPolicy] = useState<Policy | null>(null)
+  const [policyFormTitle, setPolicyFormTitle] = useState('')
+  const [policyFormContent, setPolicyFormContent] = useState('')
   const [expandedPolicyId, setExpandedPolicyId] = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'category' | 'banner' | 'policy'; item: any; policyConfirmStep?: number } | null>(null)
   const [isSavingPolicy, setIsSavingPolicy] = useState(false)
-  const policyContentRef = useRef<HTMLTextAreaElement>(null)
-  const policyTitleRef = useRef<HTMLInputElement>(null)
 
   const tabs: { id: ContentTab; label: string; icon: string }[] = [
     { id: 'categories', label: 'Danh mục', icon: 'category' },
@@ -137,6 +188,13 @@ export default function Content() {
     setDeleteConfirm({ type: 'policy', item: policy, policyConfirmStep: 1 })
   }
 
+  const openPolicyModal = (policy: Policy | null) => {
+    setEditPolicy(policy)
+    setPolicyFormTitle(policy?.title ?? '')
+    setPolicyFormContent(policy?.content ?? '')
+    setShowPolicyModal(true)
+  }
+
   const confirmDelete = async () => {
     if (!deleteConfirm) return
     const { type, item, policyConfirmStep } = deleteConfirm
@@ -154,23 +212,24 @@ export default function Content() {
         await deletePolicy(Number(item.id))
         showToast(`Đã xóa chính sách "${item.title}"`, 'success')
       }
-    } catch {
-      showToast(`Không thể xóa`, 'error')
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : 'Không thể xóa', 'error')
     } finally {
       setDeleteConfirm(null)
     }
   }
 
   const handleSavePolicy = async () => {
-    const content = policyContentRef.current?.value ?? ''
-    const title = policyTitleRef.current?.value ?? ''
-    if (!title.trim() || !content.trim()) {
+    const title = policyFormTitle.trim()
+    const content = policyFormContent
+    const plainText = content.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim()
+    if (!title || !plainText) {
       showToast('Tiêu đề và nội dung không được để trống', 'error')
       return
     }
     setIsSavingPolicy(true)
     try {
-      await savePolicy({ title: title.trim(), content: content.trim() })
+      await savePolicy({ title, content })
       showToast('Đã lưu chính sách!', 'success')
       setShowPolicyModal(false)
     } catch (err: unknown) {
@@ -186,7 +245,7 @@ export default function Content() {
       await toggleBannerStatus(banner.bannerId, nextStatus)
       showToast(
         nextStatus === 'Visible'
-          ? `Đã hiển thị banner "${banner.title}" (các banner khác đã ẩn)`
+          ? `Đã hiển thị banner "${banner.title}"`
           : `Đã ẩn banner "${banner.title}"`,
         'success',
       )
@@ -257,7 +316,7 @@ export default function Content() {
         {tabs.map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => void handleTabChange(tab.id)}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -275,7 +334,12 @@ export default function Content() {
               marginBottom: '-2px',
             }}
           >
-            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>{tab.icon}</span>
+            <span
+              className={`material-symbols-outlined${tab.id === 'categories' && isLoadingCategoryTab ? ' spin' : ''}`}
+              style={{ fontSize: '18px' }}
+            >
+              {tab.id === 'categories' && isLoadingCategoryTab ? 'progress_activity' : tab.icon}
+            </span>
             {tab.label}
           </button>
         ))}
@@ -313,24 +377,26 @@ export default function Content() {
                   <th>ID</th>
                   <th>Tên danh mục</th>
                   <th>Mô tả</th>
+                  <th>Số voucher</th>
                   <th style={{ textAlign: 'right' }}>Thao tác</th>
                 </tr>
               </thead>
               <tbody>
                 {isLoading ? (
-                  <tr><td colSpan={4} style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-outline)' }}>Đang tải...</td></tr>
+                  <tr><td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-outline)' }}>Đang tải...</td></tr>
                 ) : error ? (
-                  <tr><td colSpan={4} style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-error)' }}>{error}</td></tr>
+                  <tr><td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-error)' }}>{error}</td></tr>
                 ) : categories.length === 0 ? (
-                  <tr><td colSpan={4} style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-outline)' }}>Chưa có danh mục nào.</td></tr>
+                  <tr><td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-outline)' }}>Chưa có danh mục nào.</td></tr>
                 ) : (
                   categories.map((cat, index) => (
                     <tr key={cat.categoryId}>
-                      <td><span className="font-label-sm" style={{ color: 'var(--color-outline)' }}>{index + 1}</span></td>
+                      <td><span className="font-label-sm" style={{ color: 'var(--color-outline)' }}>{(page - 1) * limit + index + 1}</span></td>
                       <td>
                         <p className="font-body-sm" style={{ fontWeight: 600 }}>{cat.categoryName}</p>
                       </td>
                       <td><span className="font-body-sm" style={{ color: 'var(--color-on-surface-variant)' }}>{cat.description || '—'}</span></td>
+                      <td><span className="font-body-sm">{cat.voucherCount ?? 0}</span></td>
                       <td>
                         <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'flex-end' }}>
                           <button
@@ -341,14 +407,16 @@ export default function Content() {
                           >
                             <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>edit</span>
                           </button>
-                          <button
-                            className="admin-btn admin-btn-danger"
-                            style={{ padding: '0.25rem', fontSize: '0.7rem' }}
-                            onClick={() => handleDeleteCategory(cat)}
-                            title="Xóa"
-                          >
-                            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>delete</span>
-                          </button>
+                          {(cat.voucherCount ?? 0) === 0 && (
+                            <button
+                              className="admin-btn admin-btn-danger"
+                              style={{ padding: '0.25rem', fontSize: '0.7rem' }}
+                              onClick={() => handleDeleteCategory(cat)}
+                              title="Xóa"
+                            >
+                              <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>delete</span>
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -357,6 +425,12 @@ export default function Content() {
               </tbody>
             </table>
           </div>
+          <div ref={categoryLoadMoreRef} style={{ minHeight: '1px' }} aria-hidden="true" />
+          {isLoading && categories.length > 0 && (
+            <p className="font-body-sm" style={{ padding: '0.75rem', textAlign: 'center', color: 'var(--color-on-surface-variant)' }}>
+              Đang tải thêm danh mục...
+            </p>
+          )}
         </div>
       )}
 
@@ -453,7 +527,7 @@ export default function Content() {
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
             <button
               className="admin-btn admin-btn-primary"
-              onClick={() => { setEditPolicy(null); setShowPolicyModal(true) }}
+                  onClick={() => navigate('/policies/create')}
             >
               <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
               Tạo chính sách
@@ -481,7 +555,8 @@ export default function Content() {
               <tbody>
                 {policies.map((policy) => {
                   const isExpanded = expandedPolicyId === policy.id
-                  const preview = policy.content.length > 120 ? policy.content.slice(0, 120) + '…' : policy.content
+                  const previewText = policy.content.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim()
+                  const preview = previewText.length > 120 ? `${previewText.slice(0, 120)}…` : previewText
                   return (
                   <tr key={policy.id}>
                     <td><span className="font-body-sm" style={{ fontWeight: 600 }}>{policy.title}</span></td>
@@ -499,13 +574,13 @@ export default function Content() {
                         />
                       </div>
                     </td>
-                    <td><span className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)', whiteSpace: 'nowrap' }}>{policy.updatedAt}</span></td>
+                    <td><span className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)', whiteSpace: 'nowrap' }}>{formatPolicyDate(policy.updatedAt)}</span></td>
                     <td>
                       <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'flex-end' }}>
                         <button
                           className="admin-btn admin-btn-ghost"
                           style={{ padding: '0.25rem', fontSize: '0.7rem' }}
-                          onClick={() => { setEditPolicy(policy); setShowPolicyModal(true) }}
+                          onClick={() => navigate(`/policies/${policy.id}`)}
                         >
                           <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>edit</span>
                         </button>
@@ -628,7 +703,7 @@ export default function Content() {
                       onChange={(e) => setBannerForm((f) => ({ ...f, status: e.target.value as 'Visible' | 'Hidden' }))}
                     >
                       <option value="Hidden">Đã ẩn</option>
-                      <option value="Visible">Đang hiển thị (sẽ ẩn các banner khác)</option>
+                      <option value="Visible">Đang hiển thị</option>
                     </select>
                   </div>
                 )}
@@ -662,20 +737,31 @@ export default function Content() {
                 <div>
                   <label className="font-label-sm" style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--color-on-surface-variant)' }}>Tiêu đề</label>
                   <input
-                    ref={policyTitleRef}
                     className="admin-input"
-                    defaultValue={editPolicy?.title || ''}
+                    value={policyFormTitle}
+                    onChange={(event) => setPolicyFormTitle(event.target.value)}
                     placeholder="VD: Chính sách hủy và hoàn tiền"
                   />
                 </div>
                 <div>
                   <label className="font-label-sm" style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--color-on-surface-variant)' }}>Nội dung</label>
-                  <textarea
-                    ref={policyContentRef}
-                    className="admin-input"
-                    style={{ resize: 'vertical', minHeight: '250px', fontFamily: '"JetBrains Mono", monospace', fontSize: '0.8rem' }}
-                    defaultValue={editPolicy?.content || ''}
+                  <ReactQuill
+                    className="policy-editor"
+                    theme="snow"
+                    value={policyFormContent}
+                    onChange={setPolicyFormContent}
                     placeholder="Nhập nội dung..."
+                    modules={{
+                      toolbar: [
+                        [{ header: [1, 2, 3, false] }],
+                        ['bold', 'italic', 'underline', 'strike'],
+                        [{ list: 'ordered' }, { list: 'bullet' }],
+                        [{ align: [] }],
+                        ['blockquote', 'code-block'],
+                        ['link', 'image'],
+                        ['clean'],
+                      ],
+                    }}
                   />
                 </div>
               </div>

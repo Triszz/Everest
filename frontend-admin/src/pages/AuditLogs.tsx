@@ -1,169 +1,313 @@
-import { useState } from 'react'
-import { useToast } from '../components/shared/Toast'
+import { useMemo, useState } from 'react';
+import { useToast } from '../components/shared/Toast';
+import { useAuditLog } from '../hooks/useAuditLog';
+import {
+  AUDIT_ACTIONS,
+  AUDIT_ACTOR_TYPE_LABELS,
+  AUDIT_TARGET_TYPE_LABELS,
+  type AuditActorType,
+  type AuditLog,
+  type AuditTargetType,
+} from '../types/audit';
 
-type ActionType = 'CREATE' | 'UPDATE' | 'DELETE' | 'APPROVE' | 'REJECT' | 'LOCK' | 'UNLOCK' | 'LOGIN' | 'LOGOUT' | 'PAYMENT' | 'REFUND' | 'CANCEL'
-type TargetType = 'USER' | 'PARTNER' | 'VOUCHER' | 'ORDER' | 'ADMIN' | 'SYSTEM'
+const ACTOR_TYPES: Array<{ value: '' | AuditActorType; label: string }> = [
+  { value: '', label: 'Tất cả actor' },
+  { value: 'ADMIN', label: AUDIT_ACTOR_TYPE_LABELS.ADMIN },
+  { value: 'SYSTEM', label: AUDIT_ACTOR_TYPE_LABELS.SYSTEM },
+  { value: 'CUSTOMER', label: AUDIT_ACTOR_TYPE_LABELS.CUSTOMER },
+  { value: 'PARTNER', label: AUDIT_ACTOR_TYPE_LABELS.PARTNER },
+];
 
-interface LogEntry {
-  id: number
-  timestamp: string
-  actor: string
-  actorType: 'ADMIN' | 'USER' | 'PARTNER' | 'SYSTEM'
-  action: ActionType
-  targetType: TargetType
-  targetId: string
-  description: string
-  ipAddress: string
-  userAgent: string
-  oldValue?: string
-  newValue?: string
-}
+const TARGET_TYPES: Array<{ value: '' | AuditTargetType; label: string }> = [
+  { value: '', label: 'Tất cả đối tượng' },
+  ...(Object.entries(AUDIT_TARGET_TYPE_LABELS) as Array<[AuditTargetType, string]>).map(
+    ([v, l]) => ({ value: v, label: l }),
+  ),
+];
 
-const mockLogs: LogEntry[] = [
-  { id: 1, timestamp: '21/06/2026 14:32:15', actor: 'Admin_Le', actorType: 'ADMIN', action: 'APPROVE', targetType: 'VOUCHER', targetId: 'VCH-2024-001', description: 'Phê duyệt voucher "Thưởng thức Cà phê Signature"', ipAddress: '192.168.1.10', userAgent: 'Chrome/125.0.0.0', oldValue: 'PENDING_REVIEW', newValue: 'PUBLISHED' },
-  { id: 2, timestamp: '21/06/2026 14:28:44', actor: 'Admin_Minh', actorType: 'ADMIN', action: 'LOCK', targetType: 'USER', targetId: 'USR-12840', description: 'Khóa tài khoản "Trần Danh" do vi phạm chính sách', ipAddress: '192.168.1.15', userAgent: 'Firefox/126.0', oldValue: 'ACTIVE', newValue: 'LOCKED' },
-  { id: 3, timestamp: '21/06/2026 14:15:22', actor: 'System', actorType: 'SYSTEM', action: 'CREATE', targetType: 'ORDER', targetId: 'ORD-2024-038', description: 'Tạo đơn hàng mới tự động', ipAddress: '127.0.0.1', userAgent: 'System' },
-  { id: 4, timestamp: '21/06/2026 13:55:01', actor: 'Admin_Le', actorType: 'ADMIN', action: 'APPROVE', targetType: 'PARTNER', targetId: 'PAR-002', description: 'Phê duyệt đối tác "Grab Vietnam Co., Ltd"', ipAddress: '192.168.1.10', userAgent: 'Chrome/125.0.0.0', oldValue: 'PENDING', newValue: 'APPROVED' },
-  { id: 5, timestamp: '21/06/2026 13:42:38', actor: 'Admin_Minh', actorType: 'ADMIN', action: 'REFUND', targetType: 'ORDER', targetId: 'ORD-2024-035', description: 'Hoàn tiền 899,000 đ cho đơn hàng #ORD-2024-035', ipAddress: '192.168.1.15', userAgent: 'Firefox/126.0', oldValue: 'PAID', newValue: 'REFUNDED' },
-  { id: 6, timestamp: '21/06/2026 12:30:11', actor: 'Admin_Le', actorType: 'ADMIN', action: 'REJECT', targetType: 'VOUCHER', targetId: 'VCH-2024-007', description: 'Từ chối voucher "Gói Spa Cao Cấp 3 Ngày" — Giá bán không đủ chiết khấu', ipAddress: '192.168.1.10', userAgent: 'Chrome/125.0.0.0', oldValue: 'PENDING_REVIEW', newValue: 'REJECTED' },
-  { id: 7, timestamp: '21/06/2026 11:15:55', actor: 'System', actorType: 'SYSTEM', action: 'PAYMENT', targetType: 'ORDER', targetId: 'ORD-2024-037', description: 'Thanh toán thành công qua ví điện tử', ipAddress: '127.0.0.1', userAgent: 'System' },
-  { id: 8, timestamp: '21/06/2026 10:48:22', actor: 'Admin_Minh', actorType: 'ADMIN', action: 'UPDATE', targetType: 'PARTNER', targetId: 'PAR-001', description: 'Cập nhật thông tin chi nhánh "Lotte Mart Quận 7"', ipAddress: '192.168.1.15', userAgent: 'Firefox/126.0' },
-  { id: 9, timestamp: '21/06/2026 09:30:00', actor: 'Admin_Le', actorType: 'ADMIN', action: 'LOGIN', targetType: 'ADMIN', targetId: 'ADM-001', description: 'Đăng nhập hệ thống quản trị', ipAddress: '192.168.1.10', userAgent: 'Chrome/125.0.0.0' },
-  { id: 10, timestamp: '20/06/2026 18:20:33', actor: 'Admin_Minh', actorType: 'ADMIN', action: 'UNLOCK', targetType: 'USER', targetId: 'USR-12835', description: 'Mở khóa tài khoản "Nguyễn Thị X"', ipAddress: '192.168.1.15', userAgent: 'Firefox/126.0', oldValue: 'LOCKED', newValue: 'ACTIVE' },
-  { id: 11, timestamp: '20/06/2026 17:05:19', actor: 'Admin_Le', actorType: 'ADMIN', action: 'DELETE', targetType: 'VOUCHER', targetId: 'VCH-2023-089', description: 'Xóa voucher ở trạng thái REJECTED', ipAddress: '192.168.1.10', userAgent: 'Chrome/125.0.0.0' },
-  { id: 12, timestamp: '20/06/2026 15:42:08', actor: 'System', actorType: 'SYSTEM', action: 'CANCEL', targetType: 'ORDER', targetId: 'ORD-2024-030', description: 'Hệ thống tự động hủy đơn hàng do quá hạn thanh toán', ipAddress: '127.0.0.1', userAgent: 'System', oldValue: 'PENDING', newValue: 'CANCELLED' },
-]
+const actionStyle = (action: string): { bg: string; color: string } => {
+  if (action.includes('APPROVE')) return { bg: 'rgba(16,185,129,0.1)', color: '#10B981' };
+  if (action.includes('REJECT') || action.includes('CANCEL') || action.includes('DELETE'))
+    return { bg: 'rgba(239,68,68,0.1)', color: '#EF4444' };
+  if (action.includes('LOCK') || action.includes('TOGGLE'))
+    return { bg: 'rgba(245,158,11,0.1)', color: '#F59E0B' };
+  if (action.includes('CREATE')) return { bg: 'rgba(16,185,129,0.1)', color: '#10B981' };
+  if (action.includes('UPDATE')) return { bg: 'rgba(59,130,246,0.1)', color: '#3B82F6' };
+  if (action.includes('REFUND')) return { bg: 'rgba(245,158,11,0.1)', color: '#F59E0B' };
+  if (action === 'LOGIN' || action === 'LOGOUT')
+    return { bg: 'rgba(112,120,128,0.1)', color: '#707880' };
+  return { bg: 'rgba(0,92,134,0.1)', color: '#005c86' };
+};
 
-const actionConfig: Record<ActionType, { label: string; color: string; bg: string }> = {
-  CREATE: { label: 'Tạo mới', color: '#10B981', bg: 'rgba(16,185,129,0.1)' },
-  UPDATE: { label: 'Cập nhật', color: '#3B82F6', bg: 'rgba(59,130,246,0.1)' },
-  DELETE: { label: 'Xóa', color: '#EF4444', bg: 'rgba(239,68,68,0.1)' },
-  APPROVE: { label: 'Duyệt', color: '#10B981', bg: 'rgba(16,185,129,0.1)' },
-  REJECT: { label: 'Từ chối', color: '#EF4444', bg: 'rgba(239,68,68,0.1)' },
-  LOCK: { label: 'Khóa', color: '#F59E0B', bg: 'rgba(245,158,11,0.1)' },
-  UNLOCK: { label: 'Mở khóa', color: '#10B981', bg: 'rgba(16,185,129,0.1)' },
-  LOGIN: { label: 'Đăng nhập', color: '#3B82F6', bg: 'rgba(59,130,246,0.1)' },
-  LOGOUT: { label: 'Đăng xuất', color: '#707880', bg: 'rgba(112,120,128,0.1)' },
-  PAYMENT: { label: 'Thanh toán', color: '#10B981', bg: 'rgba(16,185,129,0.1)' },
-  REFUND: { label: 'Hoàn tiền', color: '#F59E0B', bg: 'rgba(245,158,11,0.1)' },
-  CANCEL: { label: 'Hủy', color: '#EF4444', bg: 'rgba(239,68,68,0.1)' },
-}
+const formatDate = (iso: string): string => {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+};
 
-const targetIcon: Record<TargetType, string> = {
-  USER: 'person',
-  PARTNER: 'store',
-  VOUCHER: 'confirmation_number',
-  ORDER: 'shopping_cart',
-  ADMIN: 'admin_panel_settings',
-  SYSTEM: 'computer',
-}
+const getActionLabel = (action: string): string =>
+  AUDIT_ACTIONS.find((a) => a.value === action)?.label ?? action;
+
+const targetIcon = (t: AuditTargetType | null): string => {
+  switch (t) {
+    case 'USER':
+      return 'person';
+    case 'PARTNER':
+      return 'store';
+    case 'VOUCHER':
+      return 'confirmation_number';
+    case 'ORDER':
+      return 'shopping_cart';
+    case 'BRANCH':
+      return 'storefront';
+    case 'CATEGORY':
+      return 'category';
+    case 'POLICY':
+      return 'policy';
+    case 'BANNER':
+      return 'image';
+    case 'POPUP':
+      return 'campaign';
+    case 'POST':
+      return 'article';
+    case 'ADMIN':
+      return 'admin_panel_settings';
+    default:
+      return 'help';
+  }
+};
 
 export default function AuditLogs() {
-  const { showToast } = useToast()
-  const [search, setSearch] = useState('')
-  const [actionFilter, setActionFilter] = useState('all')
-  const [targetFilter, setTargetFilter] = useState('all')
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
-  const [selectedLog, setSelectedLog] = useState<LogEntry | null>(null)
+  const { showToast } = useToast();
+  const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
 
-  const filtered = mockLogs.filter((log) => {
-    const matchSearch =
-      log.description.toLowerCase().includes(search.toLowerCase()) ||
-      log.actor.toLowerCase().includes(search.toLowerCase()) ||
-      log.targetId.toLowerCase().includes(search.toLowerCase()) ||
-      log.ipAddress.includes(search)
-    const matchAction = actionFilter === 'all' || log.action === actionFilter
-    const matchTarget = targetFilter === 'all' || log.targetType === targetFilter
-    return matchSearch && matchAction && matchTarget
-  })
+  const {
+    logs,
+    actions: dbActions,
+    page,
+    limit,
+    total,
+    totalPages,
+    filters,
+    loading,
+    error,
+    setPage,
+    setLimit,
+    updateFilters,
+    resetFilters,
+    refresh,
+  } = useAuditLog();
 
-  const handleExport = () => {
-    showToast('Đang xuất nhật ký ra file CSV...', 'info')
-    setTimeout(() => showToast('Đã xuất thành công! File đã được tải về.', 'success'), 1500)
-  }
+  const actionOptions = useMemo(() => {
+    const all = new Set<string>([...AUDIT_ACTIONS.map((a) => a.value), ...dbActions]);
+    return Array.from(all).sort();
+  }, [dbActions]);
+
+  const filteredLogs = useMemo(() => logs, [logs]);
+
+  const handleExportCsv = () => {
+    if (filteredLogs.length === 0) {
+      showToast('Không có dữ liệu để xuất', 'warning');
+      return;
+    }
+    const headers = [
+      'logId',
+      'createdAt',
+      'actorId',
+      'actorType',
+      'action',
+      'targetType',
+      'targetId',
+      'description',
+      'metadata',
+    ];
+    const rows = filteredLogs.map((l) =>
+      [
+        l.logId,
+        l.createdAt,
+        l.actorId ?? '',
+        l.actorType,
+        l.action,
+        l.targetType ?? '',
+        l.targetId ?? '',
+        `"${l.description.replace(/"/g, '""')}"`,
+        l.metadata ? `"${JSON.stringify(l.metadata).replace(/"/g, '""')}"` : '',
+      ].join(','),
+    );
+    const csv = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `audit-logs-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(`Đã xuất ${filteredLogs.length} nhật ký`, 'success');
+  };
 
   return (
     <div>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-end',
+          marginBottom: '1.5rem',
+          flexWrap: 'wrap',
+          gap: '1rem',
+        }}
+      >
         <div>
-          <h1 className="font-headline-lg" style={{ fontSize: '2rem', marginBottom: '0.25rem' }}>Nhật ký hệ thống</h1>
+          <h1 className="font-headline-lg" style={{ fontSize: '2rem', marginBottom: '0.25rem' }}>
+            Nhật ký hệ thống
+          </h1>
           <p className="font-body-sm" style={{ color: 'var(--color-on-surface-variant)' }}>
-            Truy vết toàn bộ thao tác trên hệ thống (RB-12).
+            Truy vết toàn bộ thao tác admin trên hệ thống.
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <button className="admin-btn admin-btn-ghost" onClick={handleExport}>
-            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>file_download</span>
-            Xuất CSV
+          <button className="admin-btn admin-btn-ghost" onClick={refresh}>
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
+              refresh
+            </span>
+            Làm mới
           </button>
-          <button className="admin-btn admin-btn-ghost" onClick={handleExport}>
-            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>table_chart</span>
-            Xuất Excel
+          <button className="admin-btn admin-btn-ghost" onClick={handleExportCsv}>
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
+              file_download
+            </span>
+            Xuất CSV
           </button>
         </div>
       </div>
 
-      {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(4, 1fr)',
+          gap: '1rem',
+          marginBottom: '1.5rem',
+        }}
+      >
         {[
-          { label: 'Tổng nhật ký', value: mockLogs.length, color: '#3B82F6' },
-          { label: 'Hành động hôm nay', value: mockLogs.filter((l) => l.timestamp.startsWith('21/06/2026')).length, color: '#10B981' },
-          { label: 'Thao tác Admin', value: mockLogs.filter((l) => l.actorType === 'ADMIN').length, color: '#005c86' },
-          { label: 'Cảnh báo', value: 0, color: '#EF4444' },
+          { label: 'Tổng nhật ký', value: total, color: '#3B82F6' },
+          { label: 'Hành động duy nhất', value: dbActions.length, color: '#005c86' },
+          { label: 'Số trang', value: totalPages, color: '#10B981' },
+          { label: 'Đang tải', value: loading ? '...' : 'OK', color: loading ? '#F59E0B' : '#10B981' },
         ].map((s) => (
           <div key={s.label} className="admin-card" style={{ padding: '1rem', textAlign: 'center' }}>
-            <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)', marginBottom: '0.25rem', fontSize: '0.65rem' }}>{s.label}</p>
-            <p className="font-headline-md" style={{ fontSize: '1.5rem', color: s.color }}>{s.value}</p>
+            <p
+              className="font-label-sm"
+              style={{
+                color: 'var(--color-on-surface-variant)',
+                marginBottom: '0.25rem',
+                fontSize: '0.65rem',
+              }}
+            >
+              {s.label}
+            </p>
+            <p className="font-headline-md" style={{ fontSize: '1.5rem', color: s.color }}>
+              {s.value}
+            </p>
           </div>
         ))}
       </div>
 
-      {/* Filters */}
       <div className="admin-card" style={{ padding: '1rem', marginBottom: '1rem' }}>
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
-          <div style={{ position: 'relative', flex: 1, minWidth: 250 }}>
-            <span className="material-symbols-outlined" style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-on-surface-variant)', fontSize: '18px' }}>
-              search
+          <input
+            className="admin-input"
+            style={{ flex: 1, minWidth: 200 }}
+            placeholder="ID đối tượng (targetId)"
+            value={filters.targetId ?? ''}
+            onChange={(e) => updateFilters({ targetId: e.target.value || undefined })}
+          />
+          <select
+            className="admin-input admin-select"
+            style={{ width: 'auto' }}
+            value={filters.action ?? ''}
+            onChange={(e) => updateFilters({ action: e.target.value || undefined })}
+          >
+            <option value="">Tất cả hành động</option>
+            {actionOptions.map((a) => (
+              <option key={a} value={a}>
+                {getActionLabel(a)}
+              </option>
+            ))}
+          </select>
+          <select
+            className="admin-input admin-select"
+            style={{ width: 'auto' }}
+            value={filters.targetType ?? ''}
+            onChange={(e) =>
+              updateFilters({ targetType: (e.target.value || undefined) as AuditTargetType | undefined })
+            }
+          >
+            {TARGET_TYPES.map((t) => (
+              <option key={t.value || 'all'} value={t.value}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+          <select
+            className="admin-input admin-select"
+            style={{ width: 'auto' }}
+            value={filters.actorType ?? ''}
+            onChange={(e) =>
+              updateFilters({ actorType: (e.target.value || undefined) as AuditActorType | undefined })
+            }
+          >
+            {ACTOR_TYPES.map((a) => (
+              <option key={a.value || 'all'} value={a.value}>
+                {a.label}
+              </option>
+            ))}
+          </select>
+          <input
+            className="admin-input"
+            type="date"
+            style={{ width: 'auto' }}
+            value={filters.fromDate?.slice(0, 10) ?? ''}
+            onChange={(e) =>
+              updateFilters({ fromDate: e.target.value ? `${e.target.value}T00:00:00.000Z` : undefined })
+            }
+          />
+          <span className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)' }}>
+            →
+          </span>
+          <input
+            className="admin-input"
+            type="date"
+            style={{ width: 'auto' }}
+            value={filters.toDate?.slice(0, 10) ?? ''}
+            onChange={(e) =>
+              updateFilters({ toDate: e.target.value ? `${e.target.value}T23:59:59.999Z` : undefined })
+            }
+          />
+          <button className="admin-btn admin-btn-ghost" onClick={resetFilters}>
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
+              filter_alt_off
             </span>
-            <input
-              className="admin-input"
-              style={{ paddingLeft: '2.5rem' }}
-              placeholder="Tìm mô tả, người thực hiện, ID, IP..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          <select className="admin-input admin-select" style={{ width: 'auto' }} value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>
-            <option value="all">Tất cả hành động</option>
-            <option value="CREATE">Tạo mới</option>
-            <option value="UPDATE">Cập nhật</option>
-            <option value="DELETE">Xóa</option>
-            <option value="APPROVE">Duyệt</option>
-            <option value="REJECT">Từ chối</option>
-            <option value="LOCK">Khóa</option>
-            <option value="UNLOCK">Mở khóa</option>
-            <option value="PAYMENT">Thanh toán</option>
-            <option value="REFUND">Hoàn tiền</option>
-            <option value="CANCEL">Hủy</option>
-          </select>
-          <select className="admin-input admin-select" style={{ width: 'auto' }} value={targetFilter} onChange={(e) => setTargetFilter(e.target.value)}>
-            <option value="all">Tất cả đối tượng</option>
-            <option value="USER">Người dùng</option>
-            <option value="PARTNER">Đối tác</option>
-            <option value="VOUCHER">Voucher</option>
-            <option value="ORDER">Đơn hàng</option>
-            <option value="ADMIN">Admin</option>
-            <option value="SYSTEM">Hệ thống</option>
-          </select>
-          <input className="admin-input" type="date" style={{ width: 'auto' }} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-          <span className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)' }}>→</span>
-          <input className="admin-input" type="date" style={{ width: 'auto' }} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+            Reset
+          </button>
         </div>
       </div>
 
-      {/* Logs Table */}
+      {error && (
+        <div
+          className="admin-card"
+          style={{
+            padding: '1rem',
+            marginBottom: '1rem',
+            background: 'rgba(239,68,68,0.08)',
+            border: '1px solid rgba(239,68,68,0.3)',
+            color: '#EF4444',
+          }}
+        >
+          <strong>Lỗi:</strong> {error}
+        </div>
+      )}
+
       <div className="admin-card" style={{ overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
           <table className="admin-table">
@@ -174,77 +318,122 @@ export default function AuditLogs() {
                 <th>Hành động</th>
                 <th>Đối tượng</th>
                 <th>Mô tả</th>
-                <th>Địa chỉ IP</th>
                 <th style={{ textAlign: 'right' }}>Chi tiết</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {loading ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-on-surface-variant)' }}>
+                  <td
+                    colSpan={6}
+                    style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-on-surface-variant)' }}
+                  >
+                    Đang tải...
+                  </td>
+                </tr>
+              ) : filteredLogs.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={6}
+                    style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-on-surface-variant)' }}
+                  >
                     Không tìm thấy nhật ký nào.
                   </td>
                 </tr>
               ) : (
-                filtered.map((log) => {
-                  const ac = actionConfig[log.action]
+                filteredLogs.map((log) => {
+                  const ac = actionStyle(log.action);
+                  const initials = (log.actor?.fullName ?? log.actor?.email ?? 'SY')
+                    .split(/[\s@_]/)
+                    .map((w) => w[0])
+                    .join('')
+                    .slice(0, 2)
+                    .toUpperCase();
                   return (
-                    <tr key={log.id}>
+                    <tr key={log.logId}>
                       <td>
-                        <span className="font-label-sm" style={{ color: 'var(--color-outline)', fontSize: '0.7rem', whiteSpace: 'nowrap' }}>
-                          {log.timestamp}
+                        <span
+                          className="font-label-sm"
+                          style={{
+                            color: 'var(--color-outline)',
+                            fontSize: '0.7rem',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {formatDate(log.createdAt)}
                         </span>
                       </td>
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           <div
                             style={{
-                              width: '1.75rem', height: '1.75rem', borderRadius: '50%',
-                              background: log.actorType === 'ADMIN' ? 'rgba(0,92,134,0.15)' : 'rgba(112,120,128,0.1)',
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              fontSize: '0.6rem', fontWeight: 700,
+                              width: '1.75rem',
+                              height: '1.75rem',
+                              borderRadius: '50%',
+                              background:
+                                log.actorType === 'ADMIN' ? 'rgba(0,92,134,0.15)' : 'rgba(112,120,128,0.1)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '0.6rem',
+                              fontWeight: 700,
                               color: log.actorType === 'ADMIN' ? '#005c86' : '#707880',
                             }}
                           >
-                            {log.actor.split('_').map((w) => w[0]).join('').slice(0, 2)}
+                            {initials}
                           </div>
                           <div>
-                            <p className="font-body-sm" style={{ fontWeight: 600, fontSize: '0.8rem' }}>{log.actor}</p>
-                            <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)', fontSize: '0.6rem' }}>{log.actorType}</p>
+                            <p className="font-body-sm" style={{ fontWeight: 600, fontSize: '0.8rem' }}>
+                              {log.actor?.fullName ?? log.actor?.email ?? '—'}
+                            </p>
+                            <p
+                              className="font-label-sm"
+                              style={{
+                                color: 'var(--color-on-surface-variant)',
+                                fontSize: '0.6rem',
+                              }}
+                            >
+                              {AUDIT_ACTOR_TYPE_LABELS[log.actorType]}
+                            </p>
                           </div>
                         </div>
                       </td>
                       <td>
                         <span
                           style={{
-                            display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
-                            padding: '0.25rem 0.5rem', borderRadius: '9999px',
-                            background: ac.bg, color: ac.color,
-                            fontFamily: '"JetBrains Mono", monospace', fontSize: '0.65rem', fontWeight: 600,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
+                            padding: '0.25rem 0.5rem',
+                            borderRadius: '9999px',
+                            background: ac.bg,
+                            color: ac.color,
+                            fontFamily: '"JetBrains Mono", monospace',
+                            fontSize: '0.65rem',
+                            fontWeight: 600,
                           }}
                         >
-                          <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>
-                            {log.action === 'APPROVE' || log.action === 'UNLOCK' ? 'check_circle' :
-                             log.action === 'REJECT' || log.action === 'LOCK' || log.action === 'CANCEL' ? 'cancel' :
-                             log.action === 'CREATE' ? 'add' :
-                             log.action === 'DELETE' ? 'delete' :
-                             log.action === 'UPDATE' ? 'edit' :
-                             log.action === 'PAYMENT' ? 'payments' :
-                             log.action === 'REFUND' ? 'attach_money' :
-                             log.action === 'LOGIN' ? 'login' :
-                             log.action === 'LOGOUT' ? 'logout' : 'history'}
-                          </span>
-                          {ac.label}
+                          {getActionLabel(log.action)}
                         </span>
                       </td>
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--color-on-surface-variant)' }}>
-                            {targetIcon[log.targetType]}
+                          <span
+                            className="material-symbols-outlined"
+                            style={{ fontSize: '16px', color: 'var(--color-on-surface-variant)' }}
+                          >
+                            {targetIcon(log.targetType)}
                           </span>
                           <div>
-                            <p className="font-body-sm" style={{ fontWeight: 600, fontSize: '0.8rem' }}>{log.targetType}</p>
-                            <p className="font-label-sm" style={{ color: 'var(--color-outline)', fontSize: '0.65rem' }}>{log.targetId}</p>
+                            <p className="font-body-sm" style={{ fontWeight: 600, fontSize: '0.8rem' }}>
+                              {log.targetType ? AUDIT_TARGET_TYPE_LABELS[log.targetType] : '—'}
+                            </p>
+                            <p
+                              className="font-label-sm"
+                              style={{ color: 'var(--color-outline)', fontSize: '0.65rem' }}
+                            >
+                              {log.targetId ?? '—'}
+                            </p>
                           </div>
                         </div>
                       </td>
@@ -254,72 +443,156 @@ export default function AuditLogs() {
                         </p>
                       </td>
                       <td>
-                        <span className="font-label-sm" style={{ color: 'var(--color-outline)', fontSize: '0.7rem' }}>{log.ipAddress}</span>
-                      </td>
-                      <td>
                         <button
                           className="admin-btn admin-btn-ghost"
                           style={{ padding: '0.25rem', fontSize: '0.7rem' }}
                           onClick={() => setSelectedLog(log)}
                           title="Xem chi tiết"
                         >
-                          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>info</span>
+                          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
+                            info
+                          </span>
                         </button>
                       </td>
                     </tr>
-                  )
+                  );
                 })
               )}
             </tbody>
           </table>
         </div>
 
-        {/* Pagination */}
-        <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--color-outline-variant)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div
+          style={{
+            padding: '1rem 1.5rem',
+            borderTop: '1px solid var(--color-outline-variant)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
           <p className="font-body-sm" style={{ color: 'var(--color-on-surface-variant)' }}>
-            Hiển thị {filtered.length} nhật ký
+            Trang {page}/{totalPages || 1} · Tổng {total} nhật ký
           </p>
-          <div className="pagination">
-            <button className="pagination-btn" disabled><span className="material-symbols-outlined" style={{ fontSize: '16px' }}>chevron_left</span></button>
-            <button className="pagination-btn active">1</button>
-            <button className="pagination-btn"><span className="material-symbols-outlined" style={{ fontSize: '16px' }}>chevron_right</span></button>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <select
+              className="admin-input admin-select"
+              style={{ width: 'auto', padding: '0.25rem 0.5rem' }}
+              value={limit}
+              onChange={(e) => setLimit(Number(e.target.value))}
+            >
+              <option value={20}>20 / trang</option>
+              <option value={50}>50 / trang</option>
+              <option value={100}>100 / trang</option>
+            </select>
+            <button
+              className="pagination-btn"
+              disabled={page <= 1 || loading}
+              onClick={() => setPage(page - 1)}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
+                chevron_left
+              </span>
+            </button>
+            <button
+              className="pagination-btn"
+              disabled={page >= totalPages || loading}
+              onClick={() => setPage(page + 1)}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
+                chevron_right
+              </span>
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Log Detail Panel */}
       {selectedLog && (
         <>
           <div className="side-panel-overlay" onClick={() => setSelectedLog(null)} />
-          <div className="side-panel" style={{ width: '32rem' }}>
-            <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--color-outline-variant)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 className="font-headline-md" style={{ fontSize: '1.25rem' }}>Chi tiết nhật ký</h3>
-              <button onClick={() => setSelectedLog(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-on-surface-variant)' }}>
+          <div className="side-panel" style={{ width: '36rem' }}>
+            <div
+              style={{
+                padding: '1.5rem',
+                borderBottom: '1px solid var(--color-outline-variant)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <h3 className="font-headline-md" style={{ fontSize: '1.25rem' }}>
+                Chi tiết nhật ký
+              </h3>
+              <button
+                onClick={() => setSelectedLog(null)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-on-surface-variant)' }}
+              >
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
             <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.5rem' }}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '0.75rem',
+                  marginBottom: '1.5rem',
+                }}
+              >
                 {[
-                  { label: 'Mã nhật ký', value: `#LOG-${String(selectedLog.id).padStart(5, '0')}` },
-                  { label: 'Thời gian', value: selectedLog.timestamp },
-                  { label: 'Người thực hiện', value: selectedLog.actor },
-                  { label: 'Loại actor', value: selectedLog.actorType },
-                  { label: 'Hành động', value: actionConfig[selectedLog.action].label },
-                  { label: 'Đối tượng', value: `${selectedLog.targetType} — ${selectedLog.targetId}` },
-                  { label: 'Địa chỉ IP', value: selectedLog.ipAddress },
-                  { label: 'User Agent', value: selectedLog.userAgent },
+                  { label: 'Mã nhật ký', value: `#LOG-${selectedLog.logId}` },
+                  { label: 'Thời gian', value: formatDate(selectedLog.createdAt) },
+                  {
+                    label: 'Người thực hiện',
+                    value: selectedLog.actor?.fullName ?? selectedLog.actor?.email ?? '—',
+                  },
+                  { label: 'Loại actor', value: AUDIT_ACTOR_TYPE_LABELS[selectedLog.actorType] },
+                  { label: 'Hành động', value: getActionLabel(selectedLog.action) },
+                  {
+                    label: 'Đối tượng',
+                    value: `${selectedLog.targetType ? AUDIT_TARGET_TYPE_LABELS[selectedLog.targetType] : '—'} — ${
+                      selectedLog.targetId ?? '—'
+                    }`,
+                  },
                 ].map((item) => (
-                  <div key={item.label} style={{ padding: '0.75rem', background: 'var(--color-surface-container-low)', borderRadius: '0.5rem' }}>
-                    <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)', fontSize: '0.65rem', marginBottom: '0.25rem' }}>{item.label}</p>
-                    <p className="font-body-sm" style={{ fontWeight: 600, fontSize: '0.8rem', wordBreak: 'break-all' }}>{item.value}</p>
+                  <div
+                    key={item.label}
+                    style={{
+                      padding: '0.75rem',
+                      background: 'var(--color-surface-container-low)',
+                      borderRadius: '0.5rem',
+                    }}
+                  >
+                    <p
+                      className="font-label-sm"
+                      style={{
+                        color: 'var(--color-on-surface-variant)',
+                        fontSize: '0.65rem',
+                        marginBottom: '0.25rem',
+                      }}
+                    >
+                      {item.label}
+                    </p>
+                    <p
+                      className="font-body-sm"
+                      style={{ fontWeight: 600, fontSize: '0.8rem', wordBreak: 'break-all' }}
+                    >
+                      {item.value}
+                    </p>
                   </div>
                 ))}
               </div>
 
-              {/* Description */}
               <div style={{ marginBottom: '1.5rem' }}>
-                <h4 className="font-label-md" style={{ marginBottom: '0.5rem', color: 'var(--color-primary)', borderBottom: '1px solid rgba(0,92,134,0.2)', paddingBottom: '0.5rem' }}>
+                <h4
+                  className="font-label-md"
+                  style={{
+                    marginBottom: '0.5rem',
+                    color: 'var(--color-primary)',
+                    borderBottom: '1px solid rgba(0,92,134,0.2)',
+                    paddingBottom: '0.5rem',
+                  }}
+                >
                   MÔ TẢ HÀNH ĐỘNG
                 </h4>
                 <p className="font-body-sm" style={{ lineHeight: 1.6, color: 'var(--color-on-surface-variant)' }}>
@@ -327,29 +600,33 @@ export default function AuditLogs() {
                 </p>
               </div>
 
-              {/* Diff */}
-              {(selectedLog.oldValue || selectedLog.newValue) && (
+              {selectedLog.metadata && Object.keys(selectedLog.metadata).length > 0 && (
                 <div>
-                  <h4 className="font-label-md" style={{ marginBottom: '0.5rem', color: 'var(--color-primary)', borderBottom: '1px solid rgba(0,92,134,0.2)', paddingBottom: '0.5rem' }}>
-                    THAY ĐỔI DỮ LIỆU
+                  <h4
+                    className="font-label-md"
+                    style={{
+                      marginBottom: '0.5rem',
+                      color: 'var(--color-primary)',
+                      borderBottom: '1px solid rgba(0,92,134,0.2)',
+                      paddingBottom: '0.5rem',
+                    }}
+                  >
+                    METADATA (before/after, payload...)
                   </h4>
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'stretch' }}>
-                    <div style={{ flex: 1, padding: '0.75rem', background: 'rgba(239,68,68,0.08)', borderRadius: '0.5rem', border: '1px solid rgba(239,68,68,0.2)' }}>
-                      <p className="font-label-sm" style={{ color: '#EF4444', fontSize: '0.65rem', marginBottom: '0.25rem' }}>TRƯỚC</p>
-                      <p className="font-label-md" style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.8rem', color: '#EF4444' }}>
-                        {selectedLog.oldValue || '—'}
-                      </p>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                      <span className="material-symbols-outlined" style={{ color: 'var(--color-on-surface-variant)', fontSize: '20px' }}>arrow_forward</span>
-                    </div>
-                    <div style={{ flex: 1, padding: '0.75rem', background: 'rgba(16,185,129,0.08)', borderRadius: '0.5rem', border: '1px solid rgba(16,185,129,0.2)' }}>
-                      <p className="font-label-sm" style={{ color: '#10B981', fontSize: '0.65rem', marginBottom: '0.25rem' }}>SAU</p>
-                      <p className="font-label-md" style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '0.8rem', color: '#10B981' }}>
-                        {selectedLog.newValue || '—'}
-                      </p>
-                    </div>
-                  </div>
+                  <pre
+                    style={{
+                      background: 'var(--color-surface-container-lowest)',
+                      padding: '0.75rem',
+                      borderRadius: '0.5rem',
+                      fontSize: '0.7rem',
+                      fontFamily: '"JetBrains Mono", monospace',
+                      overflowX: 'auto',
+                      maxHeight: '24rem',
+                      color: 'var(--color-on-surface)',
+                    }}
+                  >
+                    {JSON.stringify(selectedLog.metadata, null, 2)}
+                  </pre>
                 </div>
               )}
             </div>
@@ -357,5 +634,5 @@ export default function AuditLogs() {
         </>
       )}
     </div>
-  )
+  );
 }

@@ -40,6 +40,7 @@ import {
   createBannerSchema,
   updateBannerSchema,
   updateBannerStatusSchema,
+  updateVoucherDatesSchema,
   listPopupsSchema,
   getPopupByIdSchema,
   createPopupSchema,
@@ -95,16 +96,14 @@ export const adminController = {
   updateUserStatus: asyncHandler(async (req: Request, res: Response) => {
     const { userId } = parseQuery(getUserByIdSchema, req.params);
     const input = parseBody(updateUserStatusSchema, req.body);
-    const actor = { userId: req.user!.userId, ipAddress: req.auditCtx?.ipAddress, userAgent: req.auditCtx?.userAgent };
-    const data = await adminService.updateUserStatus(userId, input, actor);
+    const data = await adminService.updateUserStatus(userId, input);
     res.json({ success: true, data, message: "Cập nhật trạng thái thành công" });
   }),
 
   updateUserRole: asyncHandler(async (req: Request, res: Response) => {
     const { userId } = parseQuery(getUserByIdSchema, req.params);
     const input = parseBody(updateUserRoleSchema, req.body);
-    const actor = { userId: req.user!.userId, ipAddress: req.auditCtx?.ipAddress, userAgent: req.auditCtx?.userAgent };
-    const data = await adminService.updateUserRole(userId, input, req.user!.role, actor);
+    const data = await adminService.updateUserRole(userId, input, req.user!.role);
     res.json({ success: true, data, message: "Phân quyền thành công" });
   }),
 
@@ -125,24 +124,21 @@ export const adminController = {
   approvePartner: asyncHandler(async (req: Request, res: Response) => {
     const { partnerId } = parseQuery(getPartnerByIdSchema, req.params);
     const input = parseBody(approvePartnerSchema, req.body);
-    const actor = { userId: req.user!.userId, ipAddress: req.auditCtx?.ipAddress, userAgent: req.auditCtx?.userAgent };
-    const data = await adminService.approvePartner(partnerId, input, actor);
+    const data = await adminService.approvePartner(partnerId, input);
     res.json({ success: true, data, message: "Duyệt đối tác thành công" });
   }),
 
   rejectPartner: asyncHandler(async (req: Request, res: Response) => {
     const { partnerId } = parseQuery(getPartnerByIdSchema, req.params);
     const input = parseBody(rejectPartnerSchema, req.body);
-    const actor = { userId: req.user!.userId, ipAddress: req.auditCtx?.ipAddress, userAgent: req.auditCtx?.userAgent };
-    const data = await adminService.rejectPartner(partnerId, input, actor);
+    const data = await adminService.rejectPartner(partnerId, input);
     res.json({ success: true, data, message: "Từ chối đối tác thành công" });
   }),
 
   togglePartnerLock: asyncHandler(async (req: Request, res: Response) => {
     const { partnerId } = parseQuery(getPartnerByIdSchema, req.params);
     const input = parseBody(togglePartnerLockSchema, req.body);
-    const actor = { userId: req.user!.userId, ipAddress: req.auditCtx?.ipAddress, userAgent: req.auditCtx?.userAgent };
-    const result = await adminService.togglePartnerLock(partnerId, input, actor);
+    const result = await adminService.togglePartnerLock(partnerId, input);
     const msg = input.locked
       ? `Đã khóa đối tác (${result.affected.branches} chi nhánh, ${result.affected.cashiers} nhân viên)`
       : `Đã mở khóa đối tác (${result.affected.branches} chi nhánh, ${result.affected.cashiers} nhân viên)`;
@@ -167,31 +163,27 @@ export const adminController = {
   createBranch: asyncHandler(async (req: Request, res: Response) => {
     const { partnerId } = parseQuery(getPartnerByIdSchema, req.params);
     const input = parseBody(createBranchSchema, req.body);
-    const actor = { userId: req.user!.userId, ipAddress: req.auditCtx?.ipAddress, userAgent: req.auditCtx?.userAgent };
-    const data = await adminService.createBranch(partnerId, input, actor);
+    const data = await adminService.createBranch(partnerId, input);
     res.json({ success: true, data, message: "Thêm chi nhánh thành công" });
   }),
 
   updateBranch: asyncHandler(async (req: Request, res: Response) => {
     const { partnerId, branchId } = parseQuery(getBranchByIdSchema, req.params);
     const input = parseBody(updateBranchSchema, req.body);
-    const actor = { userId: req.user!.userId, ipAddress: req.auditCtx?.ipAddress, userAgent: req.auditCtx?.userAgent };
-    const data = await adminService.updateBranch(partnerId, branchId, input, actor);
+    const data = await adminService.updateBranch(partnerId, branchId, input);
     res.json({ success: true, data, message: "Cập nhật chi nhánh thành công" });
   }),
 
   deleteBranch: asyncHandler(async (req: Request, res: Response) => {
     const { partnerId, branchId } = parseQuery(getBranchByIdSchema, req.params);
-    const actor = { userId: req.user!.userId, ipAddress: req.auditCtx?.ipAddress, userAgent: req.auditCtx?.userAgent };
-    await adminService.deleteBranch(partnerId, branchId, actor);
+    await adminService.deleteBranch(partnerId, branchId);
     res.json({ success: true, message: "Xóa chi nhánh thành công" });
   }),
 
   toggleBranchLock: asyncHandler(async (req: Request, res: Response) => {
     const { partnerId, branchId } = parseQuery(getBranchByIdSchema, req.params);
     const input = parseBody(toggleBranchLockSchema, req.body);
-    const actor = { userId: req.user!.userId, ipAddress: req.auditCtx?.ipAddress, userAgent: req.auditCtx?.userAgent };
-    const data = await adminService.toggleBranchLock(partnerId, branchId, input, actor);
+    const data = await adminService.toggleBranchLock(partnerId, branchId, input);
     const msg = input.locked ? "Khóa chi nhánh thành công" : "Mở khóa chi nhánh thành công";
     res.json({ success: true, data, message: msg });
   }),
@@ -265,23 +257,20 @@ export const adminController = {
 
   createCategory: asyncHandler(async (req: Request, res: Response) => {
     const input = parseBody(createCategorySchema, req.body);
-    const actor = { userId: req.user!.userId, ipAddress: req.auditCtx?.ipAddress, userAgent: req.auditCtx?.userAgent };
-    const data = await adminService.createCategory(input, actor);
+    const data = await adminService.createCategory(input);
     res.json({ success: true, data, message: "Tạo danh mục thành công" });
   }),
 
   updateCategory: asyncHandler(async (req: Request, res: Response) => {
     const { categoryId } = parseQuery(getCategoryByIdSchema, req.params);
     const input = parseBody(updateCategorySchema, req.body);
-    const actor = { userId: req.user!.userId, ipAddress: req.auditCtx?.ipAddress, userAgent: req.auditCtx?.userAgent };
-    const data = await adminService.updateCategory(categoryId, input, actor);
+    const data = await adminService.updateCategory(categoryId, input);
     res.json({ success: true, data, message: "Cập nhật danh mục thành công" });
   }),
 
   deleteCategory: asyncHandler(async (req: Request, res: Response) => {
     const { categoryId } = parseQuery(getCategoryByIdSchema, req.params);
-    const actor = { userId: req.user!.userId, ipAddress: req.auditCtx?.ipAddress, userAgent: req.auditCtx?.userAgent };
-    await adminService.deleteCategory(categoryId, actor);
+    await adminService.deleteCategory(categoryId);
     res.json({ success: true, message: "Xóa danh mục thành công" });
   }),
 
@@ -296,26 +285,36 @@ export const adminController = {
   approveVoucher: asyncHandler(async (req: Request, res: Response) => {
     const { voucherId } = parseQuery(getVoucherByIdSchema, req.params);
     const input = parseBody(approveVoucherSchema, req.body);
-    const actor = { userId: req.user!.userId, ipAddress: req.auditCtx?.ipAddress, userAgent: req.auditCtx?.userAgent };
-    const data = await adminService.approveVoucher(voucherId, input, actor);
+    const data = await adminService.approveVoucher(voucherId, input);
     res.json({ success: true, data, message: "Duyệt voucher thành công" });
   }),
 
   rejectVoucher: asyncHandler(async (req: Request, res: Response) => {
     const { voucherId } = parseQuery(getVoucherByIdSchema, req.params);
     const input = parseBody(rejectVoucherSchema, req.body);
-    const actor = { userId: req.user!.userId, ipAddress: req.auditCtx?.ipAddress, userAgent: req.auditCtx?.userAgent };
-    const data = await adminService.rejectVoucher(voucherId, input, actor);
+    const data = await adminService.rejectVoucher(voucherId, input);
     res.json({ success: true, data, message: "Từ chối voucher thành công" });
   }),
 
   setVoucherDisplayStatus: asyncHandler(async (req: Request, res: Response) => {
     const { voucherId } = parseQuery(getVoucherByIdSchema, req.params);
     const input = parseBody(toggleVoucherDisplaySchema, req.body);
-    const actor = { userId: req.user!.userId, ipAddress: req.auditCtx?.ipAddress, userAgent: req.auditCtx?.userAgent };
-    const data = await adminService.setVoucherDisplayStatus(voucherId, input, actor);
+    const data = await adminService.setVoucherDisplayStatus(voucherId, input);
     const msg = input.displayStatus === "Visible" ? "Hiển thị voucher thành công" : "Ẩn voucher thành công";
     res.json({ success: true, data, message: msg });
+  }),
+
+  updateVoucherDates: asyncHandler(async (req: Request, res: Response) => {
+    const { voucherId } = parseQuery(getVoucherByIdSchema, req.params);
+    const input = parseBody(updateVoucherDatesSchema, req.body);
+    const data = await adminService.updateVoucherDates(voucherId, input);
+    res.json({ success: true, data, message: "Cập nhật thời gian voucher thành công" });
+  }),
+
+  expireVoucherNow: asyncHandler(async (req: Request, res: Response) => {
+    const { voucherId } = parseQuery(getVoucherByIdSchema, req.params);
+    const data = await adminService.expireVoucherNow(voucherId);
+    res.json({ success: true, data, message: "Voucher đã được hết hạn" });
   }),
 
   getVoucherStats: asyncHandler(async (_req: Request, res: Response) => {
@@ -339,15 +338,13 @@ export const adminController = {
 
   upsertPolicy: asyncHandler(async (req: Request, res: Response) => {
     const input = parseBody(upsertPolicySchema, req.body);
-    const actor = { userId: req.user!.userId, ipAddress: req.auditCtx?.ipAddress, userAgent: req.auditCtx?.userAgent };
-    const data = await adminService.upsertPolicy(input, actor);
+    const data = await adminService.upsertPolicy(input);
     res.json({ success: true, data, message: "Lưu chính sách thành công" });
   }),
 
   deletePolicy: asyncHandler(async (req: Request, res: Response) => {
     const input = parseBody(deletePolicySchema, req.body);
-    const actor = { userId: req.user!.userId, ipAddress: req.auditCtx?.ipAddress, userAgent: req.auditCtx?.userAgent };
-    await adminService.deletePolicy(input.policyId, actor);
+    await adminService.deletePolicy(input.policyId);
     res.json({ success: true, message: "Xóa chính sách thành công" });
   }),
 
@@ -367,35 +364,31 @@ export const adminController = {
 
   createBanner: asyncHandler(async (req: Request, res: Response) => {
     const input = parseBody(createBannerSchema, req.body);
-    const actor = { userId: req.user!.userId, ipAddress: req.auditCtx?.ipAddress, userAgent: req.auditCtx?.userAgent };
-    const data = await adminService.createBanner(input, actor);
+    const data = await adminService.createBanner(input);
     res.json({ success: true, data, message: "Tạo banner thành công" });
   }),
 
   updateBanner: asyncHandler(async (req: Request, res: Response) => {
     const { bannerId } = parseQuery(getBannerByIdSchema, req.params);
     const input = parseBody(updateBannerSchema, req.body);
-    const actor = { userId: req.user!.userId, ipAddress: req.auditCtx?.ipAddress, userAgent: req.auditCtx?.userAgent };
-    const data = await adminService.updateBanner(bannerId, input, actor);
+    const data = await adminService.updateBanner(bannerId, input);
     res.json({ success: true, data, message: "Cập nhật banner thành công" });
   }),
 
   updateBannerStatus: asyncHandler(async (req: Request, res: Response) => {
     const { bannerId } = parseQuery(getBannerByIdSchema, req.params);
     const input = parseBody(updateBannerStatusSchema, req.body);
-    const actor = { userId: req.user!.userId, ipAddress: req.auditCtx?.ipAddress, userAgent: req.auditCtx?.userAgent };
-    const data = await adminService.updateBannerStatus(bannerId, input, actor);
+    const data = await adminService.updateBannerStatus(bannerId, input);
     const msg =
       input.status === "Visible"
-        ? "Hiển thị banner thành công (các banner khác đã được ẩn)"
+        ? "Hiển thị banner thành công"
         : "Ẩn banner thành công";
     res.json({ success: true, data, message: msg });
   }),
 
   deleteBanner: asyncHandler(async (req: Request, res: Response) => {
     const { bannerId } = parseQuery(getBannerByIdSchema, req.params);
-    const actor = { userId: req.user!.userId, ipAddress: req.auditCtx?.ipAddress, userAgent: req.auditCtx?.userAgent };
-    await adminService.deleteBanner(bannerId, actor);
+    await adminService.deleteBanner(bannerId);
     res.json({ success: true, message: "Xóa banner thành công" });
   }),
 
@@ -415,35 +408,31 @@ export const adminController = {
 
   createPopup: asyncHandler(async (req: Request, res: Response) => {
     const input = parseBody(createPopupSchema, req.body);
-    const actor = { userId: req.user!.userId, ipAddress: req.auditCtx?.ipAddress, userAgent: req.auditCtx?.userAgent };
-    const data = await adminService.createPopup(input, actor);
+    const data = await adminService.createPopup(input);
     res.json({ success: true, data, message: "Tạo popup thành công" });
   }),
 
   updatePopup: asyncHandler(async (req: Request, res: Response) => {
     const { popupId } = parseQuery(getPopupByIdSchema, req.params);
     const input = parseBody(updatePopupSchema, req.body);
-    const actor = { userId: req.user!.userId, ipAddress: req.auditCtx?.ipAddress, userAgent: req.auditCtx?.userAgent };
-    const data = await adminService.updatePopup(popupId, input, actor);
+    const data = await adminService.updatePopup(popupId, input);
     res.json({ success: true, data, message: "Cập nhật popup thành công" });
   }),
 
   updatePopupStatus: asyncHandler(async (req: Request, res: Response) => {
     const { popupId } = parseQuery(getPopupByIdSchema, req.params);
     const input = parseBody(updatePopupStatusSchema, req.body);
-    const actor = { userId: req.user!.userId, ipAddress: req.auditCtx?.ipAddress, userAgent: req.auditCtx?.userAgent };
-    const data = await adminService.updatePopupStatus(popupId, input, actor);
+    const data = await adminService.updatePopupStatus(popupId, input);
     const msg =
       input.status === "Visible"
-        ? "Hiển thị popup thành công (các popup khác đã được ẩn)"
+        ? "Hiển thị popup thành công"
         : "Ẩn popup thành công";
     res.json({ success: true, data, message: msg });
   }),
 
   deletePopup: asyncHandler(async (req: Request, res: Response) => {
     const { popupId } = parseQuery(getPopupByIdSchema, req.params);
-    const actor = { userId: req.user!.userId, ipAddress: req.auditCtx?.ipAddress, userAgent: req.auditCtx?.userAgent };
-    await adminService.deletePopup(popupId, actor);
+    await adminService.deletePopup(popupId);
     res.json({ success: true, message: "Xóa popup thành công" });
   }),
 
@@ -463,24 +452,21 @@ export const adminController = {
 
   createPost: asyncHandler(async (req: Request, res: Response) => {
     const input = parseBody(createPostSchema, req.body);
-    const actor = { userId: req.user!.userId, ipAddress: req.auditCtx?.ipAddress, userAgent: req.auditCtx?.userAgent };
-    const data = await adminService.createPost(actor.userId, input, actor);
+    const data = await adminService.createPost(req.user!.userId, input);
     res.json({ success: true, data, message: "Tạo bài viết thành công" });
   }),
 
   updatePost: asyncHandler(async (req: Request, res: Response) => {
     const { postId } = parseQuery(getPostByIdSchema, req.params);
     const input = parseBody(updatePostSchema, req.body);
-    const actor = { userId: req.user!.userId, ipAddress: req.auditCtx?.ipAddress, userAgent: req.auditCtx?.userAgent };
-    const data = await adminService.updatePost(postId, input, actor);
+    const data = await adminService.updatePost(postId, input);
     res.json({ success: true, data, message: "Cập nhật bài viết thành công" });
   }),
 
   updatePostStatus: asyncHandler(async (req: Request, res: Response) => {
     const { postId } = parseQuery(getPostByIdSchema, req.params);
     const input = parseBody(updatePostStatusSchema, req.body);
-    const actor = { userId: req.user!.userId, ipAddress: req.auditCtx?.ipAddress, userAgent: req.auditCtx?.userAgent };
-    const data = await adminService.updatePostStatus(postId, input, actor);
+    const data = await adminService.updatePostStatus(postId, input);
     const msg =
       input.status === "Visible"
         ? "Đã đăng bài viết"
@@ -490,8 +476,7 @@ export const adminController = {
 
   deletePost: asyncHandler(async (req: Request, res: Response) => {
     const { postId } = parseQuery(getPostByIdSchema, req.params);
-    const actor = { userId: req.user!.userId, ipAddress: req.auditCtx?.ipAddress, userAgent: req.auditCtx?.userAgent };
-    await adminService.deletePost(postId, actor);
+    await adminService.deletePost(postId);
     res.json({ success: true, message: "Xóa bài viết thành công" });
   }),
 
@@ -512,16 +497,14 @@ export const adminController = {
   cancelOrder: asyncHandler(async (req: Request, res: Response) => {
     const { orderId } = parseQuery(getOrderByIdSchema, req.params);
     const input = parseBody(cancelOrderSchema, req.body);
-    const actor = { userId: req.user!.userId, ipAddress: req.auditCtx?.ipAddress, userAgent: req.auditCtx?.userAgent };
-    const data = await adminService.cancelOrder(actor.userId, orderId, input, actor);
+    const data = await adminService.cancelOrder(orderId, input);
     res.json({ success: true, data, message: "Đã hủy đơn hàng" });
   }),
 
   refundOrder: asyncHandler(async (req: Request, res: Response) => {
     const { orderId } = parseQuery(getOrderByIdSchema, req.params);
     const input = parseBody(refundOrderSchema, req.body);
-    const actor = { userId: req.user!.userId, ipAddress: req.auditCtx?.ipAddress, userAgent: req.auditCtx?.userAgent };
-    const data = await adminService.refundOrder(actor.userId, orderId, input, actor);
+    const data = await adminService.refundOrder(orderId, input);
     res.json({
       success: true,
       data,

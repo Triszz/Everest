@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useToast } from '../components/shared/Toast'
 import { useVoucherManagement } from '../hooks/useVoucherManagement'
 
@@ -13,6 +14,10 @@ const statusConfig: Record<VoucherStatus, { label: string; cls: string }> = {
   STOPPED: { label: 'Ngừng bán', cls: 'badge-info' },
   EXPIRED: { label: 'Hết hạn', cls: 'badge-locked' },
   SOLD_OUT: { label: 'Hết hàng', cls: 'badge-locked' },
+}
+
+function isVoucherExpired(endDate: string, now: number) {
+  return new Date(endDate).getTime() <= now
 }
 
 const categoryColors: Record<string, string> = {
@@ -37,18 +42,69 @@ function mapApprovalStatus(s?: string): VoucherStatus {
 
 export default function Vouchers() {
   const { showToast } = useToast()
+  const [searchParams] = useSearchParams()
+  const partnerIdValue = searchParams.get('partnerId')
+  const partnerId = partnerIdValue && /^\d+$/.test(partnerIdValue) ? Number(partnerIdValue) : undefined
   const {
-    vouchers, stats, total, page, limit, totalPages, filters,
-    isLoading, isLoadingStats, fetchVouchers,
+    vouchers, stats, total, page, totalPages, filters,
+    isLoading, isLoadingStats,
     approveVoucher, rejectVoucher, toggleDisplayStatus,
+    updateEndDate, expireNow,
     updateFilters, resetFilters,
-  } = useVoucherManagement()
+  } = useVoucherManagement(partnerId)
 
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid')
   const [selectedVoucher, setSelectedVoucher] = useState<typeof vouchers[0] | null>(null)
   const [rejectReason, setRejectReason] = useState('')
   const [showRejectModal, setShowRejectModal] = useState(false)
   const [rejectTargetId, setRejectTargetId] = useState<number | null>(null)
+  const [editingEndDate, setEditingEndDate] = useState('')
+  const [isSavingEndDate, setIsSavingEndDate] = useState(false)
+  const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 30_000)
+    return () => window.clearInterval(timer)
+  }, [])
+
+  const toDateTimeLocal = (value: string) => {
+    const date = new Date(value)
+    const offset = date.getTimezoneOffset() * 60000
+    return new Date(date.getTime() - offset).toISOString().slice(0, 16)
+  }
+
+  const openVoucherDetail = (voucher: typeof vouchers[0]) => {
+    setSelectedVoucher(voucher)
+    setEditingEndDate(toDateTimeLocal(voucher.endDate))
+  }
+
+  const handleSaveEndDate = async () => {
+    if (!selectedVoucher || !editingEndDate) return
+    if (new Date(editingEndDate) <= new Date(selectedVoucher.startDate)) {
+      showToast('Ngày kết thúc phải lớn hơn ngày bắt đầu', 'error')
+      return
+    }
+    setIsSavingEndDate(true)
+    try {
+      const updated = await updateEndDate(selectedVoucher.voucherId, new Date(editingEndDate).toISOString())
+      setSelectedVoucher((previous) => previous ? { ...previous, endDate: updated.endDate ?? previous.endDate, updatedAt: updated.updatedAt ?? previous.updatedAt } : previous)
+      showToast('Đã cập nhật ngày kết thúc', 'success')
+    } finally {
+      setIsSavingEndDate(false)
+    }
+  }
+
+  const handleExpireNow = async () => {
+    if (!selectedVoucher) return
+    setIsSavingEndDate(true)
+    try {
+      const updated = await expireNow(selectedVoucher.voucherId)
+      setSelectedVoucher((previous) => previous ? { ...previous, endDate: updated.endDate ?? previous.endDate, updatedAt: updated.updatedAt ?? previous.updatedAt } : previous)
+      if (updated.endDate) setEditingEndDate(toDateTimeLocal(updated.endDate))
+    } finally {
+      setIsSavingEndDate(false)
+    }
+  }
 
   const openRejectModal = (voucherId: number) => {
     setRejectTargetId(voucherId)
@@ -88,7 +144,9 @@ export default function Vouchers() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h1 className="font-headline-lg" style={{ fontSize: '2rem', marginBottom: '0.25rem' }}>Kiểm duyệt voucher</h1>
+          <h1 className="font-headline-lg" style={{ fontSize: '2rem', marginBottom: '0.25rem' }}>
+            {partnerId ? `Voucher của đối tác #${partnerId}` : 'Kiểm duyệt voucher'}
+          </h1>
           <p className="font-body-sm" style={{ color: 'var(--color-on-surface-variant)' }}>
             Duyệt, từ chối và kiểm soát vòng đời voucher trên sàn.
           </p>
@@ -208,7 +266,8 @@ export default function Vouchers() {
       {!isLoading && viewMode === 'grid' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
           {vouchers.map((v) => {
-            const status = mapApprovalStatus(v.approvalStatus)
+            const expired = isVoucherExpired(v.endDate, now)
+            const status = expired ? 'EXPIRED' : mapApprovalStatus(v.approvalStatus)
             const sc = statusConfig[status]
             const sold = v.totalQuantity - v.availableQuantity
             const lowStock = v.availableQuantity < v.totalQuantity * 0.1
@@ -225,7 +284,7 @@ export default function Vouchers() {
                   cursor: 'pointer',
                   borderLeft: status === 'PENDING_REVIEW' ? '4px solid var(--color-warning-pending)' : undefined,
                 }}
-                onClick={() => setSelectedVoucher(v)}
+                          onClick={() => openVoucherDetail(v)}
               >
                 {/* Card Header */}
                 <div style={{ height: '6rem', background: 'linear-gradient(135deg, var(--color-surface-container-high) 0%, var(--color-surface-container) 100%)', display: 'flex', alignItems: 'flex-end', padding: '0.75rem', position: 'relative' }}>
@@ -239,9 +298,14 @@ export default function Vouchers() {
                   >
                     {v.category?.categoryName ?? '—'}
                   </span>
-                  <span className={`badge ${sc.cls}`} style={{ position: 'absolute', top: '0.75rem', right: '0.75rem' }}>
-                    {sc.label}
-                  </span>
+                  <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.35rem' }}>
+                    <span className={`badge ${sc.cls}`}>
+                      {sc.label}
+                    </span>
+                    <span className={`badge ${v.displayStatus === 'Visible' ? 'badge-active' : 'badge-info'}`}>
+                      {v.displayStatus === 'Visible' ? 'Đang hiện' : 'Đang ẩn'}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Card Body */}
@@ -334,7 +398,7 @@ export default function Vouchers() {
                         <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>
                           {v.displayStatus === 'Visible' ? 'visibility_off' : 'visibility'}
                         </span>
-                        {v.displayStatus === 'Visible' ? 'Ẩn' : 'Hiện'}
+                        {v.displayStatus === 'Visible' ? 'Đang hiện' : 'Đang ẩn'}
                       </button>
                     </div>
                   )}
@@ -366,7 +430,8 @@ export default function Vouchers() {
               </thead>
               <tbody>
                 {vouchers.map((v) => {
-                  const status = mapApprovalStatus(v.approvalStatus)
+                  const expired = isVoucherExpired(v.endDate, now)
+                  const status = expired ? 'EXPIRED' : mapApprovalStatus(v.approvalStatus)
                   const sc = statusConfig[status]
                   const sold = v.totalQuantity - v.availableQuantity
                   return (
@@ -391,7 +456,7 @@ export default function Vouchers() {
                       </td>
                       <td>
                         <span className={`badge ${v.displayStatus === 'Visible' ? 'badge-active' : 'badge-info'}`}>
-                          {v.displayStatus === 'Visible' ? 'Hiển thị' : 'Ẩn'}
+                          {v.displayStatus === 'Visible' ? 'Đang hiện' : 'Đang ẩn'}
                         </span>
                       </td>
                       <td><span className={`badge ${sc.cls}`}>{sc.label}</span></td>
@@ -400,7 +465,7 @@ export default function Vouchers() {
                           <button
                             className="admin-btn admin-btn-ghost"
                             style={{ padding: '0.25rem', fontSize: '0.7rem' }}
-                            onClick={() => setSelectedVoucher(v)}
+                              onClick={() => openVoucherDetail(v)}
                             title="Xem chi tiết"
                           >
                             <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>visibility</span>
@@ -471,8 +536,8 @@ export default function Vouchers() {
                 </p>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span className={`badge ${statusConfig[mapApprovalStatus(selectedVoucher.approvalStatus)].cls}`}>
-                  {statusConfig[mapApprovalStatus(selectedVoucher.approvalStatus)].label}
+                <span className={`badge ${isVoucherExpired(selectedVoucher.endDate, now) ? 'badge-locked' : statusConfig[mapApprovalStatus(selectedVoucher.approvalStatus)].cls}`}>
+                  {isVoucherExpired(selectedVoucher.endDate, now) ? 'Đã hết hạn' : statusConfig[mapApprovalStatus(selectedVoucher.approvalStatus)].label}
                 </span>
                 <button onClick={() => setSelectedVoucher(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-on-surface-variant)' }}>
                   <span className="material-symbols-outlined">close</span>
@@ -554,6 +619,31 @@ export default function Vouchers() {
                 </div>
               </div>
 
+              {/* End date */}
+              <div style={{ marginBottom: '1.5rem' }}>
+                <h4 className="font-label-md" style={{ marginBottom: '0.75rem', color: 'var(--color-primary)', borderBottom: '1px solid rgba(0,92,134,0.2)', paddingBottom: '0.5rem' }}>
+                  THỜI GIAN VOUCHER
+                </h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', alignItems: 'end' }}>
+                  <label className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)' }}>
+                    Bắt đầu
+                    <input className="admin-input" style={{ marginTop: '0.35rem' }} type="datetime-local" value={toDateTimeLocal(selectedVoucher.startDate)} readOnly />
+                  </label>
+                  <label className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)' }}>
+                    Kết thúc
+                    <input className="admin-input" style={{ marginTop: '0.35rem' }} type="datetime-local" value={editingEndDate} onChange={(event) => setEditingEndDate(event.target.value)} min={toDateTimeLocal(selectedVoucher.startDate)} />
+                  </label>
+                </div>
+                <button type="button" className="admin-btn admin-btn-danger" style={{ marginTop: '0.75rem' }} onClick={handleExpireNow} disabled={isSavingEndDate}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>timer_off</span>
+                  {isSavingEndDate ? 'Đang xử lý...' : 'Hết hạn ngay'}
+                </button>
+                <button className="admin-btn admin-btn-primary" style={{ marginTop: '0.75rem' }} onClick={handleSaveEndDate} disabled={isSavingEndDate}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>save</span>
+                  {isSavingEndDate ? 'Đang lưu...' : 'Lưu thời gian'}
+                </button>
+              </div>
+
               {/* Display Status */}
               <div style={{ marginBottom: '1.5rem' }}>
                 <h4 className="font-label-md" style={{ marginBottom: '0.75rem', color: 'var(--color-primary)', borderBottom: '1px solid rgba(0,92,134,0.2)', paddingBottom: '0.5rem' }}>
@@ -567,7 +657,7 @@ export default function Vouchers() {
                       disabled={false}
                     >
                       <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>visibility</span>
-                      Hiển thị
+                      Đang ẩn
                     </button>
                   ) : (
                     <button
@@ -576,7 +666,7 @@ export default function Vouchers() {
                       disabled={false}
                     >
                       <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>visibility_off</span>
-                      Ẩn
+                      Đang hiện
                     </button>
                   )}
                 </div>
