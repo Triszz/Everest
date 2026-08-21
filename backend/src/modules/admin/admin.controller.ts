@@ -520,6 +520,13 @@ export const adminController = {
     res.json({ success: true, data, message: "Đã ghi nhận thanh toán" });
   }),
 
+  // ─── Dashboard ─────────────────────────────────────────────────────────
+
+  getDashboard: asyncHandler(async (_req: Request, res: Response) => {
+    const data = await adminService.getDashboard();
+    res.json({ success: true, data });
+  }),
+
   // ─── Audit Logs ──────────────────────────────────────────────────────
 
   listAuditLogs: asyncHandler(async (req: Request, res: Response) => {

@@ -860,3 +860,61 @@ export const adminOrdersApi = {
     ).then((res) => res.data);
   },
 };
+
+// ─── Dashboard API ────────────────────────────────────────────────────────────
+
+export interface DashboardKpis {
+  totalUsers: number;
+  totalPartners: number;
+  totalVouchers: number;
+  totalIssued: number;
+  totalUsed: number;
+}
+
+export interface DashboardMonthPoint {
+  month: string;
+  year: number;
+  label: string;
+  value: number;
+}
+
+export interface DashboardOrdersByStatus {
+  paid: number;
+  pending: number;
+  cancelled: number;
+  refunded: number;
+}
+
+export interface DashboardTopVoucher {
+  rank: number;
+  voucherId: number;
+  title: string;
+  partnerId: number;
+  partnerName: string;
+  sold: number;
+}
+
+export interface DashboardTopPartner {
+  rank: number;
+  partnerId: number;
+  partnerName: string;
+  sold: number;
+}
+
+export interface DashboardResponse {
+  kpis: DashboardKpis;
+  revenueByMonth: DashboardMonthPoint[];
+  ordersByMonth: DashboardMonthPoint[];
+  userRegistrationByMonth: DashboardMonthPoint[];
+  ordersByStatus: DashboardOrdersByStatus;
+  topVouchers: DashboardTopVoucher[];
+  topPartners: DashboardTopPartner[];
+}
+
+export const adminDashboardApi = {
+  get(): Promise<DashboardResponse> {
+    return get<DashboardResponse>('/api/admin/dashboard', { auth: true }).then(
+      (res) => res.data,
+    );
+  },
+};
