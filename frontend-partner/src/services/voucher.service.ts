@@ -1,10 +1,11 @@
-import { get, post, put, del } from './api-client';
+import { get, post, put, patch, del } from './api-client';
 import type { ApiSuccess } from '../types/auth';
 import type {
   Voucher,
   VoucherDetail,
   VoucherListResponse,
   ApprovalStatus,
+  DisplayStatus,
   Pagination,
 } from '../types/voucher';
 
@@ -97,4 +98,31 @@ export function apiSubmitVoucher(
  */
 export function apiDeleteVoucher(voucherId: number): Promise<null> {
   return del<null>(`${BASE}/${voucherId}`, { auth: true }).then(res => res.data as null);
+}
+
+/**
+ * PATCH /api/partner/vouchers/:id/display
+ * Body: { displayStatus: 'Visible' | 'Hidden' }
+ *
+ * Partner tự bật/tắt hiển thị voucher SAU khi Admin đã duyệt.
+ * Phân biệt với approval:
+ *   - approvalStatus (Draft/Pending/Approved/Rejected): do Admin quyết định.
+ *   - displayStatus (Visible/Hidden): do Partner tự quyết định sau khi Approved.
+ *
+ * Response: { success, data: { voucherId, title, approvalStatus, displayStatus }, message }
+ */
+export function apiToggleVoucherDisplay(
+  voucherId: number,
+  displayStatus: DisplayStatus,
+): Promise<{ voucherId: number; title: string; approvalStatus: string; displayStatus: DisplayStatus }> {
+  return patch<{
+    voucherId: number;
+    title: string;
+    approvalStatus: string;
+    displayStatus: DisplayStatus;
+  }>(
+    `${BASE}/${voucherId}/display`,
+    { displayStatus },
+    { auth: true },
+  ).then(res => res.data);
 }

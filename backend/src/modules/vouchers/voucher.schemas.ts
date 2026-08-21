@@ -12,7 +12,11 @@ export const createVoucherSchema = z.object({
     startDate: z.iso.datetime('Ngày bắt đầu không hợp lệ'),
     endDate: z.iso.datetime('Ngày kết thúc không hợp lệ'),
     expiryDays: z.number().int().positive('Số ngày hiệu lực phải lớn hơn 0'),
-    branchIds: z.array(z.number().int().positive()).optional(),
+    // BR-PAR-02: Voucher phải gán với ít nhất 1 chi nhánh của partner.
+    // Voucher "không gán branch" = không có branch áp dụng → redemption fail.
+    branchIds: z
+        .array(z.number().int().positive('Chi nhánh không hợp lệ'))
+        .min(1, 'Voucher phải gán với ít nhất 1 chi nhánh của partner'),
 })
     .refine((d) => d.salePrice < d.originalPrice, {
         message: 'Giá bán phải nhỏ hơn giá gốc',
@@ -23,7 +27,7 @@ export const createVoucherSchema = z.object({
         path: ['endDate'],
     });
 
-// Tất cả fields optional cho update
+// Tất cả fields optional cho update — nhưng branchIds nếu gửi phải có ≥ 1 phần tử.
 export const updateVoucherSchema = z.object({
     title: z.string().min(5).max(255).optional(),
     description: z.string().optional().nullable(),
@@ -36,7 +40,12 @@ export const updateVoucherSchema = z.object({
     startDate: z.iso.datetime().optional(),
     endDate: z.iso.datetime().optional(),
     expiryDays: z.number().int().positive().optional(),
-    branchIds: z.array(z.number().int().positive()).optional(),
+    // BR-PAR-04: nếu partner thay đổi branchIds, phải chọn ≥ 1 chi nhánh.
+    // Cho phép undefined (không thay đổi), nhưng không cho phép [] rỗng.
+    branchIds: z
+        .array(z.number().int().positive('Chi nhánh không hợp lệ'))
+        .min(1, 'Voucher phải gán với ít nhất 1 chi nhánh của partner')
+        .optional(),
 });
 
 export const voucherQuerySchema = z.object({
@@ -46,6 +55,15 @@ export const voucherQuerySchema = z.object({
     q: z.string().optional(),
 });
 
+// Bật/tắt hiển thị voucher — chỉ áp dụng khi voucher đã được admin duyệt.
+// Đây là action kinh doanh của partner, không phải duyệt nội dung.
+export const toggleVoucherDisplaySchema = z.object({
+    displayStatus: z.enum(['Visible', 'Hidden'], {
+        message: 'displayStatus phải là Visible hoặc Hidden',
+    }),
+});
+
 export type CreateVoucherInput = z.infer<typeof createVoucherSchema>;
 export type UpdateVoucherInput = z.infer<typeof updateVoucherSchema>;
 export type VoucherQuery = z.infer<typeof voucherQuerySchema>;
+export type ToggleVoucherDisplayInput = z.infer<typeof toggleVoucherDisplaySchema>;
