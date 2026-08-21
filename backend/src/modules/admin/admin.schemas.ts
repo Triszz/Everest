@@ -34,7 +34,12 @@ export const listPartnersSchema = z.object({
   page: z.coerce.number().int().positive().optional().default(1),
   limit: z.coerce.number().int().positive().max(100).optional().default(20),
   search: z.string().optional(),
+  searchField: z.enum(["companyName", "partnerId", "phoneNumber", "email"]).optional(),
   status: z.nativeEnum(PartnerStatus).optional(),
+  isLocked: z
+    .union([z.literal("true"), z.literal("false")])
+    .optional()
+    .transform((v) => (v === undefined ? undefined : v === "true")),
 });
 
 export const getPartnerByIdSchema = z.object({
@@ -405,6 +410,8 @@ export const listOrdersSchema = z.object({
   search: z.string().optional(),
   paymentStatus: z.nativeEnum(PaymentStatus).optional(),
   customerId: z.string().uuid("customerId không hợp lệ").optional(),
+  userId: z.string().uuid("userId không hợp lệ").optional(),
+  status: z.enum(["Pending", "Paid", "Cancelled", "Refunded"]).optional(),
   fromDate: z.coerce.date().optional(),
   toDate: z.coerce.date().optional(),
 });
@@ -431,10 +438,13 @@ export const refundOrderSchema = z.object({
     .optional(),
 });
 
+export const markOrderPaidSchema = z.object({});
+
 export type ListOrdersInput = z.infer<typeof listOrdersSchema>;
 export type GetOrderByIdInput = z.infer<typeof getOrderByIdSchema>;
 export type CancelOrderInput = z.infer<typeof cancelOrderSchema>;
 export type RefundOrderInput = z.infer<typeof refundOrderSchema>;
+export type MarkOrderPaidInput = z.infer<typeof markOrderPaidSchema>;
 
 // ─── Audit Logs ───────────────────────────────────────────────────────
 

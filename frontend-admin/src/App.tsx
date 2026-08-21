@@ -11,6 +11,7 @@ import Partners from './pages/Partners'
 import Branches from './pages/Branches'
 import Vouchers from './pages/Vouchers'
 import Orders from './pages/Orders'
+import OrderDetail from './pages/OrderDetail'
 import Content from './pages/Content'
 import PostEditor from './pages/PostEditor'
 import PolicyEditor from './pages/PolicyEditor'
@@ -42,6 +43,7 @@ export default function App() {
               <Route path="/branches" element={<Branches />} />
               <Route path="/vouchers" element={<Vouchers />} />
               <Route path="/orders" element={<Orders />} />
+              <Route path="/orders/:orderId" element={<OrderDetail />} />
               <Route path="/content" element={<Content />} />
               <Route path="/content/posts/new" element={<PostEditor />} />
               <Route path="/content/posts/:postId" element={<PostEditor />} />

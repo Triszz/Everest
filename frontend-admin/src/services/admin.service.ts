@@ -163,7 +163,9 @@ export const adminPartnersApi = {
     page?: number;
     limit?: number;
     search?: string;
+    searchField?: 'companyName' | 'partnerId' | 'phoneNumber' | 'email';
     status?: PartnerStatus;
+    isLocked?: boolean;
   }): Promise<PaginatedList<PartnerResponse>> {
     return get<{ data: PartnerResponse[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>(
       `/api/admin/partners${buildQueryString(params)}`,
@@ -745,7 +747,7 @@ export const adminPostsApi = {
 
 // ─── Order API ────────────────────────────────────────────────────────────────
 
-export type OrderPaymentStatus = "Pending" | "Paid" | "Cancelled";
+export type OrderPaymentStatus = "Pending" | "Paid" | "Cancelled" | "Refunded";
 
 export interface OrderItemResponse {
   orderItemId: number;
@@ -800,6 +802,10 @@ export const adminOrdersApi = {
     search?: string;
     paymentStatus?: OrderPaymentStatus;
     customerId?: string;
+    userId?: string;
+    status?: OrderPaymentStatus | 'Refunded';
+    fromDate?: string;
+    toDate?: string;
   }): Promise<PaginatedList<OrderResponse>> {
     return get<{
       data: OrderResponse[];
@@ -846,5 +852,11 @@ export const adminOrdersApi = {
     }>(`/api/admin/orders/${orderId}/refund`, body, {
       auth: true,
     }).then((res) => res.data);
+  },
+
+  markPaid(orderId: number) {
+    return post<{ orderId: number; paymentStatus: OrderPaymentStatus; updatedAt: string }>(
+      `/api/admin/orders/${orderId}/pay`, {}, { auth: true },
+    ).then((res) => res.data);
   },
 };

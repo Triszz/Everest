@@ -308,6 +308,7 @@ export function ReportsPage() {
             icon={revenueIcon} iconBg="#E8F4FA"
             loading={loadingKPIs} format="currency"
             color={C.primary} subtitle="Tổng doanh thu"
+            style={{ display: 'none' }}
           />
           <KPICard
             title="Đã phát hành" value={kpis?.totalIssued ?? 0}

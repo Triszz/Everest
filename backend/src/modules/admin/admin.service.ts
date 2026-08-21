@@ -200,11 +200,28 @@ export const adminService = {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = {};
     if (input.status) where.status = input.status as PartnerStatus;
-    if (input.search) {
-      where.OR = [
-        { companyName: { contains: input.search, mode: "insensitive" } },
-        { taxCode: { contains: input.search, mode: "insensitive" } },
-      ];
+    if (input.isLocked !== undefined) where.isLocked = input.isLocked;
+    if (input.search && input.search.trim() !== "") {
+      const term = input.search.trim();
+      const field = input.searchField ?? "companyName";
+      if (field === "partnerId") {
+        const numericId = Number(term);
+        if (Number.isInteger(numericId) && numericId > 0) {
+          where.partnerId = numericId;
+        } else {
+          where.partnerId = -1;
+        }
+      } else if (field === "phoneNumber") {
+        where.users = {
+          some: { phoneNumber: { contains: term } },
+        };
+      } else if (field === "email") {
+        where.users = {
+          some: { email: { contains: term, mode: "insensitive" } },
+        };
+      } else {
+        where.companyName = { contains: term, mode: "insensitive" };
+      }
     }
 
     const [partners, total] = await Promise.all([
@@ -346,10 +363,6 @@ export const adminService = {
         where: { partnerId },
         data: { isLocked: newLocked },
       });
-      const cashierResult = await tx.user.updateMany({
-        where: { partnerId, role: "Partner_Cashier" },
-        data: { status: newLocked ? "Banned" : "Active" },
-      });
       const updated = await tx.partner.findUnique({
         where: { partnerId },
         select: {
@@ -363,7 +376,7 @@ export const adminService = {
       });
       return {
         partner: updated!,
-        affected: { branches: branchResult.count, cashiers: cashierResult.count },
+        affected: { branches: branchResult.count, cashiers: 0 },
       };
     });
 
@@ -546,7 +559,7 @@ export const adminService = {
       const partner = await prisma.partner.findUnique({ where: { partnerId } });
       if (!partner) throw new AppError("Đối tác không tồn tại", 404, "NOT_FOUND");
       if (partner.isLocked) {
-        throw new AppError("Không thể mở khóa chi nhánh khi đối tác đang bị khóa. Hãy mở khóa đối tác trước.", 400, "PARTNER_IS_LOCKED");
+        throw new AppError("Partner đang bị khóa", 400, "PARTNER_IS_LOCKED");
       }
     }
 
@@ -562,7 +575,6 @@ export const adminService = {
           phoneNumber: true,
           isLocked: true,
           createdAt: true,
-          updatedAt: true,
         },
       });
 
@@ -1476,20 +1488,20 @@ export const adminService = {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = {};
-    if (input.paymentStatus) where.paymentStatus = input.paymentStatus;
-    if (input.customerId) where.customerId = input.customerId;
+    if (input.status === "Refunded") where.refundedAt = { not: null };
+    else if (input.status === "Cancelled") where.cancelledAt = { not: null };
+    else if (input.status) where.paymentStatus = input.status;
+    else if (input.paymentStatus === "Cancelled") where.cancelledAt = { not: null };
+    else if (input.paymentStatus) where.paymentStatus = input.paymentStatus;
+    if (input.userId || input.customerId) where.customerId = input.userId ?? input.customerId;
     if (input.fromDate || input.toDate) {
       where.createdAt = {};
       if (input.fromDate) where.createdAt.gte = input.fromDate;
       if (input.toDate) where.createdAt.lte = input.toDate;
     }
     if (input.search) {
-      where.OR = [
-        { receiverEmail: { contains: input.search, mode: "insensitive" } },
-        { customer: { email: { contains: input.search, mode: "insensitive" } } },
-        { customer: { fullName: { contains: input.search, mode: "insensitive" } } },
-        { orderItems: { some: { voucher: { title: { contains: input.search, mode: "insensitive" } } } } },
-      ];
+      const orderId = Number(input.search);
+      where.orderId = Number.isInteger(orderId) && orderId > 0 ? orderId : -1;
     }
 
     const [orders, total] = await Promise.all([
@@ -1582,11 +1594,18 @@ export const adminService = {
       include: { orderItems: { include: { issuedVouchers: true } } },
     });
     if (!order) throw new AppError("Đơn hàng không tồn tại", 404, "NOT_FOUND");
-    if (order.paymentStatus === "Cancelled") {
+    if (order.cancelledAt || order.paymentStatus === "Cancelled") {
       throw new AppError("Đơn hàng đã được hủy trước đó", 400, "ALREADY_CANCELLED");
     }
     if (order.refundedAt) {
       throw new AppError("Đơn đã được hoàn tiền, không thể hủy", 400, "ALREADY_REFUNDED");
+    }
+    if (order.paymentStatus !== "Pending" && order.paymentStatus !== "Paid") {
+      throw new AppError(
+        "Chỉ có thể hủy đơn đang chờ thanh toán hoặc đã thanh toán",
+        400,
+        "ORDER_NOT_CANCELABLE",
+      );
     }
 
     const usedVouchers = order.orderItems.flatMap((oi) =>
@@ -1620,7 +1639,6 @@ export const adminService = {
       return tx.order.update({
         where: { orderId },
         data: {
-          paymentStatus: "Cancelled",
           cancelledAt: now,
           cancelledBy: undefined,
           cancelReason: input.reason,
@@ -1642,11 +1660,18 @@ export const adminService = {
   async refundOrder(orderId: number, input: RefundOrderInput) {
     const order = await prisma.order.findUnique({ where: { orderId } });
     if (!order) throw new AppError("Đơn hàng không tồn tại", 404, "NOT_FOUND");
+    if (!order.cancelledAt) {
+      throw new AppError(
+        "Chỉ có thể hoàn tiền sau khi đã hủy đơn hàng",
+        400,
+        "ORDER_MUST_BE_CANCELLED",
+      );
+    }
     if (order.paymentStatus !== "Paid") {
       throw new AppError(
-        "Chỉ có thể hoàn tiền đơn đã thanh toán",
+        "Chỉ đơn đã thanh toán mới có thể hoàn tiền",
         400,
-        "NOT_PAID",
+        "ORDER_NOT_PAID",
       );
     }
     if (order.refundedAt) {
@@ -1682,6 +1707,19 @@ export const adminService = {
     });
 
     return result;
+  },
+
+  async markOrderPaid(orderId: number) {
+    const order = await prisma.order.findUnique({ where: { orderId } });
+    if (!order) throw new AppError("Đơn hàng không tồn tại", 404, "NOT_FOUND");
+    if (order.cancelledAt || order.paymentStatus === "Cancelled" || order.refundedAt) {
+      throw new AppError("Không thể ghi nhận thanh toán cho đơn đã hủy/hoàn tiền", 400, "ORDER_NOT_PAYABLE");
+    }
+    return prisma.order.update({
+      where: { orderId },
+      data: { paymentStatus: "Paid" },
+      select: { orderId: true, paymentStatus: true, updatedAt: true },
+    });
   },
 
   // ─── Audit Logs ──────────────────────────────────────────────────────

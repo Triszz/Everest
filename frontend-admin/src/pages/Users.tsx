@@ -269,6 +269,15 @@ export default function Users() {
                             <option value="Admin">Admin</option>
                           </select>
                         )}
+                        <button
+                          className="admin-btn admin-btn-ghost"
+                          style={{ padding: '0.375rem 0.625rem', fontSize: '0.7rem' }}
+                          onClick={() => window.location.assign(`/orders?userId=${user.userId}`)}
+                          title="Xem đơn hàng"
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>receipt_long</span>
+                          Đơn hàng
+                        </button>
                       </div>
                     </td>
                   </tr>

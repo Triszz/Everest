@@ -195,9 +195,6 @@ export default function Vouchers() {
             { label: 'Đã duyệt', value: stats.approved, color: 'var(--color-success-active)' },
             { label: 'Chờ duyệt', value: stats.pending, color: 'var(--color-warning-pending)' },
             { label: 'Từ chối', value: stats.rejected, color: 'var(--color-error-danger)' },
-            { label: 'Phát hành', value: stats.totalIssued, color: 'var(--color-primary)' },
-            { label: 'Đã bán', value: stats.totalIssued - (stats.totalIssued - stats.totalIssued), color: 'var(--color-primary)' },
-            { label: 'Đã sử dụng', value: stats.totalUsed, color: 'var(--color-success-active)' },
           ].map((s) => (
             <div key={s.label} style={{ flex: 1, minWidth: 120, background: 'var(--color-surface-container-low)', borderRadius: '0.75rem', padding: '0.875rem 1rem', borderLeft: `3px solid ${s.color}` }}>
               <p style={{ fontFamily: '"Manrope", sans-serif', fontWeight: 700, fontSize: '1.5rem', color: s.color, lineHeight: 1 }}>
