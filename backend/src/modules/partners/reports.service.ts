@@ -161,10 +161,18 @@ export async function getPartnerKPIs(
     issuedUsedDateCondition,
   } = await buildReportFilters(partnerId, params);
 
-  const [totalIssued, totalSoldRaw, totalUsedRaw, revenueRaw] =
+  const [totalCatalog, totalLive, totalSoldRaw, totalUsedRaw, revenueRaw] =
     await Promise.all([
-      // SNAPSHOT — Tổng voucher đã phát hành hiện tại của Partner.
-      // Không filter theo Voucher.createdAt. Approved + Visible = đang được đăng bán.
+      // SNAPSHOT — Tổng voucher trong catalog của Partner (không filter status).
+      // Đếm TẤT CẢ voucher mà partner đang sở hữu, bất kể trạng thái duyệt/hiển thị.
+      // Trước đây field `totalIssued` filter Approved+Visible (sai — tên field không khớp
+      // với ngữ nghĩa "tổng voucher"). Đã tách thành totalCatalog + totalLive.
+      prisma.voucher.count({
+        where: { ...snapshotVoucherScope },
+      }),
+
+      // SNAPSHOT — Voucher đang được bày bán trên store (Approved + Visible).
+      // Phản ánh "đang live", không liên quan đến tổng phát hành.
       prisma.voucher.count({
         where: {
           ...snapshotVoucherScope,
@@ -224,7 +232,13 @@ export async function getPartnerKPIs(
     totalSold > 0 ? Math.round((totalUsed / totalSold) * 10000) / 100 : 0;
 
   return {
-    totalIssued,
+    // totalCatalog: tổng voucher đang có (bao gồm Draft/Rejected/Hidden).
+    // totalLive:    trong đó bao nhiêu đang live (Approved + Visible).
+    // totalIssued:  alias legacy → trả về totalCatalog để không break client cũ
+    // (đã đổi tên field trên frontend sang rõ ràng hơn nhưng giữ để tương thích).
+    totalCatalog,
+    totalLive,
+    totalIssued: totalCatalog,
     totalSold,
     totalUsed,
     revenue,
@@ -486,9 +500,12 @@ export async function getVoucherReportTable(
     limit: number;
     sortBy:
       | "title"
-      | "issued"
+      | "issued" // legacy alias: giữ để không break client cũ; sort theo totalQuantity
+      | "totalQuantity" // tổng số lượng phát hành
+      | "isLive" // voucher có đang live trên store hay không
       | "sold"
       | "used"
+      | "soldRate" // sold / totalQuantity
       | "revenue"
       | "usageRate"
       | "status";
@@ -533,6 +550,7 @@ export async function getVoucherReportTable(
       title: true,
       approvalStatus: true,
       displayStatus: true,
+      totalQuantity: true,
       createdAt: true,
     },
   });
@@ -590,12 +608,26 @@ export async function getVoucherReportTable(
     const sold = soldMap[v.voucherId] ?? 0;
     const used = usedMap[v.voucherId] ?? 0;
     const usageRate = sold > 0 ? Math.round((used / sold) * 10000) / 100 : 0;
+    // soldRate: bao nhiêu % tổng phát hành đã được bán.
+    // Phản ánh mức độ hấp thụ của voucher trên thị trường.
+    // Edge case: totalQuantity = 0 → rate = 0 (tránh chia cho 0).
+    const soldRate = v.totalQuantity > 0 ? Math.round((sold / v.totalQuantity) * 10000) / 100 : 0;
+    const isLive = v.approvalStatus === "Approved" && v.displayStatus === "Visible";
     return {
       voucherId: v.voucherId,
       title: v.title,
-      issued: v.approvalStatus === "Approved" && v.displayStatus === "Visible" ? 1 : 0, // đã phát hành = đã approved + đang hiển thị
+      // Field mới:
+      totalQuantity: v.totalQuantity, // tổng số lượng phát hành ban đầu (input từ form tạo voucher)
+      isLive,                         // boolean: voucher đang được bày bán hay không
+      // Field legacy: giữ `issued` để không break client cũ, nhưng giá trị = totalQuantity.
+      // Trước đây `issued` là 0/1 (boolean) — sai nghĩa so với tên "đã phát hành".
+      issued: v.totalQuantity,
       sold,
       used,
+      // Hai metric tỷ lệ:
+      //   usageRate: used / sold (chuyển đổi mua → dùng)
+      //   soldRate:  sold / totalQuantity (hấp thụ trên tổng phát hành)
+      soldRate,
       usageRate,
       status: v.approvalStatus,
       createdAt: v.createdAt.toISOString(),
@@ -608,10 +640,17 @@ export async function getVoucherReportTable(
     switch (params.sortBy) {
       case "title":
         return a.title.localeCompare(b.title) * sortDir;
+      case "issued":
+      case "totalQuantity":
+        return (a.totalQuantity - b.totalQuantity) * sortDir;
+      case "isLive":
+        return (Number(a.isLive) - Number(b.isLive)) * sortDir;
       case "sold":
         return (a.sold - b.sold) * sortDir;
       case "used":
         return (a.used - b.used) * sortDir;
+      case "soldRate":
+        return (a.soldRate - b.soldRate) * sortDir;
       case "usageRate":
         return (a.usageRate - b.usageRate) * sortDir;
       case "status":

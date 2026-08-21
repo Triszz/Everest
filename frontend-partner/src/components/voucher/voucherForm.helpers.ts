@@ -167,6 +167,12 @@ export function validateVoucherForm(data: VoucherFormData): VoucherFormErrors {
     errors.expiryDays = 'Số ngày hiệu lực phải là số nguyên dương';
   }
 
+  // Branches — required, ≥ 1 (BR-PAR-02)
+  // Voucher phải gán với ít nhất 1 chi nhánh của partner.
+  if (!data.branchIds || data.branchIds.length === 0) {
+    errors.branchIds = 'Vui lòng chọn ít nhất 1 chi nhánh áp dụng voucher';
+  }
+
   return errors;
 }
 
@@ -184,6 +190,6 @@ export function buildPayload(data: VoucherFormData): Record<string, unknown> {
     endDate: new Date(data.endDate).toISOString(),
     expiryDays: Number(data.expiryDays),
     applicationCondition: data.applicationCondition.trim() || undefined,
-    branchIds: data.branchIds.length > 0 ? data.branchIds : undefined,
+    branchIds: data.branchIds,
   };
 }

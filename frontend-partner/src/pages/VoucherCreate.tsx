@@ -4,8 +4,10 @@ import toast from 'react-hot-toast';
 import { VoucherForm } from '../components/voucher/VoucherForm';
 import { apiCreateVoucher } from '../services/voucher.service';
 import { apiListCategories } from '../services/category.service';
+import { apiListBranches } from '../services/branch.service';
 import { ApiException } from '../services/api-client';
 import type { VoucherCategory } from '../types/voucher';
+import type { Branch } from '../types/branch';
 import { parseVoucherCreateSearchParams } from '../utils/searchParams';
 
 // ── Design tokens (matching Vouchers list + Customer) ────────────────────────
@@ -25,6 +27,8 @@ export function VoucherCreatePage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [categories, setCategories] = useState<VoucherCategory[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [loadingBranches, setLoadingBranches] = useState(true);
 
   // Parse ?branch=... bằng Zod. Invalid → bỏ qua, form mở không preselect.
   const { branch: preselectedBranchId } = parseVoucherCreateSearchParams(searchParams);
@@ -52,6 +56,25 @@ export function VoucherCreatePage() {
     })();
     return () => { cancelled = true; };
     // We intentionally depend only on mount — categories don't need re-fetch
+  }, []);
+
+  // BR-PAR-02: load danh sách chi nhánh của partner để form có thể chọn.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await apiListBranches();
+        if (!cancelled) setBranches(data);
+      } catch {
+        if (!cancelled) {
+          toast.error('Không thể tải danh sách chi nhánh. Vui lòng thử lại.');
+          setBranches([]);
+        }
+      } finally {
+        if (!cancelled) setLoadingBranches(false);
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   const handleCancel = () => {
@@ -157,6 +180,8 @@ export function VoucherCreatePage() {
           preselectedBranchIds={preselectedBranchIds}
           categories={categories}
           loadingCategories={loadingCategories}
+          branches={branches}
+          loadingBranches={loadingBranches}
           onSubmit={handleSubmit}
           onCancel={handleCancel}
           isSubmitting={isSubmitting}

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   VOUCHER_FORM_COLORS as COLORS,
   VOUCHER_LABEL_STYLE as LABEL_STYLE,
@@ -16,12 +16,15 @@ import {
   buildPayload,
 } from './voucherForm.helpers';
 import type { VoucherCategory } from '../../types/voucher';
+import type { Branch } from '../../types/branch';
 
 interface VoucherFormProps {
   mode: 'create' | 'edit';
   initialData?: VoucherFormData;
   categories: VoucherCategory[];
   loadingCategories: boolean;
+  branches: Branch[];
+  loadingBranches: boolean;
   preselectedBranchIds?: number[];
   onSubmit: (payload: Record<string, unknown>) => Promise<void>;
   onCancel?: () => void;
@@ -37,6 +40,8 @@ export function VoucherForm({
   initialData,
   categories,
   loadingCategories,
+  branches,
+  loadingBranches,
   preselectedBranchIds,
   onSubmit,
   onCancel,
@@ -68,6 +73,22 @@ export function VoucherForm({
       setImagePreview(initialData.imageUrl || null);
     }
   }
+
+  // BR-PAR-02: nếu branch không còn tồn tại trong danh sách hiện tại
+  // (ví dụ partner xóa chi nhánh), tự động loại bỏ khỏi selection
+  // để tránh gửi branchId không hợp lệ lên backend.
+  const validBranchIds = useMemo(
+    () => new Set(branches.map(b => b.branchId)),
+    [branches],
+  );
+  useEffect(() => {
+    if (branches.length === 0) return; // chưa load xong hoặc partner chưa có branch
+    setFormData(prev => {
+      const filtered = prev.branchIds.filter(id => validBranchIds.has(id));
+      if (filtered.length === prev.branchIds.length) return prev;
+      return { ...prev, branchIds: filtered };
+    });
+  }, [validBranchIds, branches.length]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -540,26 +561,155 @@ export function VoucherForm({
         </div>
       </div>
 
+      {/* === Branches card (BR-PAR-02: required, ≥ 1) === */}
+      <div style={{
+        background: 'white',
+        borderRadius: 16,
+        padding: 24,
+        border: `1px solid ${errors.branchIds ? COLORS.error : '#F1F5F9'}`,
+        boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+        marginBottom: 24,
+      }}>
+        <h2 style={{
+          fontFamily: 'Manrope, sans-serif',
+          fontSize: 16, fontWeight: 700, color: COLORS.text,
+          marginBottom: 24, display: 'flex', alignItems: 'center', gap: 10,
+        }}>
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            width: 32, height: 32, background: '#E0F2FE', borderRadius: 8,
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0284C7" strokeWidth="2">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9 22 9 12 15 12 15 22" />
+            </svg>
+          </span>
+          Chi nhánh áp dụng <span style={{ color: COLORS.error }}>*</span>
+        </h2>
+
+        <div id="voucher-branchIds">
+          {loadingBranches ? (
+            <div style={{ color: COLORS.textMuted, fontSize: 14, padding: '12px 0' }}>
+              Đang tải danh sách chi nhánh...
+            </div>
+          ) : branches.length === 0 ? (
+            // Partner chưa có branch → block submit, hướng dẫn tạo branch trước
+            <div style={{
+              padding: '14px 16px',
+              background: '#FEF2F2',
+              border: '1px solid #FECACA',
+              borderRadius: 10,
+              fontSize: 14,
+              color: '#991B1B',
+              display: 'flex', alignItems: 'flex-start', gap: 10,
+            }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0, marginTop: 1 }}>
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <div>
+                <strong>Bạn chưa có chi nhánh nào.</strong>
+                <div style={{ marginTop: 4, fontSize: 13 }}>
+                  Vui lòng tạo ít nhất 1 chi nhánh trong mục <strong>Quản lý chi nhánh</strong> trước khi tạo voucher.
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div style={{
+                fontSize: 13, color: COLORS.textSecondary, marginBottom: 12,
+              }}>
+                Chọn chi nhánh sẽ áp dụng voucher này. Khách hàng chỉ có thể sử dụng voucher tại các chi nhánh được chọn.
+              </div>
+              <div style={{
+                border: `1px solid ${errors.branchIds ? COLORS.error : COLORS.border}`,
+                borderRadius: 10,
+                overflow: 'hidden',
+              }}>
+                {branches.map((b, idx) => {
+                  const checked = formData.branchIds.includes(b.branchId);
+                  return (
+                    <label
+                      key={b.branchId}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 12,
+                        padding: '12px 14px',
+                        cursor: 'pointer',
+                        background: checked ? '#F0F9FF' : 'white',
+                        borderTop: idx > 0 ? `1px solid ${COLORS.border}` : 'none',
+                        transition: 'background 0.15s',
+                      }}
+                      onMouseEnter={e => {
+                        if (!checked) e.currentTarget.style.background = '#F8FAFC';
+                      }}
+                      onMouseLeave={e => {
+                        if (!checked) e.currentTarget.style.background = 'white';
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={e => {
+                          const next = e.target.checked
+                            ? [...formData.branchIds, b.branchId]
+                            : formData.branchIds.filter(id => id !== b.branchId);
+                          handleChange('branchIds', next);
+                        }}
+                        style={{
+                          width: 18, height: 18, cursor: 'pointer',
+                          accentColor: COLORS.primary,
+                        }}
+                      />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 600, color: COLORS.text, fontSize: 14 }}>
+                          {b.branchName}
+                        </div>
+                        <div style={{ fontSize: 12, color: COLORS.textSecondary, marginTop: 2 }}>
+                          {b.address} · {b.phoneNumber}
+                        </div>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+              <div style={{ ...HELP_TEXT, marginTop: 8 }}>
+                Đã chọn <strong>{formData.branchIds.length}</strong> / {branches.length} chi nhánh
+              </div>
+              {errors.branchIds && <div style={ERROR_TEXT}>{errors.branchIds}</div>}
+            </>
+          )}
+        </div>
+      </div>
+
       {/* Submit buttons */}
       <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
         <button
           type="submit"
-          disabled={isSubmitting}
+          // BR-PAR-02: chặn submit nếu partner chưa có branch (UI block trước khi validate).
+          disabled={isSubmitting || branches.length === 0}
+          title={branches.length === 0 ? 'Bạn cần tạo ít nhất 1 chi nhánh trước' : undefined}
           style={{
             padding: '12px 28px',
-            background: isSubmitting ? COLORS.textMuted : COLORS.primary,
+            background: (isSubmitting || branches.length === 0) ? COLORS.textMuted : COLORS.primary,
             color: 'white',
             border: 'none',
             borderRadius: 10,
             fontFamily: 'Inter, sans-serif',
             fontSize: 14,
             fontWeight: 700,
-            cursor: isSubmitting ? 'not-allowed' : 'pointer',
+            cursor: (isSubmitting || branches.length === 0) ? 'not-allowed' : 'pointer',
             transition: 'background 0.2s',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
           }}
-          onMouseEnter={e => { if (!isSubmitting) e.currentTarget.style.background = COLORS.primaryHover; }}
-          onMouseLeave={e => { if (!isSubmitting) e.currentTarget.style.background = COLORS.primary; }}
+          onMouseEnter={e => {
+            if (!isSubmitting && branches.length > 0) e.currentTarget.style.background = COLORS.primaryHover;
+          }}
+          onMouseLeave={e => {
+            if (!isSubmitting && branches.length > 0) e.currentTarget.style.background = COLORS.primary;
+          }}
         >
           {isSubmitting ? (
             <>

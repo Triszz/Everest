@@ -6,7 +6,11 @@ import emailOtpRouter from "./email-otp.routes";
 import { asyncHandler } from "../../middlewares/asyncHandler";
 import { AppError } from "../../middlewares/errorHandler";
 import { authenticate } from "../../middlewares/authenticate";
-import { forgotPasswordSchema, resetPasswordSchema } from "./password.schemas";
+import {
+  forgotPasswordSchema,
+  resetPasswordSchema,
+  resetPasswordWithOtpSchema,
+} from "./password.schemas";
 import { ZodError } from "zod";
 
 const router = Router();
@@ -48,6 +52,37 @@ router.put(
     }
     const { token, newPassword } = req.body as { token: string; newPassword: string };
     const result = await passwordService.resetPassword(token, newPassword);
+    res.json({ success: true, ...result });
+  })
+);
+
+/**
+ * POST /api/auth/reset-password-otp
+ * Body: { email, otp, newPassword }
+ *
+ * Reset password dùng OTP 6 số (flow mobile / Partner).
+ * Frontend flow:
+ *   1. POST /api/auth/email-otp/send { email, purpose: "RESET_PASSWORD" }
+ *   2. (optional) verify OTP trước để hiển thị "Mã hợp lệ"
+ *   3. POST /api/auth/reset-password-otp { email, otp, newPassword }
+ *
+ * OTP sẽ bị consume ngay khi verify (cả ở bước 2 và bước 3) → không thể reuse.
+ */
+router.post(
+  "/reset-password-otp",
+  asyncHandler(async (req, res) => {
+    try {
+      resetPasswordWithOtpSchema.parse(req.body);
+    } catch (err) {
+      if (err instanceof ZodError) throw new AppError(err.issues[0].message, 400, "VALIDATION_ERROR");
+      throw err;
+    }
+    const { email, otp, newPassword } = req.body as {
+      email: string;
+      otp: string;
+      newPassword: string;
+    };
+    const result = await passwordService.resetPasswordWithOtp(email, otp, newPassword);
     res.json({ success: true, ...result });
   })
 );

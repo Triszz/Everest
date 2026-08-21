@@ -10,5 +10,6 @@ router.get('/:voucherId', voucherController.getById);
 router.put('/:voucherId', voucherController.update);
 router.delete('/:voucherId', voucherController.delete);
 router.post('/:voucherId/submit', voucherController.submit);
+router.patch('/:voucherId/display', voucherController.setVoucherDisplayStatus);
 
 export default router;

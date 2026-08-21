@@ -3,7 +3,7 @@ import { ZodError } from 'zod';
 import { voucherService } from './voucher.service';
 import { asyncHandler } from '../../middlewares/asyncHandler';
 import { AppError } from '../../middlewares/errorHandler';
-import { createVoucherSchema, updateVoucherSchema, voucherQuerySchema } from './voucher.schemas';
+import { createVoucherSchema, updateVoucherSchema, voucherQuerySchema, toggleVoucherDisplaySchema } from './voucher.schemas';
 
 const requirePartnerId = (req: Request) => {
     if (!req.user?.partnerId) throw new AppError('Không tìm thấy thông tin đối tác', 403, 'FORBIDDEN');
@@ -58,5 +58,26 @@ export const voucherController = {
         const voucherId = parseInt(req.params.voucherId as string);
         await voucherService.delete(voucherId, requirePartnerId(req));
         res.json({ success: true, data: null, message: 'Xóa voucher thành công' });
+    }),
+
+    /**
+     * PATCH /api/partners/vouchers/:voucherId/display
+     * Body: { displayStatus: 'Visible' | 'Hidden' }
+     *
+     * Partner tự bật/tắt hiển thị voucher SAU khi Admin đã duyệt.
+     * Không phải submit lại, không cần duyệt lại.
+     */
+    setVoucherDisplayStatus: asyncHandler(async (req: Request, res: Response) => {
+        const voucherId = parseInt(req.params.voucherId as string);
+        const input = parse(toggleVoucherDisplaySchema, req.body);
+        const data = await voucherService.setVoucherDisplayStatus(
+            voucherId,
+            requirePartnerId(req),
+            input,
+        );
+        const message = input.displayStatus === 'Visible'
+            ? 'Đã bật hiển thị voucher cho khách hàng'
+            : 'Đã ẩn voucher khỏi cửa hàng';
+        res.json({ success: true, data, message });
     }),
 };

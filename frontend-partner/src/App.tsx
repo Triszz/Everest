@@ -7,6 +7,7 @@ import { getDefaultRoute } from './config/navigation';
 import { RegisterPage } from './pages/Register';
 import { RegisterSuccessPage } from './pages/RegisterSuccess';
 import { LoginPage } from './pages/Login';
+import { ForgotPasswordPage } from './pages/ForgotPassword';
 import { VouchersPage } from './pages/Vouchers';
 import { VoucherCreatePage } from './pages/VoucherCreate';
 import { VoucherDetailPage } from './pages/VoucherDetail';
@@ -77,6 +78,11 @@ function AppRoutes() {
       <Route path="/login" element={
         <GuestRoute>
           <AppLayout><LoginPage /></AppLayout>
+        </GuestRoute>
+      } />
+      <Route path="/forgot-password" element={
+        <GuestRoute>
+          <AppLayout><ForgotPasswordPage /></AppLayout>
         </GuestRoute>
       } />
       <Route path="/register" element={
