@@ -1722,6 +1722,180 @@ export const adminService = {
     });
   },
 
+  // ─── Dashboard ──────────────────────────────────────────────────────────────
+
+  async getDashboard() {
+    const now = new Date();
+    const startDate = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+
+    // Run everything in parallel where possible
+    const [
+      totalUsers,
+      totalPartners,
+      totalVouchers,
+      totalIssued,
+      totalUsed,
+      revenueByMonth,
+      ordersByMonth,
+      userRegByMonth,
+      ordersByStatus,
+      topVouchers,
+      topPartners,
+    ] = await Promise.all([
+      prisma.user.count(),
+      prisma.partner.count({ where: { status: "Approved" } }),
+      prisma.voucher.count(),
+      prisma.issuedVoucher.count(),
+      prisma.issuedVoucher.count({ where: { status: "Used" } }),
+      prisma.$queryRaw<{ month: string; year: number; total: bigint | number }[]>`
+        SELECT
+          EXTRACT(MONTH FROM o."created_at")::int AS month,
+          EXTRACT(YEAR FROM o."created_at")::int AS year,
+          COALESCE(SUM(o."total_amount"), 0)::bigint AS total
+        FROM orders o
+        WHERE o."created_at" >= ${startDate}
+          AND o."cancelled_at" IS NULL
+          AND o."refunded_at" IS NULL
+        GROUP BY year, month
+        ORDER BY year, month
+      `,
+      prisma.$queryRaw<{ month: string; year: number; total: bigint | number }[]>`
+        SELECT
+          EXTRACT(MONTH FROM o."created_at")::int AS month,
+          EXTRACT(YEAR FROM o."created_at")::int AS year,
+          COUNT(o."order_id")::bigint AS total
+        FROM orders o
+        WHERE o."created_at" >= ${startDate}
+        GROUP BY year, month
+        ORDER BY year, month
+      `,
+      prisma.$queryRaw<{ month: string; year: number; total: bigint | number }[]>`
+        SELECT
+          EXTRACT(MONTH FROM u."created_at")::int AS month,
+          EXTRACT(YEAR FROM u."created_at")::int AS year,
+          COUNT(u."user_id")::bigint AS total
+        FROM users u
+        WHERE u."created_at" >= ${startDate}
+        GROUP BY year, month
+        ORDER BY year, month
+      `,
+      prisma.order.groupBy({
+        by: ["paymentStatus"],
+        _count: { _all: true },
+      }),
+      prisma.$queryRaw<{ voucherId: number; title: string; partnerId: number; partnerName: string; sold: bigint | number }[]>`
+        SELECT
+          v."voucher_id" AS "voucherId",
+          v."title" AS title,
+          p."partner_id" AS "partnerId",
+          p."company_name" AS "partnerName",
+          COALESCE(SUM(oi."quantity"), 0)::bigint AS sold
+        FROM vouchers v
+        INNER JOIN order_items oi ON oi."voucher_id" = v."voucher_id"
+        INNER JOIN orders o ON o."order_id" = oi."order_id"
+        INNER JOIN partners p ON p."partner_id" = v."partner_id"
+        WHERE o."cancelled_at" IS NULL
+          AND o."refunded_at" IS NULL
+          AND o."payment_status" = 'Paid'
+        GROUP BY v."voucher_id", v."title", p."partner_id", p."company_name"
+        ORDER BY sold DESC
+        LIMIT 10
+      `,
+      prisma.$queryRaw<{ partnerId: number; partnerName: string; sold: bigint | number }[]>`
+        SELECT
+          p."partner_id" AS "partnerId",
+          p."company_name" AS "partnerName",
+          COALESCE(SUM(oi."quantity"), 0)::bigint AS sold
+        FROM partners p
+        INNER JOIN vouchers v ON v."partner_id" = p."partner_id"
+        INNER JOIN order_items oi ON oi."voucher_id" = v."voucher_id"
+        INNER JOIN orders o ON o."order_id" = oi."order_id"
+        WHERE o."cancelled_at" IS NULL
+          AND o."refunded_at" IS NULL
+          AND o."payment_status" = 'Paid'
+        GROUP BY p."partner_id", p."company_name"
+        ORDER BY sold DESC
+        LIMIT 10
+      `,
+    ]);
+
+    // Build last-6-months axis (oldest -> newest), fill missing months with 0
+    const monthsAxis: { month: string; year: number; label: string }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      monthsAxis.push({
+        month: String(d.getMonth() + 1),
+        year: d.getFullYear(),
+        label: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+      });
+    }
+
+    const pickSeries = (
+      rows: { month: string; year: number; total: bigint | number }[],
+      divisor = 1,
+    ) =>
+      monthsAxis.map((slot) => {
+        const match = rows.find(
+          (r) => Number(r.month) === Number(slot.month) && Number(r.year) === slot.year,
+        );
+        const raw = match ? Number(match.total) : 0;
+        return { ...slot, value: divisor === 1 ? raw : Number((raw / divisor).toFixed(2)) };
+      });
+
+    const revenueSeries = pickSeries(revenueByMonth, 1_000_000_000); // convert VND -> billion
+    const ordersSeries = pickSeries(ordersByMonth);
+    const userRegSeries = pickSeries(userRegByMonth);
+
+    // Order status breakdown
+    let paid = 0;
+    let pending = 0;
+    let cancelled = 0;
+    let refunded = 0;
+    for (const row of ordersByStatus) {
+      const count = row._count._all;
+      if (row.paymentStatus === "Paid") paid = count;
+      else if (row.paymentStatus === "Pending") pending = count;
+      else if (row.paymentStatus === "Cancelled") cancelled += count;
+    }
+    const refundedCount = await prisma.order.count({
+      where: { refundedAt: { not: null } },
+    });
+    refunded = refundedCount;
+
+    return {
+      kpis: {
+        totalUsers,
+        totalPartners,
+        totalVouchers,
+        totalIssued,
+        totalUsed,
+      },
+      revenueByMonth: revenueSeries,
+      ordersByMonth: ordersSeries,
+      userRegistrationByMonth: userRegSeries,
+      ordersByStatus: {
+        paid,
+        pending,
+        cancelled,
+        refunded,
+      },
+      topVouchers: topVouchers.map((v, i) => ({
+        rank: i + 1,
+        voucherId: v.voucherId,
+        title: v.title,
+        partnerId: v.partnerId,
+        partnerName: v.partnerName,
+        sold: Number(v.sold),
+      })),
+      topPartners: topPartners.map((p, i) => ({
+        rank: i + 1,
+        partnerId: p.partnerId,
+        partnerName: p.partnerName,
+        sold: Number(p.sold),
+      })),
+    };
+  },
+
   // ─── Audit Logs ──────────────────────────────────────────────────────
 
   async listAuditLogs(input: ListAuditLogsInput) {

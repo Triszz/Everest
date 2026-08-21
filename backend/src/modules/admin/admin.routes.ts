@@ -74,6 +74,8 @@ router.post("/orders/:orderId/cancel", adminController.cancelOrder);
 router.post("/orders/:orderId/refund", adminController.refundOrder);
 router.post("/orders/:orderId/pay", adminController.markOrderPaid);
 
+router.get("/dashboard", adminController.getDashboard);
+
 router.get("/audit-logs", adminController.listAuditLogs);
 
 export default router;
