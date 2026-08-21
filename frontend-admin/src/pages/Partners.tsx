@@ -1,14 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../components/shared/Toast';
 import { usePartnerManagement } from '../hooks/usePartnerManagement';
-import type { PartnerStatus, PartnerResponse } from '../services/admin.service';
+import type { PartnerStatus } from '../services/admin.service';
 
 const statusConfig: Record<PartnerStatus, { label: string; cls: string }> = {
   Pending: { label: 'Chờ duyệt', cls: 'badge-pending' },
   Approved: { label: 'Đã duyệt', cls: 'badge-active' },
   Rejected: { label: 'Từ chối', cls: 'badge-locked' },
-  Inactive: { label: 'Không hoạt động', cls: 'badge-info' },
 };
 
 const fmtDate = (iso: string) =>
@@ -18,7 +17,7 @@ const fmtDate = (iso: string) =>
     year: 'numeric',
   });
 
-type LockAction = 'LOCK' | 'UNLOCK';
+type SearchField = 'companyName' | 'partnerId' | 'phoneNumber' | 'email';
 
 export default function Partners() {
   const navigate = useNavigate();
@@ -37,39 +36,28 @@ export default function Partners() {
   } = usePartnerManagement();
 
   const [search, setSearch] = useState('');
+  const [searchField, setSearchField] = useState<SearchField>('companyName');
   const [statusFilter, setStatusFilter] = useState<PartnerStatus | ''>('');
-  const [selectedPartner, setSelectedPartner] = useState<PartnerResponse | null>(null);
-  const [showLockModal, setShowLockModal] = useState(false);
-  const [lockReason, setLockReason] = useState('');
-  const [lockTarget, setLockTarget] = useState<{ id: number; action: LockAction } | null>(null);
+  const [isLockedFilter, setIsLockedFilter] = useState<'' | 'true' | 'false'>('');
   const [isLocking, setIsLocking] = useState(false);
 
-  useEffect(() => {
-    fetchPartners();
-  }, [fetchPartners]);
-
   const handleSearch = () => {
-    fetchPartners(1, { search: search || undefined, status: statusFilter || undefined });
+    fetchPartners(1, {
+      search: search || undefined,
+      searchField,
+      status: statusFilter || undefined,
+      isLocked: isLockedFilter === '' ? undefined : isLockedFilter === 'true',
+    });
   };
 
-  const openLock = (partnerId: number, action: LockAction) => {
-    setLockTarget({ id: partnerId, action });
-    setLockReason('');
-    setShowLockModal(true);
-  };
-
-  const handleLock = async () => {
-    if (!lockTarget || !lockReason.trim()) return;
+  const handleToggleLock = async (partnerId: number, currentLocked: boolean) => {
     setIsLocking(true);
     try {
-      const result = await togglePartnerLock(lockTarget.id, lockTarget.action === 'LOCK', lockReason.trim());
+      const result = await togglePartnerLock(partnerId, currentLocked);
       showToast(
-        `Đã ${lockTarget.action === 'LOCK' ? 'khóa' : 'mở khóa'} đối tác — ${result.affected.branches} chi nhánh, ${result.affected.cashiers} nhân viên bị ảnh hưởng`,
+        `Đã ${currentLocked ? 'mở khóa' : 'khóa'} đối tác — ${result.affected.branches} chi nhánh, ${result.affected.cashiers} nhân viên bị ảnh hưởng`,
         'success',
       );
-      setShowLockModal(false);
-      setLockTarget(null);
-      setLockReason('');
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Lỗi khi khóa/mở khóa', 'error');
     } finally {
@@ -97,7 +85,7 @@ export default function Partners() {
 
   const pendingCount = partners.filter((p) => p.status === 'Pending').length;
   const approvedCount = partners.filter((p) => p.status === 'Approved').length;
-  const lockedCount = partners.filter((p) => p.status === 'Inactive').length;
+  const lockedCount = partners.filter((p) => p.isLocked).length;
 
   return (
     <div>
@@ -134,6 +122,17 @@ export default function Partners() {
       {/* Filters */}
       <div className="admin-card" style={{ padding: '1rem', marginBottom: '1rem' }}>
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          <select
+            className="admin-input"
+            style={{ width: 'auto', minWidth: '180px' }}
+            value={searchField}
+            onChange={(e) => setSearchField(e.target.value as SearchField)}
+          >
+            <option value="companyName">Tên doanh nghiệp</option>
+            <option value="partnerId">Mã đối tác</option>
+            <option value="phoneNumber">Số điện thoại</option>
+            <option value="email">Email</option>
+          </select>
           <div style={{ position: 'relative', flex: 1, minWidth: 250 }}>
             <span className="material-symbols-outlined" style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-on-surface-variant)', fontSize: '18px' }}>
               search
@@ -141,7 +140,15 @@ export default function Partners() {
             <input
               className="admin-input"
               style={{ paddingLeft: '2.5rem', width: '100%' }}
-              placeholder="Tìm kiếm tên doanh nghiệp, MST..."
+              placeholder={
+                searchField === 'partnerId'
+                  ? 'Nhập mã đối tác (số)...'
+                  : searchField === 'phoneNumber'
+                    ? 'Nhập số điện thoại...'
+                    : searchField === 'email'
+                      ? 'Nhập email...'
+                      : 'Nhập tên doanh nghiệp...'
+              }
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
@@ -157,7 +164,16 @@ export default function Partners() {
             <option value="Pending">Chờ duyệt</option>
             <option value="Approved">Đã duyệt</option>
             <option value="Rejected">Từ chối</option>
-            <option value="Inactive">Không hoạt động</option>
+          </select>
+          <select
+            className="admin-input"
+            style={{ width: 'auto', minWidth: '160px' }}
+            value={isLockedFilter}
+            onChange={(e) => setIsLockedFilter(e.target.value as '' | 'true' | 'false')}
+          >
+            <option value="">Tất cả trạng thái khóa</option>
+            <option value="true">Bị khóa</option>
+            <option value="false">Hoạt động</option>
           </select>
           <button className="admin-btn admin-btn-primary" onClick={handleSearch}>
             <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>filter_list</span>
@@ -189,7 +205,7 @@ export default function Partners() {
               </thead>
               <tbody>
                 {partners.map((partner) => {
-                  const sc = statusConfig[partner.status] ?? statusConfig.Inactive;
+                  const sc = statusConfig[partner.status] ?? { label: partner.status, cls: 'badge-info' };
                   return (
                     <tr key={partner.partnerId}>
                       <td><span className="font-label-sm" style={{ color: 'var(--color-outline)', fontSize: '0.7rem' }}>#{partner.partnerId}</span></td>
@@ -208,23 +224,23 @@ export default function Partners() {
                       </td>
                       <td><span className="font-label-sm">{partner.taxCode}</span></td>
                       <td>
-                        <span className={`badge ${sc.cls}`}>
-                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'currentColor', display: 'inline-block' }} />
-                          {sc.label}
-                        </span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                          {partner.isLocked ? (
+                            <span className="badge badge-locked">
+                              <span className="material-symbols-outlined" style={{ fontSize: '12px', marginRight: '0.125rem' }}>lock</span>
+                              Bị khóa
+                            </span>
+                          ) : (
+                            <span className={`badge ${sc.cls}`}>
+                              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'currentColor', display: 'inline-block' }} />
+                              {sc.label}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td><span className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)' }}>{fmtDate(partner.createdAt)}</span></td>
                       <td>
                         <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-end' }}>
-                          <button
-                            className="admin-btn admin-btn-ghost"
-                            style={{ padding: '0.375rem 0.625rem', fontSize: '0.75rem' }}
-                            onClick={() => setSelectedPartner(partner)}
-                            title="Xem chi tiết"
-                          >
-                            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>visibility</span>
-                            Chi tiết
-                          </button>
                           <button
                             className="admin-btn admin-btn-ghost"
                             style={{ padding: '0.375rem 0.625rem', fontSize: '0.75rem' }}
@@ -257,29 +273,32 @@ export default function Partners() {
                               <button
                                 className="admin-btn admin-btn-ghost"
                                 style={{ padding: '0.375rem 0.625rem', fontSize: '0.75rem' }}
-                                onClick={() => openLock(partner.partnerId, 'LOCK')}
+                                onClick={() => handleReject(partner.partnerId, 'Đối tác không đáp ứng yêu cầu')}
+                                title="Từ chối"
                               >
                                 <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>close</span>
                               </button>
                             </>
                           )}
 
-                          {(partner.status === 'Approved') && (
+                          {(partner.status === 'Approved') && !partner.isLocked && (
                             <button
                               className="admin-btn admin-btn-danger"
                               style={{ padding: '0.375rem 0.625rem', fontSize: '0.75rem' }}
-                              onClick={() => openLock(partner.partnerId, 'LOCK')}
+                              onClick={() => handleToggleLock(partner.partnerId, false)}
+                              disabled={isLocking}
                             >
                               <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>block</span>
                               Khóa
                             </button>
                           )}
 
-                          {partner.status === 'Inactive' && (
+                          {partner.isLocked && (
                             <button
                               className="admin-btn admin-btn-success"
                               style={{ padding: '0.375rem 0.625rem', fontSize: '0.75rem' }}
-                              onClick={() => openLock(partner.partnerId, 'UNLOCK')}
+                              onClick={() => handleToggleLock(partner.partnerId, true)}
+                              disabled={isLocking}
                             >
                               <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>lock_open</span>
                               Mở khóa
@@ -321,199 +340,6 @@ export default function Partners() {
           </div>
         )}
       </div>
-
-      {/* Partner Detail Panel */}
-      {selectedPartner && (
-        <>
-          <div className="side-panel-overlay" onClick={() => setSelectedPartner(null)} />
-          <div className="side-panel">
-            <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--color-outline-variant)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <div style={{
-                  width: '3rem', height: '3rem', borderRadius: '0.5rem',
-                  background: 'var(--color-secondary-container)', color: 'var(--color-on-secondary-container)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontWeight: 700, fontSize: '1.25rem',
-                }}>
-                  {selectedPartner.companyName[0]}
-                </div>
-                <div>
-                  <h3 className="font-headline-md" style={{ fontSize: '1.25rem' }}>{selectedPartner.companyName}</h3>
-                  <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)' }}>Đăng ký {fmtDate(selectedPartner.createdAt)}</p>
-                </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span className={`badge ${statusConfig[selectedPartner.status]?.cls ?? 'badge-info'}`}>
-                  {statusConfig[selectedPartner.status]?.label ?? selectedPartner.status}
-                </span>
-                <button onClick={() => setSelectedPartner(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-on-surface-variant)' }}>
-                  <span className="material-symbols-outlined">close</span>
-                </button>
-              </div>
-            </div>
-
-            <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
-                <div>
-                  <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)', marginBottom: '0.25rem', fontSize: '0.65rem' }}>MÃ SỐ</p>
-                  <p className="font-body-md" style={{ fontWeight: 600 }}>#{selectedPartner.partnerId}</p>
-                </div>
-                <div>
-                  <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)', marginBottom: '0.25rem', fontSize: '0.65rem' }}>MST</p>
-                  <p className="font-body-md">{selectedPartner.taxCode}</p>
-                </div>
-              </div>
-
-              {selectedPartner.businessLicenseUrl && (
-                <div style={{ marginBottom: '1.5rem' }}>
-                  <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)', marginBottom: '0.25rem', fontSize: '0.65rem' }}>GIẤY PHÉP KD</p>
-                  <a
-                    href={selectedPartner.businessLicenseUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="admin-btn admin-btn-ghost"
-                    style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>open_in_new</span>
-                    Mở liên kết
-                  </a>
-                </div>
-              )}
-
-              <div style={{ marginBottom: '1rem' }}>
-                <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)', marginBottom: '0.25rem', fontSize: '0.65rem' }}>TRẠNG THÁI TÀI KHOẢN</p>
-                <span className="badge">
-                  {selectedPartner.isLocked ? '🔒 Bị khóa' : '✅ Hoạt động'}
-                </span>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div style={{ padding: '1.5rem', borderTop: '1px solid var(--color-outline-variant)', display: 'flex', gap: '0.75rem' }}>
-              {selectedPartner.status === 'Pending' && (
-                <>
-                  <button
-                    className="admin-btn admin-btn-ghost"
-                    style={{ flex: 1 }}
-                    onClick={() => openLock(selectedPartner.partnerId, 'LOCK')}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>block</span>
-                    Từ chối
-                  </button>
-                  <button
-                    className="admin-btn admin-btn-success"
-                    style={{ flex: 2 }}
-                    onClick={() => { handleApprove(selectedPartner.partnerId); setSelectedPartner(null) }}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>check_circle</span>
-                    Phê duyệt đối tác
-                  </button>
-                </>
-              )}
-              {selectedPartner.status === 'Approved' && (
-                <button
-                  className="admin-btn admin-btn-danger"
-                  style={{ flex: 1 }}
-                  onClick={() => { setSelectedPartner(null); openLock(selectedPartner.partnerId, 'LOCK') }}
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>block</span>
-                  Khóa đối tác
-                </button>
-              )}
-              {selectedPartner.status === 'Inactive' && (
-                <button
-                  className="admin-btn admin-btn-success"
-                  style={{ flex: 1 }}
-                  onClick={() => { setSelectedPartner(null); openLock(selectedPartner.partnerId, 'UNLOCK') }}
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>lock_open</span>
-                  Mở khóa đối tác
-                </button>
-              )}
-              <button
-                className="admin-btn admin-btn-ghost"
-                style={{ flex: 1 }}
-                onClick={() => { setSelectedPartner(null); navigate(`/partners/${selectedPartner.partnerId}/branches`) }}
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>store</span>
-                Xem chi nhánh
-              </button>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Lock/Unlock Modal */}
-      {showLockModal && lockTarget && (
-        <>
-          <div className="side-panel-overlay" onClick={() => { setShowLockModal(false); setLockTarget(null) }} />
-          <div className="side-panel" style={{ width: '28rem' }}>
-            <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--color-outline-variant)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 className="font-headline-md" style={{ fontSize: '1.25rem' }}>
-                {lockTarget.action === 'LOCK' ? 'Khóa đối tác' : 'Mở khóa đối tác'}
-              </h3>
-              <button onClick={() => { setShowLockModal(false); setLockTarget(null) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-on-surface-variant)' }}>
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
-
-            <div style={{ padding: '1.5rem', flex: 1 }}>
-              {lockTarget.action === 'LOCK' ? (
-                <div style={{ padding: '0.75rem', background: 'var(--color-error-container, #fee2e2)', borderRadius: '0.5rem', marginBottom: '1rem' }}>
-                  <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)' }}>
-                    ⚠️ Khóa đối tác sẽ đồng thời:
-                    <br />• Khóa tất cả <strong>chi nhánh</strong> thuộc đối tác này
-                    <br />• Khóa tất cả tài khoản <strong>nhân viên Cashier</strong> của đối tác
-                    <br />• Khách hàng <strong>không thể mua</strong> voucher của đối tác này
-                  </p>
-                </div>
-              ) : (
-                <div style={{ padding: '0.75rem', background: 'var(--color-primary-container, #c9e6ff)', borderRadius: '0.5rem', marginBottom: '1rem' }}>
-                  <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)' }}>
-                    🔓 Mở khóa sẽ đồng thời:
-                    <br />• Mở khóa tất cả <strong>chi nhánh</strong>
-                    <br />• Mở khóa tất cả tài khoản <strong>nhân viên Cashier</strong>
-                    <br />• Đối tác quay lại hoạt động bình thường
-                  </p>
-                </div>
-              )}
-
-              <div>
-                <label className="font-label-sm" style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--color-on-surface-variant)' }}>
-                  Lý do <span style={{ color: 'var(--color-error-danger)' }}>*</span>
-                </label>
-                <textarea
-                  className="admin-input"
-                  style={{ resize: 'vertical', minHeight: '100px', width: '100%' }}
-                  placeholder={lockTarget.action === 'LOCK' ? 'Nhập lý do khóa đối tác...' : 'Nhập lý do mở khóa đối tác...'}
-                  value={lockReason}
-                  onChange={(e) => setLockReason(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div style={{ padding: '1.5rem', borderTop: '1px solid var(--color-outline-variant)', display: 'flex', gap: '0.75rem' }}>
-              <button
-                className="admin-btn admin-btn-ghost"
-                style={{ flex: 1 }}
-                onClick={() => { setShowLockModal(false); setLockTarget(null) }}
-              >
-                Hủy
-              </button>
-              <button
-                className={`admin-btn ${lockTarget.action === 'LOCK' ? 'admin-btn-danger' : 'admin-btn-success'}`}
-                style={{ flex: 2 }}
-                onClick={handleLock}
-                disabled={!lockReason.trim() || isLocking}
-              >
-                {isLocking
-                  ? 'Đang xử lý...'
-                  : `Xác nhận ${lockTarget.action === 'LOCK' ? 'khóa' : 'mở khóa'}`}
-              </button>
-            </div>
-          </div>
-        </>
-      )}
     </div>
   )
 }

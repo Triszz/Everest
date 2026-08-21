@@ -34,6 +34,7 @@ interface KPICardProps {
   loading?: boolean;
   format?: "number" | "currency" | "percent";
   color?: string;
+  style?: React.CSSProperties;
 }
 
 function formatValue(val: string | number, fmt: KPICardProps["format"]): string {
@@ -53,6 +54,7 @@ function formatValue(val: string | number, fmt: KPICardProps["format"]): string 
 export function KPICard({
   title, value, subtitle, icon, iconBg,
   loading = false, format = "number", color = REPORT_COLORS.primary,
+  style: outerStyle,
 }: KPICardProps) {
   if (loading) {
     return (
@@ -60,6 +62,7 @@ export function KPICard({
         background: 'white', borderRadius: 16, padding: 20,
         border: '1px solid #F1F5F9', minHeight: 96,
         display: 'flex', alignItems: 'center', gap: 12,
+        ...outerStyle,
       }}>
         <div style={{
           width: 44, height: 44, borderRadius: 12,
@@ -78,6 +81,7 @@ export function KPICard({
       background: 'white', borderRadius: 16, padding: 20,
       border: '1px solid #F1F5F9', boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
       transition: 'all 0.25s ease',
+      ...outerStyle,
     }}
     onMouseEnter={e => {
       const el = e.currentTarget as HTMLDivElement;

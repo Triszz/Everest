@@ -55,6 +55,7 @@ import {
   getOrderByIdSchema,
   cancelOrderSchema,
   refundOrderSchema,
+  markOrderPaidSchema,
   listAuditLogsSchema,
 } from "./admin.schemas";
 
@@ -140,8 +141,8 @@ export const adminController = {
     const input = parseBody(togglePartnerLockSchema, req.body);
     const result = await adminService.togglePartnerLock(partnerId, input);
     const msg = input.locked
-      ? `Đã khóa đối tác (${result.affected.branches} chi nhánh, ${result.affected.cashiers} nhân viên)`
-      : `Đã mở khóa đối tác (${result.affected.branches} chi nhánh, ${result.affected.cashiers} nhân viên)`;
+      ? `Đã khóa đối tác (${result.affected.branches} chi nhánh)`
+      : `Đã mở khóa đối tác (${result.affected.branches} chi nhánh)`;
     res.json({ success: true, data: result, message: msg });
   }),
 
@@ -510,6 +511,13 @@ export const adminController = {
       data,
       message: `Đã ghi nhận hoàn tiền (giả lập) ${input.amount?.toLocaleString('vi-VN') ?? ''}đ`,
     });
+  }),
+
+  markOrderPaid: asyncHandler(async (req: Request, res: Response) => {
+    const { orderId } = parseQuery(getOrderByIdSchema, req.params);
+    parseBody(markOrderPaidSchema, req.body);
+    const data = await adminService.markOrderPaid(orderId);
+    res.json({ success: true, data, message: "Đã ghi nhận thanh toán" });
   }),
 
   // ─── Audit Logs ──────────────────────────────────────────────────────

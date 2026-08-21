@@ -233,10 +233,14 @@ export default function Branches() {
     ? partners.find((p) => p.partnerId === partnerId)?.companyName ?? `Partner #${partnerId}`
     : null;
 
+  const isParentLocked = isSinglePartnerMode
+    ? partners.find((p) => p.partnerId === partnerId)?.isLocked ?? false
+    : false;
+
   useEffect(() => {
     const isLocked = lockFilter === 'active' ? false : lockFilter === 'locked' ? true : undefined;
-    fetchBranches(1, { search, isLocked, partnerId });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetchBranches(1, { search: '', isLocked, partnerId });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [partnerId]);
 
   const handleSearch = () => {
@@ -250,12 +254,30 @@ export default function Branches() {
     fetchBranches(1, { search, isLocked, partnerId });
   };
 
+  const handleToggleLockFromList = async (branchPartnerId: number, branchId: number, currentLocked: boolean) => {
+    try {
+      if (!currentLocked && isSinglePartnerMode && isParentLocked) {
+        showToast('Partner đang bị khóa', 'error');
+        return;
+      }
+      await toggleBranchLock(branchPartnerId, branchId, !currentLocked);
+      showToast(currentLocked ? 'Đã mở khóa chi nhánh' : 'Đã khóa chi nhánh', 'success');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Lỗi khi khóa/mở khóa';
+      showToast(msg, 'error');
+    }
+  };
+
   const openDetail = async (branchId: number) => {
     await fetchBranchDetail(branchId);
   };
 
   const handleLock = async (locked: boolean) => {
     if (!selectedBranch) return;
+    if (!locked && isSinglePartnerMode && isParentLocked) {
+      showToast('Partner đang bị khóa', 'error');
+      return;
+    }
     try {
       await toggleBranchLock(selectedBranch.partnerId, selectedBranch.branchId, locked);
       showToast(locked ? 'Đã khóa chi nhánh' : 'Đã mở khóa chi nhánh', 'success');
@@ -363,132 +385,124 @@ export default function Branches() {
       </div>
 
       {/* Filters */}
-      <div className="admin-card" style={{ padding: '1rem', marginBottom: '1rem' }}>
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
-          <div style={{ position: 'relative', flex: 1, minWidth: 250 }}>
-            <span className="material-symbols-outlined" style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-on-surface-variant)', fontSize: '18px' }}>search</span>
-            <input
+      {!isSinglePartnerMode && (
+        <div className="admin-card" style={{ padding: '1rem', marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ position: 'relative', flex: 1, minWidth: 250 }}>
+              <span className="material-symbols-outlined" style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-on-surface-variant)', fontSize: '18px' }}>search</span>
+              <input
+                className="admin-input"
+                style={{ paddingLeft: '2.5rem', width: '100%' }}
+                placeholder="Tìm chi nhánh, địa chỉ, đối tác..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
+              />
+            </div>
+            <select
               className="admin-input"
-              style={{ paddingLeft: '2.5rem', width: '100%' }}
-              placeholder="Tìm chi nhánh, địa chỉ, đối tác..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
-            />
+              style={{ width: 'auto', minWidth: '160px' }}
+              value={lockFilter}
+              onChange={(e) => handleLockFilter(e.target.value as 'all' | 'active' | 'locked')}
+            >
+              <option value="all">Tất cả</option>
+              <option value="active">Đang hoạt động</option>
+              <option value="locked">Bị khóa</option>
+            </select>
+            <button className="admin-btn admin-btn-primary" onClick={handleSearch}>
+              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>filter_list</span>
+              Lọc
+            </button>
+            <button className="admin-btn admin-btn-ghost" onClick={() => { setSearch(''); resetFilters(); }}>
+              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>restart_alt</span>
+            </button>
           </div>
-          <select
-            className="admin-input"
-            style={{ width: 'auto', minWidth: '160px' }}
-            value={lockFilter}
-            onChange={(e) => handleLockFilter(e.target.value as 'all' | 'active' | 'locked')}
-          >
-            <option value="all">Tất cả</option>
-            <option value="active">Đang hoạt động</option>
-            <option value="locked">Bị khóa</option>
-          </select>
-          <button className="admin-btn admin-btn-primary" onClick={handleSearch}>
-            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>filter_list</span>
-            Lọc
-          </button>
-          <button className="admin-btn admin-btn-ghost" onClick={() => { setSearch(''); resetFilters(); }}>
-            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>restart_alt</span>
-          </button>
         </div>
-      </div>
+      )}
 
       {/* Table */}
       <div className="admin-card" style={{ overflow: 'hidden' }}>
         {isLoading ? (
           <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--color-on-surface-variant)' }}>Đang tải...</div>
-        ) : error ? (
-          <div style={{ padding: '1.5rem', color: 'var(--color-error)' }}>{error}</div>
-        ) : branches.length === 0 ? (
-          <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--color-on-surface-variant)' }}>
-            {isSinglePartnerMode ? 'Chưa có chi nhánh nào cho đối tác này.' : 'Chưa có chi nhánh nào.'}
-          </div>
-        ) : (
-          <table className="admin-table">
-            <thead>
-              <tr>
-                {isSinglePartnerMode ? null : <th>Đối tác</th>}
-                <th>Tên chi nhánh</th>
-                <th>Địa chỉ</th>
-                <th>SĐT</th>
-                <th>Trạng thái</th>
-                <th>Ngày tạo</th>
-                <th style={{ textAlign: 'right' }}>Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              {branches.map((branch) => (
-                <tr key={branch.branchId}>
-                  {isSinglePartnerMode ? null : (
-                    <td>
-                      <span className="font-body-sm" style={{ fontWeight: 600 }}>{branch.partner?.companyName ?? `P#${branch.partnerId}`}</span>
-                    </td>
-                  )}
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <div style={{
-                        width: '2rem', height: '2rem', borderRadius: '0.375rem',
-                        background: 'var(--color-secondary-container)',
-                        color: 'var(--color-on-secondary-container)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontWeight: 700, fontSize: '0.75rem', flexShrink: 0,
-                      }}>
-                        {branch.branchName[0]}
-                      </div>
-                      <span className="font-body-sm" style={{ fontWeight: 600 }}>{branch.branchName}</span>
-                    </div>
-                  </td>
-                  <td><span className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)' }}>{branch.address}</span></td>
-                  <td><span className="font-label-sm">{branch.phoneNumber ?? '—'}</span></td>
-                  <td>
-                    <span className={`badge ${branch.isLocked ? 'badge-locked' : 'badge-active'}`}>
-                      {branch.isLocked ? 'Đã khóa' : 'Hoạt động'}
-                    </span>
-                  </td>
-                  <td><span className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)' }}>{fmtDate(branch.createdAt)}</span></td>
-                  <td>
-                    <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'flex-end' }}>
-                      <button
-                        className="admin-btn admin-btn-ghost"
-                        style={{ padding: '0.25rem', fontSize: '0.7rem' }}
-                        onClick={() => openDetail(branch.branchId)}
-                        title="Xem chi tiết"
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>visibility</span>
-                      </button>
-                      <button
-                        className={`admin-btn ${branch.isLocked ? 'admin-btn-success' : 'admin-btn-ghost'}`}
-                        style={{ padding: '0.25rem', fontSize: '0.7rem' }}
-                        onClick={() => toggleBranchLock(branch.partnerId, branch.branchId, !branch.isLocked)}
-                        disabled={isSaving}
-                        title={branch.isLocked ? 'Mở khóa' : 'Khóa'}
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>{branch.isLocked ? 'lock_open' : 'lock'}</span>
-                      </button>
-                    </div>
-                  </td>
+        )
+          : branches.length === 0 ? (
+            <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--color-on-surface-variant)' }}>
+              {isSinglePartnerMode ? 'Chưa có chi nhánh nào cho đối tác này.' : 'Chưa có chi nhánh nào.'}
+            </div>
+          ) : (
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  {isSinglePartnerMode ? null : <th>Đối tác</th>}
+                  <th>Tên chi nhánh</th>
+                  <th>Địa chỉ</th>
+                  <th>SĐT</th>
+                  <th>Trạng thái</th>
+                  <th>Ngày tạo</th>
+                  <th style={{ textAlign: 'right' }}>Thao tác</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+              </thead>
+              <tbody>
+                {branches.map((branch) => (
+                  <tr key={branch.branchId}>
+                    {isSinglePartnerMode ? null : (
+                      <td>
+                        <span className="font-body-sm" style={{ fontWeight: 600 }}>{branch.partner?.companyName ?? `P#${branch.partnerId}`}</span>
+                      </td>
+                    )}
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <div style={{
+                          width: '2rem', height: '2rem', borderRadius: '0.375rem',
+                          background: 'var(--color-secondary-container)',
+                          color: 'var(--color-on-secondary-container)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontWeight: 700, fontSize: '0.75rem', flexShrink: 0,
+                        }}>
+                          {branch.branchName[0]}
+                        </div>
+                        <span className="font-body-sm" style={{ fontWeight: 600 }}>{branch.branchName}</span>
+                      </div>
+                    </td>
+                    <td><span className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)' }}>{branch.address}</span></td>
+                    <td><span className="font-label-sm">{branch.phoneNumber ?? '—'}</span></td>
+                    <td>
+                      <span className={`badge ${branch.isLocked ? 'badge-locked' : 'badge-active'}`}>
+                        {branch.isLocked ? 'Đã khóa' : 'Hoạt động'}
+                      </span>
+                    </td>
+                    <td><span className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)' }}>{fmtDate(branch.createdAt)}</span></td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'flex-end' }}>
+                        {!isSinglePartnerMode && (
+                          <button
+                            className="admin-btn admin-btn-ghost"
+                            style={{ padding: '0.25rem', fontSize: '0.7rem' }}
+                            onClick={() => openDetail(branch.branchId)}
+                            title="Xem chi tiết"
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>visibility</span>
+                          </button>
+                        )}
+                        {!branch.isLocked && isSinglePartnerMode && isParentLocked ? null : (
+                          <button
+                            className={`admin-btn ${branch.isLocked ? 'admin-btn-success' : 'admin-btn-ghost'}`}
+                            style={{ padding: '0.25rem', fontSize: '0.7rem' }}
+                            onClick={() => handleToggleLockFromList(branch.partnerId, branch.branchId, branch.isLocked)}
+                            disabled={isSaving}
+                            title={branch.isLocked ? 'Mở khóa' : 'Khóa'}
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>{branch.isLocked ? 'lock_open' : 'lock'}</span>
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
       </div>
-
-      {/* Detail Panel */}
-      {selectedBranch && (
-        <BranchDetailPanel
-          branch={selectedBranch}
-          partnerId={selectedBranch.partnerId}
-          onClose={() => setSelectedBranch(null)}
-          onLock={handleLock}
-          onDelete={handleDelete}
-          onUpdate={handleUpdate}
-          isSaving={isSaving}
-        />
-      )}
 
       {/* Create Modal */}
       {showCreateModal && (

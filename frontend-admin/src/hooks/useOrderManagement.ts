@@ -9,6 +9,10 @@ import type { PaginatedList } from '../services/admin.service';
 export interface OrdersFilter {
   search: string;
   paymentStatus?: OrderPaymentStatus;
+  status?: OrderPaymentStatus | 'Refunded';
+  userId?: string;
+  fromDate?: string;
+  toDate?: string;
 }
 
 export interface CancelOrderPayload {
@@ -20,7 +24,7 @@ export interface RefundOrderPayload {
   amount?: number;
 }
 
-export function useOrderManagement() {
+export function useOrderManagement(userId?: string) {
   const [orders, setOrders] = useState<OrderResponse[]>([]);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
@@ -30,6 +34,7 @@ export function useOrderManagement() {
   const [filters, setFilters] = useState<OrdersFilter>({
     search: '',
     paymentStatus: undefined,
+    userId,
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -46,6 +51,10 @@ export function useOrderManagement() {
           limit,
           search: filters.search || undefined,
           paymentStatus: filters.paymentStatus,
+          status: filters.status,
+          userId: filters.userId,
+          fromDate: filters.fromDate || undefined,
+          toDate: filters.toDate || undefined,
         });
         setOrders(result.list);
         setTotal(result.total);
@@ -114,13 +123,27 @@ export function useOrderManagement() {
     [],
   );
 
+  const markOrderPaid = useCallback(async (orderId: number) => {
+    setIsSaving(true);
+    setError(null);
+    try {
+      const updated = await adminOrdersApi.markPaid(orderId);
+      setOrders((prev) => prev.map((order) => order.orderId === orderId
+        ? { ...order, paymentStatus: updated.paymentStatus, updatedAt: updated.updatedAt }
+        : order));
+      return updated;
+    } finally {
+      setIsSaving(false);
+    }
+  }, []);
+
   const updateFilters = useCallback((next: Partial<OrdersFilter>) => {
     setFilters((prev) => ({ ...prev, ...next }));
   }, []);
 
   const resetFilters = useCallback(() => {
-    setFilters({ search: '', paymentStatus: undefined });
-  }, []);
+    setFilters({ search: '', paymentStatus: undefined, status: undefined, userId });
+  }, [userId]);
 
   return {
     orders,
@@ -135,6 +158,7 @@ export function useOrderManagement() {
     fetchOrders,
     cancelOrder,
     refundOrder,
+    markOrderPaid,
     updateFilters,
     resetFilters,
   };

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { adminBranchesApi, type BranchResponse, type BranchDetailResponse } from '../services/admin.service';
 import type { PaginatedList } from '../services/admin.service';
 
@@ -8,6 +8,12 @@ export interface BranchFilters {
   partnerId?: number;
 }
 
+const DEFAULT_FILTERS: BranchFilters = {
+  search: '',
+  isLocked: undefined,
+  partnerId: undefined,
+};
+
 export function useBranchManagement() {
   const [branches, setBranches] = useState<BranchResponse[]>([]);
   const [selectedBranch, setSelectedBranch] = useState<BranchDetailResponse | null>(null);
@@ -16,11 +22,9 @@ export function useBranchManagement() {
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
-  const [filters, setFilters] = useState<BranchFilters>({
-    search: '',
-    isLocked: undefined,
-    partnerId: undefined,
-  });
+  const [filters, setFilters] = useState<BranchFilters>(DEFAULT_FILTERS);
+  const filtersRef = useRef<BranchFilters>(DEFAULT_FILTERS);
+  filtersRef.current = filters;
 
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -30,27 +34,32 @@ export function useBranchManagement() {
     async (targetPage = 1, overrideFilters?: Partial<BranchFilters>) => {
       setIsLoading(true);
       setError(null);
+      const effective = overrideFilters
+        ? { ...filtersRef.current, ...overrideFilters }
+        : filtersRef.current;
       try {
-        const mergedFilters = { ...filters, ...overrideFilters };
         const result: PaginatedList<BranchResponse> = await adminBranchesApi.listAll({
           page: targetPage,
           limit,
-          search: mergedFilters.search || undefined,
-          isLocked: mergedFilters.isLocked,
-          partnerId: mergedFilters.partnerId,
+          search: effective.search || undefined,
+          isLocked: effective.isLocked,
+          partnerId: effective.partnerId,
         });
         setBranches(result.list);
         setTotal(result.total);
         setPage(result.page);
         setLimit(result.limit);
         setTotalPages(result.totalPages);
+        if (overrideFilters) {
+          setFilters(effective);
+        }
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : 'Không thể tải danh sách chi nhánh.');
       } finally {
         setIsLoading(false);
       }
     },
-    [filters, limit],
+    [limit],
   );
 
   const fetchBranchDetail = useCallback(async (branchId: number) => {
@@ -140,7 +149,7 @@ export function useBranchManagement() {
   }, []);
 
   const resetFilters = useCallback(() => {
-    setFilters({ search: '', isLocked: undefined, partnerId: undefined });
+    setFilters(DEFAULT_FILTERS);
   }, []);
 
   return {

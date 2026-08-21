@@ -1,11 +1,22 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { adminPartnersApi } from '../services/admin.service';
 import type { PartnerResponse, PartnerStatus, PaginatedList } from '../services/admin.service';
 
+export type PartnerSearchField = 'companyName' | 'partnerId' | 'phoneNumber' | 'email';
+
 export interface PartnersFilter {
   search: string;
+  searchField: PartnerSearchField;
   status: PartnerStatus | '';
+  isLocked: '' | true | false;
 }
+
+const DEFAULT_FILTERS: PartnersFilter = {
+  search: '',
+  searchField: 'companyName',
+  status: '',
+  isLocked: '',
+};
 
 export function usePartnerManagement() {
   const [partners, setPartners] = useState<PartnerResponse[]>([]);
@@ -14,10 +25,9 @@ export function usePartnerManagement() {
   const [limit, setLimit] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
 
-  const [filters, setFilters] = useState<PartnersFilter>({
-    search: '',
-    status: '',
-  });
+  const [filters, setFilters] = useState<PartnersFilter>(DEFAULT_FILTERS);
+  const filtersRef = useRef<PartnersFilter>(DEFAULT_FILTERS);
+  filtersRef.current = filters;
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,15 +37,23 @@ export function usePartnerManagement() {
   const [isFetchingDetail, setIsFetchingDetail] = useState(false);
 
   // Fetch partners list with current page and filters
-  const fetchPartners = useCallback(async (targetPage = 1) => {
+  const fetchPartners = useCallback(async (
+    targetPage = 1,
+    overrides?: Partial<PartnersFilter>,
+  ) => {
     setIsLoading(true);
     setError(null);
+    const effective = overrides
+      ? { ...filtersRef.current, ...overrides }
+      : filtersRef.current;
     try {
       const apiParams = {
         page: targetPage,
         limit,
-        search: filters.search || undefined,
-        status: filters.status || undefined,
+        search: effective.search || undefined,
+        searchField: effective.searchField,
+        status: effective.status || undefined,
+        isLocked: effective.isLocked === '' ? undefined : effective.isLocked,
       };
 
       const result: PaginatedList<PartnerResponse> = await adminPartnersApi.list(apiParams);
@@ -44,13 +62,24 @@ export function usePartnerManagement() {
       setPage(result.page);
       setLimit(result.limit);
       setTotalPages(result.totalPages);
+      // Only sync filters state when overrides were provided so the filter inputs
+      // mirror the most recent search. Avoid writing back the same object on the
+      // auto-fetch useEffect, which would cause infinite re-renders.
+      if (overrides) {
+        setFilters(effective);
+      }
     } catch (err: any) {
       console.error('Failed to fetch partners:', err);
       setError(err.message || 'Không thể tải danh sách đối tác. Vui lòng thử lại.');
     } finally {
       setIsLoading(false);
     }
-  }, [filters, limit]);
+  }, [limit]);
+
+  // Auto-fetch list on mount only (no filter dependency to avoid loops).
+  useEffect(() => {
+    fetchPartners(1);
+  }, [fetchPartners]);
 
   // Fetch partner detail by ID
   const fetchPartnerDetail = useCallback(async (partnerId: number) => {
@@ -74,7 +103,7 @@ export function usePartnerManagement() {
     setError(null);
     try {
       const updatedPartner = await adminPartnersApi.approve(partnerId, note ? { note } : undefined);
-      
+
       // Update local state list
       setPartners((prevPartners) =>
         prevPartners.map((p) => (p.partnerId === partnerId ? updatedPartner : p))
@@ -149,16 +178,8 @@ export function usePartnerManagement() {
 
   // Reset filters
   const resetFilters = useCallback(() => {
-    setFilters({
-      search: '',
-      status: '',
-    });
+    setFilters(DEFAULT_FILTERS);
   }, []);
-
-  // Auto-fetch list when filters or page parameters trigger (initial load)
-  useEffect(() => {
-    fetchPartners(1);
-  }, [fetchPartners]);
 
   return {
     partners,
