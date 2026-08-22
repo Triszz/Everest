@@ -6,6 +6,10 @@
  * - Checkout: đánh dấu Paid + trừ tồn kho + phát hành voucher code
  * - Hủy đơn (chỉ khi Pending hoặc restore stock nếu đã Paid)
  * - Xem danh sách + chi tiết đơn
+ *
+ * Concurrency handling:
+ * - Optimistic locking: sử dụng version field
+ * - Idempotency: sử dụng idempotency key để tránh duplicate operations
  */
 import { prisma } from "../../../config/prisma";
 import { AppError } from "../../../middlewares/errorHandler";
@@ -14,6 +18,7 @@ import { notificationsService } from "../notifications/notifications.service";
 import type { CreateOrderInput, CheckoutInput } from "./orders.schemas";
 import { buildPagination } from "../shared";
 import { generateUniqueVoucherCode } from "../../../shared/utils/voucher-code";
+import { withIdempotency } from "../shared/idempotency.service";
 
 const ORDER_ITEM_SELECT = {
   orderItemId: true,
@@ -38,8 +43,38 @@ export const ordersService = {
    * Tạo đơn hàng mới ở trạng thái Pending.
    * Validate: voucher tồn tại + đã duyệt + trong thời gian bán + đủ tồn kho.
    * KHÔNG trừ tồn kho ở bước này (chờ checkout).
+   *
+   * @param customerId Customer ID
+   * @param input Order input
+   * @param idempotencyKey Optional idempotency key to prevent duplicate orders
+   * @returns Created order
    */
-  async createOrder(customerId: string, input: CreateOrderInput) {
+  async createOrder(customerId: string, input: CreateOrderInput, idempotencyKey?: string) {
+    // Nếu có idempotency key, check xem đã có order chưa
+    if (idempotencyKey) {
+      const { id, response, isCached } = await withIdempotency(
+        idempotencyKey,
+        "order",
+        async () => {
+          const order = await this._doCreateOrder(customerId, input);
+          return { id: order.orderId, response: order };
+        }
+      );
+
+      if (isCached) {
+        return response;
+      }
+      return response;
+    }
+
+    // Không có idempotency key, tạo order bình thường
+    return this._doCreateOrder(customerId, input);
+  },
+
+  /**
+   * Internal: Thực hiện tạo order (không có idempotency check).
+   */
+  async _doCreateOrder(customerId: string, input: CreateOrderInput) {
     const { buyerInfo, items, sendAsGift, receiverEmail, giftMessage } = input;
 
     if (items.length === 0) {
@@ -154,8 +189,47 @@ export const ordersService = {
    * Thanh toán đơn (mô phỏng):
    * - Double-check tồn kho tại thời điểm thanh toán
    * - Trong transaction: mark Paid → trừ tồn kho → phát hành voucher codes
+   *
+   * @param customerId Customer ID
+   * @param orderId Order ID
+   * @param input Checkout input
+   * @param idempotencyKey Optional idempotency key
+   * @param expectedVersion Expected version for optimistic locking
    */
-  async checkoutOrder(customerId: string, orderId: number, input: CheckoutInput) {
+  async checkoutOrder(
+    customerId: string,
+    orderId: number,
+    input: CheckoutInput,
+    idempotencyKey?: string,
+    expectedVersion?: number,
+  ) {
+    const { paymentMethod } = input;
+
+    // Idempotency check for checkout
+    if (idempotencyKey) {
+      const cached = await withIdempotency(
+        idempotencyKey,
+        "checkout",
+        async () => {
+          const result = await this._doCheckoutOrder(customerId, orderId, input, expectedVersion);
+          return { id: orderId, response: result };
+        }
+      );
+      return cached.response;
+    }
+
+    return this._doCheckoutOrder(customerId, orderId, input, expectedVersion);
+  },
+
+  /**
+   * Internal: Thực hiện checkout với optimistic locking.
+   */
+  async _doCheckoutOrder(
+    customerId: string,
+    orderId: number,
+    input: CheckoutInput,
+    expectedVersion?: number,
+  ) {
     const { paymentMethod } = input;
 
     const order = await prisma.order.findFirst({
@@ -201,12 +275,39 @@ export const ordersService = {
     }
 
     // Transaction: pay + decrement stock + issue voucher codes (RB-05)
+    // Optimistic locking: use version check to prevent concurrent updates
     const result = await prisma.$transaction(async (tx) => {
-      const updatedOrder = await tx.order.update({
-        where: { orderId },
-        data: { paymentStatus: "Paid", paymentMethod },
-        include: { orderItems: true },
-      });
+      // Build where clause with version check if provided
+      const orderWhere: any = { orderId };
+      if (expectedVersion !== undefined) {
+        orderWhere.version = expectedVersion;
+      }
+
+      try {
+        const updatedOrder = await tx.order.update({
+          where: orderWhere,
+          data: {
+            paymentStatus: "Paid",
+            paymentMethod,
+            version: { increment: 1 },
+          },
+          include: { orderItems: true },
+        });
+
+        // If version mismatch, Prisma will throw P2025 (Record not found)
+        // which we catch and convert to a proper error
+        void updatedOrder; // suppress unused warning
+      } catch (error: any) {
+        if (error?.code === "P2025") {
+          // Record not found with version check → concurrent modification detected
+          throw new AppError(
+            "Đơn hàng đang được xử lý bởi tác vụ khác. Vui lòng thử lại sau.",
+            409,
+            "CONCURRENT_MODIFICATION",
+          );
+        }
+        throw error;
+      }
 
       // Trừ tồn kho
       for (const item of order.orderItems) {

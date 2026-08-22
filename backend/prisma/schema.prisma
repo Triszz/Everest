@@ -322,6 +322,7 @@ model Order {
   refundedBy    String?       @map("refunded_by") @db.Uuid
   refundReason  String?       @map("refund_reason")
   refundAmount  Decimal?      @map("refund_amount") @db.Decimal(12, 2)
+  version       Int           @default(1) @map("version") // Optimistic locking
   createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz
   updatedAt     DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
 
@@ -332,6 +333,21 @@ model Order {
   @@index([paymentStatus])
   @@index([createdAt])
   @@map("orders")
+}
+
+// Idempotency keys for preventing duplicate operations
+model IdempotencyKey {
+  keyId       Int       @id @default(autoincrement()) @map("key_id")
+  key         String    @unique @map("key") @db.VarChar(255)
+  entityType  String    @map("entity_type") @db.VarChar(50) // order, payment, etc.
+  entityId    Int?      @map("entity_id")
+  response    Json?     @map("response") // Cached response
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  expiresAt   DateTime  @map("expires_at") @db.Timestamptz // Auto-cleanup after expiration
+
+  @@index([key])
+  @@index([expiresAt])
+  @@map("idempotency_keys")
 }
 
 model OrderItem {
