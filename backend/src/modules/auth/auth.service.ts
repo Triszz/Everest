@@ -9,6 +9,7 @@ import type {
   RegisterPartnerInput,
 } from "./auth.schemas";
 import { emailOtpService } from "./email-otp.service";
+import { accountLockoutService } from "./account-lockout.service";
 
 const SALT_ROUNDS = 12;
 
@@ -228,13 +229,20 @@ async function buildPayload(
 
 export const authService = {
   async login(input: LoginInput) {
+    // 1. Check account lockout trước khi kiểm tra password
+    await accountLockoutService.checkLockout(input.email);
+
     const user = await prisma.user.findUnique({
       where: { email: input.email },
     });
 
     if (!user || !user.passwordHash) {
+      // Ghi nhận failed attempt ngay cả khi email không tồn tại
+      await accountLockoutService.recordFailedAttempt(input.email);
       throw new AppError("Email hoặc mật khẩu không đúng", 401, "UNAUTHORIZED");
     }
+
+    // Kiểm tra account status
     if (user.status !== "Active") {
       throw new AppError("Tài khoản đã bị khóa", 403, "FORBIDDEN");
     }
@@ -250,12 +258,33 @@ export const authService = {
     }
 
     const valid = await bcrypt.compare(input.password, user.passwordHash);
-    if (!valid)
-      throw new AppError("Email hoặc mật khẩu không đúng", 401, "UNAUTHORIZED");
+    if (!valid) {
+      // Ghi nhận failed attempt
+      const lockoutStatus = await accountLockoutService.recordFailedAttempt(input.email);
 
-        // Nếu Partner_Owner: partner status phải Approved
+      if (lockoutStatus.isLocked) {
+        const remainingMinutes = Math.ceil(
+          (lockoutStatus.lockoutUntil!.getTime() - Date.now()) / 60000,
+        );
+        throw new AppError(
+          `Tài khoản đã bị khóa tạm thời do đăng nhập thất bại nhiều lần. Vui lòng thử lại sau ${remainingMinutes} phút.`,
+          423,
+          "ACCOUNT_LOCKED",
+        );
+      }
+
+      throw new AppError(
+        `Email hoặc mật khẩu không đúng. Còn ${lockoutStatus.attemptsRemaining} lần thử.`,
+        401,
+        "UNAUTHORIZED",
+      );
+    }
+
+    // Đăng nhập thành công → reset failed attempts
+    await accountLockoutService.recordSuccessfulLogin(input.email);
+
+    // Nếu Partner_Owner: partner status phải Approved
     const partnerAccess = await assertPartnerAccess(user);
-
 
     const session = await prisma.userSession.create({
       data: {
@@ -265,10 +294,10 @@ export const authService = {
     });
 
     const payload = await buildPayload(
-  user,
-  session.sessionId,
-  partnerAccess.branchId,
-);
+      user,
+      session.sessionId,
+      partnerAccess.branchId,
+    );
 
     return {
       accessToken: signAccessToken(payload),

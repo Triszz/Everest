@@ -18,7 +18,7 @@ import { notificationsService } from "../notifications/notifications.service";
 import type { CreateOrderInput, CheckoutInput } from "./orders.schemas";
 import { buildPagination } from "../shared";
 import { generateUniqueVoucherCode } from "../../../shared/utils/voucher-code";
-import { withIdempotency } from "../shared/idempotency.service";
+import { withIdempotency } from "../../shared/idempotency.service";
 
 const ORDER_ITEM_SELECT = {
   orderItemId: true,
