@@ -92,7 +92,6 @@ enum VoucherUsageStatus {
 
 enum AuditActorType {
   ADMIN
-  SYSTEM
   CUSTOMER
   PARTNER
 
@@ -110,9 +109,6 @@ enum AuditTargetType {
   POPUP
   POST
   ORDER
-  ADMIN
-  ISSUED_VOUCHER
-
   @@map("audit_target_type")
 }
 

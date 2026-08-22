@@ -1,0 +1,48 @@
+export const AuditAction = {
+  // --- Order ---
+  CREATE_ORDER: "CREATE_ORDER",
+  CHECKOUT_ORDER: "CHECKOUT_ORDER",
+  CANCEL_ORDER: "CANCEL_ORDER",
+  REFUND_ORDER: "REFUND_ORDER",
+  MARK_ORDER_PAID: "MARK_ORDER_PAID",
+
+  // --- Voucher ---
+  CREATE_VOUCHER: "CREATE_VOUCHER",
+  SUBMIT_VOUCHER: "SUBMIT_VOUCHER",
+  APPROVE_VOUCHER: "APPROVE_VOUCHER",
+  REJECT_VOUCHER: "REJECT_VOUCHER",
+  SET_VOUCHER_DISPLAY: "SET_VOUCHER_DISPLAY",
+  UPDATE_VOUCHER_DATES: "UPDATE_VOUCHER_DATES",
+  EXPIRE_VOUCHER: "EXPIRE_VOUCHER",
+
+  // --- Branch ---
+  CREATE_BRANCH: "CREATE_BRANCH",
+  LOCK_BRANCH: "LOCK_BRANCH",
+
+  // --- Partner ---
+  APPROVE_PARTNER: "APPROVE_PARTNER",
+  REJECT_PARTNER: "REJECT_PARTNER",
+  LOCK_PARTNER: "LOCK_PARTNER",
+
+  // --- User ---
+  UPDATE_USER_STATUS: "UPDATE_USER_STATUS",
+  UPDATE_USER_ROLE: "UPDATE_USER_ROLE",
+
+  // --- Partner actions (same as above, actorType distinguishes) ---
+  UPDATE_BRANCH: "UPDATE_BRANCH",
+} as const;
+
+export type AuditActionType = (typeof AuditAction)[keyof typeof AuditAction];
+
+export const AuditTarget = {
+  USER: "USER",
+  PARTNER: "PARTNER",
+  BRANCH: "BRANCH",
+  CATEGORY: "CATEGORY",
+  VOUCHER: "VOUCHER",
+  POLICY: "POLICY",
+  BANNER: "BANNER",
+  POPUP: "POPUP",
+  POST: "POST",
+  ORDER: "ORDER",
+} as const;

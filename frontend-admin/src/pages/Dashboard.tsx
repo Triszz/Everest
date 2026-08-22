@@ -26,7 +26,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
         <p style={{ fontWeight: 600, marginBottom: '0.25rem' }}>{label}</p>
         {payload.map((p: any) => (
           <p key={p.dataKey} style={{ color: p.color }}>
-            {p.name}: {p.value}
+            {p.name}: {p.value.toLocaleString()}
           </p>
         ))}
       </div>
@@ -46,7 +46,7 @@ export default function Dashboard() {
   const [data, setData] = useState<DashboardResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-
+  console.log(data)
   useEffect(() => {
     let mounted = true
     setLoading(true)
@@ -193,9 +193,9 @@ export default function Dashboard() {
             <BarChart data={revenueChart}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-outline-variant)" />
               <XAxis dataKey="month" tick={{ fontSize: 12, fill: 'var(--color-on-surface-variant)' }} />
-              <YAxis tick={{ fontSize: 12, fill: 'var(--color-on-surface-variant)' }} />
+              <YAxis tick={{ fontSize: 12, fill: 'var(--color-on-surface-variant)' }} tickFormatter={(v) => v.toLocaleString()} />
               <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="revenue" name="Doanh thu (B đ)" fill="#005c86" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="revenue" name="Doanh thu (đ)" fill="#005c86" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -210,7 +210,7 @@ export default function Dashboard() {
             <BarChart data={ordersChart}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-outline-variant)" />
               <XAxis dataKey="month" tick={{ fontSize: 12, fill: 'var(--color-on-surface-variant)' }} />
-              <YAxis tick={{ fontSize: 12, fill: 'var(--color-on-surface-variant)' }} />
+              <YAxis tick={{ fontSize: 12, fill: 'var(--color-on-surface-variant)' }} tickFormatter={(v) => v.toLocaleString()} />
               <Tooltip content={<CustomTooltip />} />
               <Bar dataKey="orders" name="Đơn hàng" fill="#10B981" radius={[4, 4, 0, 0]} />
             </BarChart>
@@ -242,7 +242,7 @@ export default function Dashboard() {
           <BarChart data={userRegChart}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-outline-variant)" />
             <XAxis dataKey="month" tick={{ fontSize: 12, fill: 'var(--color-on-surface-variant)' }} />
-            <YAxis tick={{ fontSize: 12, fill: 'var(--color-on-surface-variant)' }} />
+            <YAxis tick={{ fontSize: 12, fill: 'var(--color-on-surface-variant)' }} tickFormatter={(v) => v.toLocaleString()} />
             <Tooltip content={<CustomTooltip />} />
             <Bar dataKey="users" name="Người dùng mới" fill="#3B82F6" radius={[4, 4, 0, 0]} />
           </BarChart>

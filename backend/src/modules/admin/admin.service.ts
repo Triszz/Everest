@@ -1,8 +1,10 @@
 import { prisma } from "../../config/prisma";
 import { AppError } from "../../middlewares/errorHandler";
-import type { AccountStatus, Role } from "../../shared/types";
-import type { UserRole, VoucherApprovalStatus } from "../../generated/prisma/enums";
+import type { AccountStatus, AuditActor, JwtPayload, Role } from "../../shared/types";
+import type { UserRole, VoucherApprovalStatus, AuditTargetType } from "../../generated/prisma/enums";
 import type { PartnerStatus } from "../../generated/prisma/enums";
+import { AuditAction, AuditTarget } from "../../shared/constants/audit";
+import { Prisma } from "../../generated/prisma/client";
 import type {
   ListUsersInput,
   UpdateUserStatusInput,
@@ -44,6 +46,27 @@ import type {
 } from "./admin.schemas";
 import type { BannerStatus, PostStatus, PopupStatus } from "../../generated/prisma/enums";
 import { buildPaginated, getPagination } from "../../shared/utils/paginate";
+
+function logAudit(tx: Prisma.TransactionClient, actor: AuditActor) {
+  return (params: {
+    action: (typeof AuditAction)[keyof typeof AuditAction];
+    targetType: AuditTargetType;
+    targetId: string;
+    description: string;
+    metadata?: Record<string, unknown>;
+  }) =>
+    tx.adminAuditLog.create({
+      data: {
+        action: params.action,
+        actorId: actor.userId,
+        actorType: "ADMIN",
+        targetType: params.targetType,
+        targetId: params.targetId,
+        description: params.description,
+        metadata: (params.metadata ?? {}) as Prisma.InputJsonValue,
+      },
+    });
+}
 
 export const adminService = {
   async listUsers(input: ListUsersInput) {
@@ -107,30 +130,47 @@ export const adminService = {
     return user;
   },
 
-  async updateUserStatus(userId: string, input: UpdateUserStatusInput) {
+  async updateUserStatus(userId: string, input: UpdateUserStatusInput, actor: AuditActor) {
     const user = await prisma.user.findUnique({ where: { userId } });
     if (!user) throw new AppError("Người dùng không tồn tại", 404, "NOT_FOUND");
     if (user.role === "Admin") {
       throw new AppError("Không thể thay đổi trạng thái tài khoản Admin", 403, "FORBIDDEN");
     }
 
-    const result = await prisma.user.update({
-      where: { userId },
-      data: { status: input.status as AccountStatus },
-      select: {
-        userId: true,
-        email: true,
-        fullName: true,
-        role: true,
-        status: true,
-        updatedAt: true,
-      },
+    const result = await prisma.$transaction(async (tx) => {
+      const updated = await tx.user.update({
+        where: { userId },
+        data: { status: input.status as AccountStatus },
+        select: {
+          userId: true,
+          email: true,
+          fullName: true,
+          role: true,
+          status: true,
+          updatedAt: true,
+        },
+      });
+
+      await logAudit(tx, actor)({
+        action: AuditAction.UPDATE_USER_STATUS,
+        targetType: AuditTarget.USER,
+        targetId: userId,
+        description: `Admin ${actor.userId} đổi trạng thái user ${userId} (${user.email}) thành ${input.status}`,
+        metadata: {
+          userId,
+          email: user.email,
+          oldStatus: user.status,
+          newStatus: input.status,
+        },
+      });
+
+      return updated;
     });
 
     return result;
   },
 
-  async updateUserRole(userId: string, input: UpdateUserRoleInput, actorRole: Role) {
+  async updateUserRole(userId: string, input: UpdateUserRoleInput, actor: AuditActor) {
     const user = await prisma.user.findUnique({ where: { userId } });
     if (!user) throw new AppError("Người dùng không tồn tại", 404, "NOT_FOUND");
 
@@ -157,7 +197,7 @@ export const adminService = {
       Customer: 1,
       Admin: 3,
     };
-    if (rolePriority[input.role as UserRole] > rolePriority[actorRole as UserRole]) {
+    if (rolePriority[input.role as UserRole] > rolePriority[actor.role as UserRole]) {
       throw new AppError("Không thể phân quyền cao hơn vai trò của bạn", 403, "FORBIDDEN");
     }
 
@@ -172,18 +212,35 @@ export const adminService = {
       );
     }
 
-    const result = await prisma.user.update({
-      where: { userId },
-      data: { role: input.role as Role },
-      select: {
-        userId: true,
-        email: true,
-        fullName: true,
-        role: true,
-        status: true,
-        partnerId: true,
-        updatedAt: true,
-      },
+    const result = await prisma.$transaction(async (tx) => {
+      const updated = await tx.user.update({
+        where: { userId },
+        data: { role: input.role as Role },
+        select: {
+          userId: true,
+          email: true,
+          fullName: true,
+          role: true,
+          status: true,
+          partnerId: true,
+          updatedAt: true,
+        },
+      });
+
+      await logAudit(tx, actor)({
+        action: AuditAction.UPDATE_USER_ROLE,
+        targetType: AuditTarget.USER,
+        targetId: userId,
+        description: `Admin ${actor.userId} đổi role user ${userId} (${user.email}) từ ${user.role} → ${input.role}`,
+        metadata: {
+          userId,
+          email: user.email,
+          oldRole: user.role,
+          newRole: input.role,
+        },
+      });
+
+      return updated;
     });
 
     return result;
@@ -296,7 +353,7 @@ export const adminService = {
     return partner;
   },
 
-  async approvePartner(partnerId: number, input: ApprovePartnerInput) {
+  async approvePartner(partnerId: number, input: ApprovePartnerInput, actor: AuditActor) {
     const partner = await prisma.partner.findUnique({ where: { partnerId } });
     if (!partner) throw new AppError("Đối tác không tồn tại", 404, "NOT_FOUND");
     if (partner.status === "Approved") {
@@ -306,23 +363,39 @@ export const adminService = {
       throw new AppError("Đối tác đã bị từ chối. Không thể duyệt lại.", 400, "CANNOT_APPROVE_REJECTED");
     }
 
-    const result = await prisma.partner.update({
-      where: { partnerId },
-      data: { status: "Approved" },
-      select: {
-        partnerId: true,
-        companyName: true,
-        taxCode: true,
-        status: true,
-        isLocked: true,
-        updatedAt: true,
-      },
+    const result = await prisma.$transaction(async (tx) => {
+      const updated = await tx.partner.update({
+        where: { partnerId },
+        data: { status: "Approved" },
+        select: {
+          partnerId: true,
+          companyName: true,
+          taxCode: true,
+          status: true,
+          isLocked: true,
+          updatedAt: true,
+        },
+      });
+
+      await logAudit(tx, actor)({
+        action: AuditAction.APPROVE_PARTNER,
+        targetType: AuditTarget.PARTNER,
+        targetId: String(partnerId),
+        description: `Admin ${actor.userId} duyệt đối tác "${partner.companyName}" (#${partnerId})`,
+        metadata: {
+          partnerId,
+          companyName: partner.companyName,
+          taxCode: partner.taxCode,
+        },
+      });
+
+      return updated;
     });
 
     return result;
   },
 
-  async rejectPartner(partnerId: number, input: RejectPartnerInput) {
+  async rejectPartner(partnerId: number, input: RejectPartnerInput, actor: AuditActor) {
     const partner = await prisma.partner.findUnique({ where: { partnerId } });
     if (!partner) throw new AppError("Đối tác không tồn tại", 404, "NOT_FOUND");
     if (partner.status === "Rejected") {
@@ -332,23 +405,40 @@ export const adminService = {
       throw new AppError("Đối tác đã được duyệt. Không thể từ chối.", 400, "CANNOT_REJECT_APPROVED");
     }
 
-    const result = await prisma.partner.update({
-      where: { partnerId },
-      data: { status: "Rejected" },
-      select: {
-        partnerId: true,
-        companyName: true,
-        taxCode: true,
-        status: true,
-        isLocked: true,
-        updatedAt: true,
-      },
+    const result = await prisma.$transaction(async (tx) => {
+      const updated = await tx.partner.update({
+        where: { partnerId },
+        data: { status: "Rejected" },
+        select: {
+          partnerId: true,
+          companyName: true,
+          taxCode: true,
+          status: true,
+          isLocked: true,
+          updatedAt: true,
+        },
+      });
+
+      await logAudit(tx, actor)({
+        action: AuditAction.REJECT_PARTNER,
+        targetType: AuditTarget.PARTNER,
+        targetId: String(partnerId),
+        description: `Admin ${actor.userId} từ chối đối tác "${partner.companyName}" (#${partnerId}). Lý do: ${input.reason ?? "Không có"}`,
+        metadata: {
+          partnerId,
+          companyName: partner.companyName,
+          taxCode: partner.taxCode,
+          reason: input.reason,
+        },
+      });
+
+      return updated;
     });
 
     return result;
   },
 
-  async togglePartnerLock(partnerId: number, input: TogglePartnerLockInput) {
+  async togglePartnerLock(partnerId: number, input: TogglePartnerLockInput, actor: AuditActor) {
     const partner = await prisma.partner.findUnique({ where: { partnerId } });
     if (!partner) throw new AppError("Đối tác không tồn tại", 404, "NOT_FOUND");
 
@@ -374,6 +464,21 @@ export const adminService = {
           updatedAt: true,
         },
       });
+
+      await logAudit(tx, actor)({
+        action: AuditAction.LOCK_PARTNER,
+        targetType: AuditTarget.PARTNER,
+        targetId: String(partnerId),
+        description: `Admin ${actor.userId} ${newLocked ? "khóa" : "mở khóa"} đối tác "${partner.companyName}" (#${partnerId})`,
+        metadata: {
+          partnerId,
+          companyName: partner.companyName,
+          oldLocked: partner.isLocked,
+          newLocked,
+          affectedBranches: branchResult.count,
+        },
+      });
+
       return {
         partner: updated!,
         affected: { branches: branchResult.count, cashiers: 0 },
@@ -551,7 +656,7 @@ export const adminService = {
     return { branchId, deletedAt: new Date() };
   },
 
-  async toggleBranchLock(partnerId: number, branchId: number, input: ToggleBranchLockInput) {
+  async toggleBranchLock(partnerId: number, branchId: number, input: ToggleBranchLockInput, actor: AuditActor) {
     const branch = await prisma.branch.findUnique({ where: { branchId, partnerId } });
     if (!branch) throw new AppError("Chi nhánh không tồn tại", 404, "NOT_FOUND");
 
@@ -578,12 +683,26 @@ export const adminService = {
         },
       });
 
-      if (input.locked && branch.cashierId) {
+      if (input.locked && (branch as Record<string, unknown>).cashierId) {
         await tx.user.updateMany({
-          where: { userId: branch.cashierId },
+          where: { userId: (branch as Record<string, unknown>).cashierId as string },
           data: { status: "Banned" },
         });
       }
+
+      await logAudit(tx, actor)({
+        action: AuditAction.LOCK_BRANCH,
+        targetType: AuditTarget.BRANCH,
+        targetId: String(branchId),
+        description: `Admin ${actor.userId} ${input.locked ? "khóa" : "mở khóa"} chi nhánh "${branch.branchName}" (#${branchId})`,
+        metadata: {
+          branchId,
+          partnerId,
+          branchName: branch.branchName,
+          oldLocked: branch.isLocked,
+          newLocked: input.locked,
+        },
+      });
 
       return updated;
     });
@@ -727,10 +846,15 @@ export const adminService = {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = {};
     if (input.search) {
-      where.OR = [
-        { title: { contains: input.search, mode: "insensitive" } },
-        { description: { contains: input.search, mode: "insensitive" } },
-      ];
+      if (input.searchField === "voucherId") {
+        const id = Number(input.search);
+        if (!isNaN(id)) where.voucherId = id;
+      } else {
+        const term = input.search.trim();
+        where.OR = [
+          { title: { contains: term, mode: "insensitive" } },
+        ];
+      }
     }
     if (input.categoryId) where.categoryId = input.categoryId;
     if (input.partnerId) where.partnerId = input.partnerId;
@@ -804,7 +928,7 @@ export const adminService = {
     return voucher;
   },
 
-  async approveVoucher(voucherId: number, input: ApproveVoucherInput) {
+  async approveVoucher(voucherId: number, input: ApproveVoucherInput, actor: AuditActor) {
     const voucher = await prisma.voucher.findUnique({ where: { voucherId } });
     if (!voucher) throw new AppError("Voucher không tồn tại", 404, "NOT_FOUND");
     if (voucher.approvalStatus === "Approved") {
@@ -814,22 +938,37 @@ export const adminService = {
       throw new AppError("Voucher đã bị từ chối. Không thể duyệt lại.", 400, "CANNOT_APPROVE_REJECTED");
     }
 
-    const result = await prisma.voucher.update({
-      where: { voucherId },
-      data: { approvalStatus: "Approved" },
-      select: {
-        voucherId: true,
-        title: true,
-        approvalStatus: true,
-        displayStatus: true,
-        updatedAt: true,
-      },
+    const result = await prisma.$transaction(async (tx) => {
+      const updated = await tx.voucher.update({
+        where: { voucherId },
+        data: { approvalStatus: "Approved" },
+        select: {
+          voucherId: true,
+          title: true,
+          approvalStatus: true,
+          displayStatus: true,
+          updatedAt: true,
+        },
+      });
+
+      await logAudit(tx, actor)({
+        action: AuditAction.APPROVE_VOUCHER,
+        targetType: AuditTarget.VOUCHER,
+        targetId: String(voucherId),
+        description: `Admin ${actor.userId} duyệt voucher "${voucher.title}" (#${voucherId})`,
+        metadata: {
+          voucherId,
+          title: voucher.title,
+        },
+      });
+
+      return updated;
     });
 
     return result;
   },
 
-  async rejectVoucher(voucherId: number, input: RejectVoucherInput) {
+  async rejectVoucher(voucherId: number, input: RejectVoucherInput, actor: AuditActor) {
     const voucher = await prisma.voucher.findUnique({ where: { voucherId } });
     if (!voucher) throw new AppError("Voucher không tồn tại", 404, "NOT_FOUND");
     if (voucher.approvalStatus === "Rejected") {
@@ -839,16 +978,32 @@ export const adminService = {
       throw new AppError("Voucher đã được duyệt. Không thể từ chối.", 400, "CANNOT_REJECT_APPROVED");
     }
 
-    const result = await prisma.voucher.update({
-      where: { voucherId },
-      data: { approvalStatus: "Rejected" },
-      select: {
-        voucherId: true,
-        title: true,
-        approvalStatus: true,
-        displayStatus: true,
-        updatedAt: true,
-      },
+    const result = await prisma.$transaction(async (tx) => {
+      const updated = await tx.voucher.update({
+        where: { voucherId },
+        data: { approvalStatus: "Rejected" },
+        select: {
+          voucherId: true,
+          title: true,
+          approvalStatus: true,
+          displayStatus: true,
+          updatedAt: true,
+        },
+      });
+
+      await logAudit(tx, actor)({
+        action: AuditAction.REJECT_VOUCHER,
+        targetType: AuditTarget.VOUCHER,
+        targetId: String(voucherId),
+        description: `Admin ${actor.userId} từ chối voucher "${voucher.title}" (#${voucherId}). Lý do: ${input.reason ?? "Không có"}`,
+        metadata: {
+          voucherId,
+          title: voucher.title,
+          reason: input.reason,
+        },
+      });
+
+      return updated;
     });
 
     return result;
@@ -870,55 +1025,92 @@ export const adminService = {
   async setVoucherDisplayStatus(
     voucherId: number,
     input: { displayStatus: "Visible" | "Hidden" },
+    actor: AuditActor,
   ) {
     const voucher = await prisma.voucher.findUnique({ where: { voucherId } });
     if (!voucher) throw new AppError("Voucher không tồn tại", 404, "NOT_FOUND");
 
-    const result = await prisma.voucher.update({
-      where: { voucherId },
-      data: { displayStatus: input.displayStatus },
-      select: {
-        voucherId: true,
-        title: true,
-        approvalStatus: true,
-        displayStatus: true,
-        updatedAt: true,
-      },
+    const result = await prisma.$transaction(async (tx) => {
+      const updated = await tx.voucher.update({
+        where: { voucherId },
+        data: { displayStatus: input.displayStatus },
+        select: {
+          voucherId: true,
+          title: true,
+          approvalStatus: true,
+          displayStatus: true,
+          updatedAt: true,
+        },
+      });
+
+      await logAudit(tx, actor)({
+        action: AuditAction.SET_VOUCHER_DISPLAY,
+        targetType: AuditTarget.VOUCHER,
+        targetId: String(voucherId),
+        description: `Admin ${actor.userId} ${input.displayStatus === "Visible" ? "hiện" : "ẩn"} voucher "${voucher.title}" (#${voucherId})`,
+        metadata: {
+          voucherId,
+          title: voucher.title,
+          oldDisplayStatus: voucher.displayStatus,
+          newDisplayStatus: input.displayStatus,
+        },
+      });
+
+      return updated;
     });
 
     return result;
   },
 
-  async updateVoucherDates(voucherId: number, input: { endDate: Date }) {
+  async updateVoucherDates(voucherId: number, input: { endDate: Date }, actor: AuditActor) {
     const voucher = await prisma.voucher.findUnique({
       where: { voucherId },
-      select: { startDate: true },
+      select: { startDate: true, title: true, endDate: true },
     });
     if (!voucher) throw new AppError("Voucher không tồn tại", 404, "NOT_FOUND");
     if (input.endDate <= voucher.startDate) {
       throw new AppError("Ngày kết thúc phải lớn hơn ngày bắt đầu", 400, "INVALID_DATE_RANGE");
     }
 
-    return prisma.voucher.update({
-      where: { voucherId },
-      data: { endDate: input.endDate },
-      select: {
-        voucherId: true,
-        title: true,
-        startDate: true,
-        endDate: true,
-        approvalStatus: true,
-        displayStatus: true,
-        updatedAt: true,
-      },
+    const result = await prisma.$transaction(async (tx) => {
+      const updated = await tx.voucher.update({
+        where: { voucherId },
+        data: { endDate: input.endDate },
+        select: {
+          voucherId: true,
+          title: true,
+          startDate: true,
+          endDate: true,
+          approvalStatus: true,
+          displayStatus: true,
+          updatedAt: true,
+        },
+      });
+
+      await logAudit(tx, actor)({
+        action: AuditAction.UPDATE_VOUCHER_DATES,
+        targetType: AuditTarget.VOUCHER,
+        targetId: String(voucherId),
+        description: `Admin ${actor.userId} cập nhật ngày kết thúc voucher "${voucher.title}" (#${voucherId})`,
+        metadata: {
+          voucherId,
+          title: voucher.title,
+          oldEndDate: voucher.endDate?.toISOString(),
+          newEndDate: input.endDate.toISOString(),
+        },
+      });
+
+      return updated;
     });
+
+    return result;
   },
 
-  async expireVoucherNow(voucherId: number) {
+  async expireVoucherNow(voucherId: number, actor: AuditActor) {
     const now = new Date();
     const voucher = await prisma.voucher.findUnique({
       where: { voucherId },
-      select: { startDate: true },
+      select: { startDate: true, title: true, endDate: true },
     });
     if (!voucher) throw new AppError("Voucher không tồn tại", 404, "NOT_FOUND");
     if (now <= voucher.startDate) {
@@ -929,19 +1121,38 @@ export const adminService = {
       );
     }
 
-    return prisma.voucher.update({
-      where: { voucherId },
-      data: { endDate: now },
-      select: {
-        voucherId: true,
-        title: true,
-        startDate: true,
-        endDate: true,
-        approvalStatus: true,
-        displayStatus: true,
-        updatedAt: true,
-      },
+    const result = await prisma.$transaction(async (tx) => {
+      const updated = await tx.voucher.update({
+        where: { voucherId },
+        data: { endDate: now },
+        select: {
+          voucherId: true,
+          title: true,
+          startDate: true,
+          endDate: true,
+          approvalStatus: true,
+          displayStatus: true,
+          updatedAt: true,
+        },
+      });
+
+      await logAudit(tx, actor)({
+        action: AuditAction.EXPIRE_VOUCHER,
+        targetType: AuditTarget.VOUCHER,
+        targetId: String(voucherId),
+        description: `Admin ${actor.userId} force-expire voucher "${voucher.title}" (#${voucherId})`,
+        metadata: {
+          voucherId,
+          title: voucher.title,
+          oldEndDate: voucher.endDate?.toISOString(),
+          newEndDate: now.toISOString(),
+        },
+      });
+
+      return updated;
     });
+
+    return result;
   },
 
   // ─── Policy Management ───────────────────────────────────────────────────────
@@ -1588,7 +1799,7 @@ export const adminService = {
     return order;
   },
 
-  async cancelOrder(orderId: number, input: CancelOrderInput) {
+  async cancelOrder(orderId: number, input: CancelOrderInput, actor: AuditActor) {
     const order = await prisma.order.findUnique({
       where: { orderId },
       include: { orderItems: { include: { issuedVouchers: true } } },
@@ -1636,11 +1847,11 @@ export const adminService = {
         });
       }
 
-      return tx.order.update({
+      const updated = await tx.order.update({
         where: { orderId },
         data: {
           cancelledAt: now,
-          cancelledBy: undefined,
+          cancelledBy: actor.userId,
           cancelReason: input.reason,
         },
         select: {
@@ -1652,12 +1863,28 @@ export const adminService = {
           updatedAt: true,
         },
       });
+
+      await logAudit(tx, actor)({
+        action: AuditAction.CANCEL_ORDER,
+        targetType: AuditTarget.ORDER,
+        targetId: String(orderId),
+        description: `Admin ${actor.userId} hủy đơn hàng #${orderId}`,
+        metadata: {
+          orderId,
+          customerId: order.customerId,
+          totalAmount: order.totalAmount,
+          paymentStatus: order.paymentStatus,
+          reason: input.reason,
+        },
+      });
+
+      return updated;
     });
 
     return result;
   },
 
-  async refundOrder(orderId: number, input: RefundOrderInput) {
+  async refundOrder(orderId: number, input: RefundOrderInput, actor: AuditActor) {
     const order = await prisma.order.findUnique({ where: { orderId } });
     if (!order) throw new AppError("Đơn hàng không tồn tại", 404, "NOT_FOUND");
     if (!order.cancelledAt) {
@@ -1687,39 +1914,75 @@ export const adminService = {
       );
     }
 
-    const result = await prisma.order.update({
-      where: { orderId },
-      data: {
-        refundedAt: new Date(),
-        refundedBy: undefined,
-        refundReason: input.reason,
-        refundAmount,
-      },
-      select: {
-        orderId: true,
-        paymentStatus: true,
-        refundedAt: true,
-        refundedBy: true,
-        refundReason: true,
-        refundAmount: true,
-        updatedAt: true,
-      },
+    const result = await prisma.$transaction(async (tx) => {
+      const updated = await tx.order.update({
+        where: { orderId },
+        data: {
+          refundedAt: new Date(),
+          refundedBy: actor.userId,
+          refundReason: input.reason,
+          refundAmount,
+        },
+        select: {
+          orderId: true,
+          paymentStatus: true,
+          refundedAt: true,
+          refundedBy: true,
+          refundReason: true,
+          refundAmount: true,
+          updatedAt: true,
+        },
+      });
+
+      await logAudit(tx, actor)({
+        action: AuditAction.REFUND_ORDER,
+        targetType: AuditTarget.ORDER,
+        targetId: String(orderId),
+        description: `Admin ${actor.userId} hoàn tiền đơn hàng #${orderId} (${refundAmount.toLocaleString("vi-VN")}đ)`,
+        metadata: {
+          orderId,
+          customerId: order.customerId,
+          refundAmount,
+          refundReason: input.reason,
+        },
+      });
+
+      return updated;
     });
 
     return result;
   },
 
-  async markOrderPaid(orderId: number) {
+  async markOrderPaid(orderId: number, actor: AuditActor) {
     const order = await prisma.order.findUnique({ where: { orderId } });
     if (!order) throw new AppError("Đơn hàng không tồn tại", 404, "NOT_FOUND");
     if (order.cancelledAt || order.paymentStatus === "Cancelled" || order.refundedAt) {
       throw new AppError("Không thể ghi nhận thanh toán cho đơn đã hủy/hoàn tiền", 400, "ORDER_NOT_PAYABLE");
     }
-    return prisma.order.update({
-      where: { orderId },
-      data: { paymentStatus: "Paid" },
-      select: { orderId: true, paymentStatus: true, updatedAt: true },
+
+    const result = await prisma.$transaction(async (tx) => {
+      const updated = await tx.order.update({
+        where: { orderId },
+        data: { paymentStatus: "Paid" },
+        select: { orderId: true, paymentStatus: true, updatedAt: true },
+      });
+
+      await logAudit(tx, actor)({
+        action: AuditAction.MARK_ORDER_PAID,
+        targetType: AuditTarget.ORDER,
+        targetId: String(orderId),
+        description: `Admin ${actor.userId} đánh dấu đơn hàng #${orderId} là đã thanh toán (thủ công)`,
+        metadata: {
+          orderId,
+          customerId: order.customerId,
+          totalAmount: order.totalAmount,
+        },
+      });
+
+      return updated;
     });
+
+    return result;
   },
 
   // ─── Dashboard ──────────────────────────────────────────────────────────────
@@ -1754,6 +2017,7 @@ export const adminService = {
           COALESCE(SUM(o."total_amount"), 0)::bigint AS total
         FROM orders o
         WHERE o."created_at" >= ${startDate}
+          AND o."payment_status" = 'Paid'
           AND o."cancelled_at" IS NULL
           AND o."refunded_at" IS NULL
         GROUP BY year, month
@@ -1836,13 +2100,13 @@ export const adminService = {
     ) =>
       monthsAxis.map((slot) => {
         const match = rows.find(
-          (r) => Number(r.month) === Number(slot.month) && Number(r.year) === slot.year,
+          (r) => Number(r.month) === Number(slot.month) && Number(r.year) === Number(slot.year),
         );
         const raw = match ? Number(match.total) : 0;
         return { ...slot, value: divisor === 1 ? raw : Number((raw / divisor).toFixed(2)) };
       });
 
-    const revenueSeries = pickSeries(revenueByMonth, 1_000_000_000); // convert VND -> billion
+    const revenueSeries = pickSeries(revenueByMonth);
     const ordersSeries = pickSeries(ordersByMonth);
     const userRegSeries = pickSeries(userRegByMonth);
 
@@ -1929,8 +2193,6 @@ export const adminService = {
           targetType: true,
           targetId: true,
           description: true,
-          ipAddress: true,
-          userAgent: true,
           metadata: true,
           createdAt: true,
           actor: {
@@ -1960,8 +2222,6 @@ export const adminService = {
         targetType: l.targetType,
         targetId: l.targetId,
         description: l.description,
-        ipAddress: l.ipAddress,
-        userAgent: l.userAgent,
         metadata: l.metadata as Record<string, unknown> | null,
         createdAt: l.createdAt.toISOString(),
         actor: l.actor

@@ -97,14 +97,14 @@ export const adminController = {
   updateUserStatus: asyncHandler(async (req: Request, res: Response) => {
     const { userId } = parseQuery(getUserByIdSchema, req.params);
     const input = parseBody(updateUserStatusSchema, req.body);
-    const data = await adminService.updateUserStatus(userId, input);
+    const data = await adminService.updateUserStatus(userId, input, req.user!);
     res.json({ success: true, data, message: "Cập nhật trạng thái thành công" });
   }),
 
   updateUserRole: asyncHandler(async (req: Request, res: Response) => {
     const { userId } = parseQuery(getUserByIdSchema, req.params);
     const input = parseBody(updateUserRoleSchema, req.body);
-    const data = await adminService.updateUserRole(userId, input, req.user!.role);
+    const data = await adminService.updateUserRole(userId, input, req.user!);
     res.json({ success: true, data, message: "Phân quyền thành công" });
   }),
 
@@ -125,21 +125,21 @@ export const adminController = {
   approvePartner: asyncHandler(async (req: Request, res: Response) => {
     const { partnerId } = parseQuery(getPartnerByIdSchema, req.params);
     const input = parseBody(approvePartnerSchema, req.body);
-    const data = await adminService.approvePartner(partnerId, input);
+    const data = await adminService.approvePartner(partnerId, input, req.user!);
     res.json({ success: true, data, message: "Duyệt đối tác thành công" });
   }),
 
   rejectPartner: asyncHandler(async (req: Request, res: Response) => {
     const { partnerId } = parseQuery(getPartnerByIdSchema, req.params);
     const input = parseBody(rejectPartnerSchema, req.body);
-    const data = await adminService.rejectPartner(partnerId, input);
+    const data = await adminService.rejectPartner(partnerId, input, req.user!);
     res.json({ success: true, data, message: "Từ chối đối tác thành công" });
   }),
 
   togglePartnerLock: asyncHandler(async (req: Request, res: Response) => {
     const { partnerId } = parseQuery(getPartnerByIdSchema, req.params);
     const input = parseBody(togglePartnerLockSchema, req.body);
-    const result = await adminService.togglePartnerLock(partnerId, input);
+    const result = await adminService.togglePartnerLock(partnerId, input, req.user!);
     const msg = input.locked
       ? `Đã khóa đối tác (${result.affected.branches} chi nhánh)`
       : `Đã mở khóa đối tác (${result.affected.branches} chi nhánh)`;
@@ -184,7 +184,7 @@ export const adminController = {
   toggleBranchLock: asyncHandler(async (req: Request, res: Response) => {
     const { partnerId, branchId } = parseQuery(getBranchByIdSchema, req.params);
     const input = parseBody(toggleBranchLockSchema, req.body);
-    const data = await adminService.toggleBranchLock(partnerId, branchId, input);
+    const data = await adminService.toggleBranchLock(partnerId, branchId, input, req.user!);
     const msg = input.locked ? "Khóa chi nhánh thành công" : "Mở khóa chi nhánh thành công";
     res.json({ success: true, data, message: msg });
   }),
@@ -286,21 +286,21 @@ export const adminController = {
   approveVoucher: asyncHandler(async (req: Request, res: Response) => {
     const { voucherId } = parseQuery(getVoucherByIdSchema, req.params);
     const input = parseBody(approveVoucherSchema, req.body);
-    const data = await adminService.approveVoucher(voucherId, input);
+    const data = await adminService.approveVoucher(voucherId, input, req.user!);
     res.json({ success: true, data, message: "Duyệt voucher thành công" });
   }),
 
   rejectVoucher: asyncHandler(async (req: Request, res: Response) => {
     const { voucherId } = parseQuery(getVoucherByIdSchema, req.params);
     const input = parseBody(rejectVoucherSchema, req.body);
-    const data = await adminService.rejectVoucher(voucherId, input);
+    const data = await adminService.rejectVoucher(voucherId, input, req.user!);
     res.json({ success: true, data, message: "Từ chối voucher thành công" });
   }),
 
   setVoucherDisplayStatus: asyncHandler(async (req: Request, res: Response) => {
     const { voucherId } = parseQuery(getVoucherByIdSchema, req.params);
     const input = parseBody(toggleVoucherDisplaySchema, req.body);
-    const data = await adminService.setVoucherDisplayStatus(voucherId, input);
+    const data = await adminService.setVoucherDisplayStatus(voucherId, input, req.user!);
     const msg = input.displayStatus === "Visible" ? "Hiển thị voucher thành công" : "Ẩn voucher thành công";
     res.json({ success: true, data, message: msg });
   }),
@@ -308,13 +308,13 @@ export const adminController = {
   updateVoucherDates: asyncHandler(async (req: Request, res: Response) => {
     const { voucherId } = parseQuery(getVoucherByIdSchema, req.params);
     const input = parseBody(updateVoucherDatesSchema, req.body);
-    const data = await adminService.updateVoucherDates(voucherId, input);
+    const data = await adminService.updateVoucherDates(voucherId, input, req.user!);
     res.json({ success: true, data, message: "Cập nhật thời gian voucher thành công" });
   }),
 
   expireVoucherNow: asyncHandler(async (req: Request, res: Response) => {
     const { voucherId } = parseQuery(getVoucherByIdSchema, req.params);
-    const data = await adminService.expireVoucherNow(voucherId);
+    const data = await adminService.expireVoucherNow(voucherId, req.user!);
     res.json({ success: true, data, message: "Voucher đã được hết hạn" });
   }),
 
@@ -498,14 +498,14 @@ export const adminController = {
   cancelOrder: asyncHandler(async (req: Request, res: Response) => {
     const { orderId } = parseQuery(getOrderByIdSchema, req.params);
     const input = parseBody(cancelOrderSchema, req.body);
-    const data = await adminService.cancelOrder(orderId, input);
+    const data = await adminService.cancelOrder(orderId, input, req.user!);
     res.json({ success: true, data, message: "Đã hủy đơn hàng" });
   }),
 
   refundOrder: asyncHandler(async (req: Request, res: Response) => {
     const { orderId } = parseQuery(getOrderByIdSchema, req.params);
     const input = parseBody(refundOrderSchema, req.body);
-    const data = await adminService.refundOrder(orderId, input);
+    const data = await adminService.refundOrder(orderId, input, req.user!);
     res.json({
       success: true,
       data,
@@ -516,7 +516,7 @@ export const adminController = {
   markOrderPaid: asyncHandler(async (req: Request, res: Response) => {
     const { orderId } = parseQuery(getOrderByIdSchema, req.params);
     parseBody(markOrderPaidSchema, req.body);
-    const data = await adminService.markOrderPaid(orderId);
+    const data = await adminService.markOrderPaid(orderId, req.user!);
     res.json({ success: true, data, message: "Đã ghi nhận thanh toán" });
   }),
 

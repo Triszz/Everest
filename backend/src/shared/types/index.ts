@@ -19,6 +19,10 @@ export interface JwtPayload {
   sessionId?: string; // current session ID (UUID)
 }
 
+export type AuditActor = Pick<JwtPayload, "userId" | "role"> & {
+  actorType?: "ADMIN" | "CUSTOMER" | "PARTNER";
+};
+
 export interface ApiSuccess<T = unknown> {
   success: true;
   data: T;

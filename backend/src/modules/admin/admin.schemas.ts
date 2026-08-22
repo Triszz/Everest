@@ -163,6 +163,7 @@ export const listVouchersSchema = z.object({
   page: z.coerce.number().int().positive().optional().default(1),
   limit: z.coerce.number().int().positive().max(100).optional().default(20),
   search: z.string().optional(),
+  searchField: z.enum(["title", "voucherId"]).optional().default("title"),
   categoryId: z
     .string()
     .regex(/^\d+$/, "categoryId phải là số nguyên")
