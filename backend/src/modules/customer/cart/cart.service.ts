@@ -6,6 +6,10 @@
  * - Thêm voucher vào giỏ (kèm check tồn kho + trạng thái voucher)
  * - Cập nhật số lượng
  * - Xóa 1 item / xóa cả giỏ
+ *
+ * Concurrency handling:
+ * - Sử dụng Database Transaction (Pessimistic Locking) để tránh race condition
+ * - Đảm bảo check stock + update cart là atomic operation
  */
 import { prisma } from "../../../config/prisma";
 import { AppError } from "../../../middlewares/errorHandler";
@@ -81,109 +85,125 @@ export const cartService = {
   /**
    * Thêm voucher vào giỏ (hoặc cộng dồn số lượng nếu đã có).
    * Validate: voucher tồn tại + đã duyệt + trong thời gian bán + đủ tồn kho.
+   *
+   * Sử dụng transaction để tránh race condition khi user thêm từ nhiều tab.
    */
   async addToCart(customerId: string, input: AddToCartInput) {
     const { voucher_id, quantity } = input;
 
-    const voucher = await prisma.voucher.findUnique({
-      where: { voucherId: voucher_id },
-    });
+    return prisma.$transaction(async (tx) => {
+      // Lock voucher row bằng findUnique (Prisma uses shared lock trong transaction)
+      const voucher = await tx.voucher.findUnique({
+        where: { voucherId: voucher_id },
+      });
 
-    if (!voucher) {
-      throw new AppError("Không tìm thấy voucher", 404, "VOUCHER_NOT_FOUND");
-    }
-    // RB-01: voucher phải được duyệt
-    if (voucher.approvalStatus !== "Approved") {
-      throw new AppError(
-        "Voucher chưa được duyệt",
-        400,
-        "VOUCHER_NOT_APPROVED",
-      );
-    }
-    // RB-04: trong thời gian bán
-    const now = new Date();
-    if (now < voucher.startDate || now > voucher.endDate) {
-      throw new AppError(
-        "Voucher không còn trong thời gian bán",
-        400,
-        "VOUCHER_NOT_AVAILABLE",
-      );
-    }
-    // RB-15: tồn kho
-    if (voucher.availableQuantity < quantity) {
-      throw new AppError(
-        `Số lượng tồn kho không đủ. Chỉ còn ${voucher.availableQuantity} voucher`,
-        400,
-        "INSUFFICIENT_STOCK",
-      );
-    }
-
-    // Nếu đã có trong giỏ → cộng dồn
-    const existing = await prisma.cartItem.findUnique({
-      where: { customerId_voucherId: { customerId, voucherId: voucher_id } },
-    });
-
-    if (existing) {
-      const newQuantity = existing.quantity + quantity;
-      if (newQuantity > voucher.availableQuantity) {
+      if (!voucher) {
+        throw new AppError("Không tìm thấy voucher", 404, "VOUCHER_NOT_FOUND");
+      }
+      // RB-01: voucher phải được duyệt
+      if (voucher.approvalStatus !== "Approved") {
         throw new AppError(
-          `Tổng số lượng vượt quá tồn kho. Chỉ còn ${voucher.availableQuantity} voucher`,
+          "Voucher chưa được duyệt",
+          400,
+          "VOUCHER_NOT_APPROVED",
+        );
+      }
+      // RB-04: trong thời gian bán
+      const now = new Date();
+      if (now < voucher.startDate || now > voucher.endDate) {
+        throw new AppError(
+          "Voucher không còn trong thời gian bán",
+          400,
+          "VOUCHER_NOT_AVAILABLE",
+        );
+      }
+
+      // Check existing cart item
+      const existing = await tx.cartItem.findUnique({
+        where: { customerId_voucherId: { customerId, voucherId: voucher_id } },
+      });
+
+      if (existing) {
+        const newQuantity = existing.quantity + quantity;
+        // RB-15: tổng số lượng không vượt quá tồn kho
+        if (newQuantity > voucher.availableQuantity) {
+          throw new AppError(
+            `Tổng số lượng vượt quá tồn kho. Chỉ còn ${voucher.availableQuantity} voucher`,
+            400,
+            "INSUFFICIENT_STOCK",
+          );
+        }
+
+        const updated = await tx.cartItem.update({
+          where: { cartItemId: existing.cartItemId },
+          data: { quantity: newQuantity },
+          include: { voucher: { select: SHORT_VOUCHER_SELECT } },
+        });
+
+        return { message: "Cập nhật số lượng voucher trong giỏ hàng", item: updated };
+      }
+
+      // RB-15: check tồn kho cho cart item mới
+      if (quantity > voucher.availableQuantity) {
+        throw new AppError(
+          `Số lượng tồn kho không đủ. Chỉ còn ${voucher.availableQuantity} voucher`,
           400,
           "INSUFFICIENT_STOCK",
         );
       }
 
-      const updated = await prisma.cartItem.update({
-        where: { cartItemId: existing.cartItemId },
-        data: { quantity: newQuantity },
+      const created = await tx.cartItem.create({
+        data: { customerId, voucherId: voucher_id, quantity },
         include: { voucher: { select: SHORT_VOUCHER_SELECT } },
       });
 
-      return { message: "Cập nhật số lượng voucher trong giỏ hàng", item: updated };
-    }
-
-    const created = await prisma.cartItem.create({
-      data: { customerId, voucherId: voucher_id, quantity },
-      include: { voucher: { select: SHORT_VOUCHER_SELECT } },
+      return { message: "Thêm voucher vào giỏ hàng thành công", item: created };
     });
-
-    return { message: "Thêm voucher vào giỏ hàng thành công", item: created };
   },
 
   /**
    * Cập nhật số lượng 1 item trong giỏ.
    * Check ownership: chỉ chủ sở hữu mới được update.
+   *
+   * Sử dụng transaction để tránh race condition khi user update từ nhiều tab.
    */
   async updateCartItem(
     customerId: string,
     itemId: number,
     input: UpdateCartItemInput,
   ) {
-    const cartItem = await prisma.cartItem.findUnique({
-      where: { cartItemId: itemId },
-      include: { voucher: true },
-    });
-    if (!cartItem) {
-      throw new AppError("Không tìm thấy item trong giỏ hàng", 404, "CART_ITEM_NOT_FOUND");
-    }
-    if (cartItem.customerId !== customerId) {
-      throw new AppError("Bạn không có quyền cập nhật item này", 403, "FORBIDDEN");
-    }
-    if (input.quantity > cartItem.voucher.availableQuantity) {
-      throw new AppError(
-        `Số lượng tồn kho không đủ. Chỉ còn ${cartItem.voucher.availableQuantity} voucher`,
-        400,
-        "INSUFFICIENT_STOCK",
-      );
-    }
+    return prisma.$transaction(async (tx) => {
+      const cartItem = await tx.cartItem.findUnique({
+        where: { cartItemId: itemId },
+        include: { voucher: true },
+      });
+      if (!cartItem) {
+        throw new AppError("Không tìm thấy item trong giỏ hàng", 404, "CART_ITEM_NOT_FOUND");
+      }
+      if (cartItem.customerId !== customerId) {
+        throw new AppError("Bạn không có quyền cập nhật item này", 403, "FORBIDDEN");
+      }
 
-    const updated = await prisma.cartItem.update({
-      where: { cartItemId: itemId },
-      data: { quantity: input.quantity },
-      include: { voucher: { select: SHORT_VOUCHER_SELECT } },
-    });
+      // Re-check tồn kho trong transaction để tránh race condition
+      const voucher = await tx.voucher.findUnique({
+        where: { voucherId: cartItem.voucherId },
+      });
+      if (!voucher || input.quantity > voucher.availableQuantity) {
+        throw new AppError(
+          `Số lượng tồn kho không đủ. Chỉ còn ${voucher?.availableQuantity ?? 0} voucher`,
+          400,
+          "INSUFFICIENT_STOCK",
+        );
+      }
 
-    return { message: "Cập nhật số lượng thành công", item: updated };
+      const updated = await tx.cartItem.update({
+        where: { cartItemId: itemId },
+        data: { quantity: input.quantity },
+        include: { voucher: { select: SHORT_VOUCHER_SELECT } },
+      });
+
+      return { message: "Cập nhật số lượng thành công", item: updated };
+    });
   },
 
   /**
