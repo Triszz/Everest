@@ -149,6 +149,7 @@ export const QUERY_KEYS = {
 export const NAV_ROUTES = {
   AUTH: {
     LOGIN: "/(auth)/login",
+    FORGOT_PASSWORD: "/(auth)/forgot-password",
   },
   APP: {
     HOME: "/(app)/home",

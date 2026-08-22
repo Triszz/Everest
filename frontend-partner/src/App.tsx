@@ -18,31 +18,8 @@ import { BranchDetailPage } from './pages/BranchDetail';
 import { BranchEditPage } from './pages/BranchEdit';
 import { SettingsPage } from './pages/Settings';
 import { ReportsPage } from './pages/Reports';
-
-// ── Placeholder pages (sẽ implement chi tiết sau) ──────────────────────────
-function PlaceholderPage({ title }: { title: string }) {
-  return (
-    <div style={{
-      maxWidth: 1200,
-      margin: '0 auto',
-      padding: '48px 24px',
-      textAlign: 'center',
-    }}>
-      <h1 style={{
-        fontFamily: 'Manrope, sans-serif',
-        fontSize: 28,
-        fontWeight: 800,
-        color: '#1E293B',
-        marginBottom: 12,
-      }}>{title}</h1>
-      <p style={{
-        fontFamily: 'Inter, sans-serif',
-        fontSize: 15,
-        color: '#94A3B8',
-      }}>Trang này đang được phát triển...</p>
-    </div>
-  );
-}
+import { DashboardPage } from './pages/Dashboard';
+import { ValidatePage } from './pages/Validate';
 
 // ── Main app layout (with header/footer) ────────────────────────────────────
 function AppLayout({ children }: { children: React.ReactNode }) {
@@ -97,7 +74,7 @@ function AppRoutes() {
       {/* ── Private routes (require auth + role check) ── */}
       <Route path="/dashboard" element={
         <PrivateRoute allowedRoles={['Partner_Owner']}>
-          <AppLayout><PlaceholderPage title="Dashboard" /></AppLayout>
+          <AppLayout><DashboardPage /></AppLayout>
         </PrivateRoute>
       } />
       <Route path="/vouchers" element={
@@ -121,8 +98,8 @@ function AppRoutes() {
         </PrivateRoute>
       } />
       <Route path="/validate" element={
-        <PrivateRoute allowedRoles={['Partner_Owner', 'Partner_Cashier']}>
-          <AppLayout><PlaceholderPage title="Xác thực Voucher" /></AppLayout>
+        <PrivateRoute allowedRoles={['Partner_Owner']}>
+          <AppLayout><ValidatePage /></AppLayout>
         </PrivateRoute>
       } />
       <Route path="/branches" element={
