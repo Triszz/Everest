@@ -2,9 +2,18 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
-import rateLimit from "express-rate-limit";
 import { errorHandler } from "./middlewares/errorHandler";
 import { requestLogger } from "./middlewares/requestLogger";
+import {
+  authLimiter,
+  loginLimiter,
+  registerLimiter,
+  forgotPasswordLimiter,
+  feedbackLimiter,
+  ordersLimiter,
+  claimVoucherLimiter,
+  customerLimiter,
+} from "./middlewares/rateLimit";
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 import authRouter from "./modules/auth/auth.routes";
@@ -61,25 +70,12 @@ app.use(
     limit: MAX_JSON_BODY,
   }),
 );
-// Rate limit cho auth routes
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 1_000_000,
-  message: {
-    success: false,
-    error: {
-      code: "RATE_LIMIT",
-      message: "Quá nhiều yêu cầu, vui lòng thử lại sau 15 phút",
-    },
-  },
-});
-
 // ── Request Logging ───────────────────────────────────────────────────────────
 app.use(requestLogger);
 
 // ── Routes ───────────────────────────────────────────────────────────────────
 
-// Auth
+// Auth — với rate limit riêng cho từng endpoint
 app.use("/api/auth", authLimiter, authRouter);
 
 // Partner
@@ -88,24 +84,24 @@ app.use("/api/partner", partnerRouter);
 // Admin (base)
 app.use("/api/admin", adminRouter);
 
-// Customer — public content
+// Customer — public content (không cần rate limit vì read-only)
 app.use("/api/vouchers", voucherRouter);
 app.use("/api/categories", categoryRouter);
 app.use("/api/banners", bannerRouter);
 app.use("/api/popups", popupRouter);
 app.use("/api/posts", postRouter);
 
-// Customer — authenticated
-app.use("/api/cart", cartRouter);
-app.use("/api/customer/profile", profileRouter);
-app.use("/api/customer/orders", ordersRouter);
-app.use("/api/customer/payment", paymentRouter);
-app.use("/api/customer/issued-vouchers", issuedVouchersRouter);
-app.use("/api/customer/vouchers", reviewsRouter); // reviews GET + POST
-app.use("/api/customer/notifications", notificationsRouter);
+// Customer — authenticated với rate limit chung
+app.use("/api/cart", customerLimiter, cartRouter);
+app.use("/api/customer/profile", customerLimiter, profileRouter);
+app.use("/api/customer/orders", ordersLimiter, ordersRouter);
+app.use("/api/customer/payment", customerLimiter, paymentRouter);
+app.use("/api/customer/issued-vouchers", customerLimiter, issuedVouchersRouter);
+app.use("/api/customer/vouchers", customerLimiter, reviewsRouter); // reviews GET + POST
+app.use("/api/customer/notifications", customerLimiter, notificationsRouter);
 
-// Feedback — public (submit) + admin
-app.use("/api/feedback", feedbackRouter);
+// Feedback — public (submit) với rate limit
+app.use("/api/feedback", feedbackLimiter, feedbackRouter);
 app.use("/api/admin/feedback", feedbackAdminRouter);
 
 // ── Health check ──────────────────────────────────────────────────────────────

@@ -8,13 +8,18 @@ import { AppError } from "../../middlewares/errorHandler";
 import { authenticate } from "../../middlewares/authenticate";
 import { forgotPasswordSchema, resetPasswordSchema } from "./password.schemas";
 import { ZodError } from "zod";
+import {
+  loginLimiter,
+  registerLimiter,
+  forgotPasswordLimiter,
+} from "../../middlewares/rateLimit";
 
 const router = Router();
 
 // ── Public ──────────────────────────────────────────────────────
-router.post("/login", authController.login);
-router.post("/register", authController.registerCustomer);
-router.post("/register/partner", authController.registerPartner);
+router.post("/login", loginLimiter, authController.login);
+router.post("/register", registerLimiter, authController.registerCustomer);
+router.post("/register/partner", registerLimiter, authController.registerPartner);
 router.post("/refresh", authController.refresh);
 
 // ── Email OTP ───────────────────────────────────────────────────
@@ -24,6 +29,7 @@ router.use("/email-otp", emailOtpRouter);
 // ── Forgot / Reset Password ───────────────────────────────────────
 router.post(
   "/forgot-password",
+  forgotPasswordLimiter,
   asyncHandler(async (req, res) => {
     try {
       forgotPasswordSchema.parse(req.body);
