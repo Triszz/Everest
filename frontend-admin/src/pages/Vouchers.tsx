@@ -218,11 +218,20 @@ export default function Vouchers() {
             <input
               className="admin-input"
               style={{ paddingLeft: '2.5rem' }}
-              placeholder="Tìm kiếm mã, tên voucher, đối tác..."
+              placeholder={filters.searchField === 'voucherId' ? 'Nhập ID voucher...' : 'Tìm kiếm mã, tên voucher, đối tác...'}
               value={filters.search}
               onChange={(e) => updateFilters({ search: e.target.value })}
             />
           </div>
+          <select
+            className="admin-input admin-select"
+            style={{ width: 'auto' }}
+            value={filters.searchField}
+            onChange={(e) => updateFilters({ searchField: e.target.value as 'title' | 'voucherId', search: '' })}
+          >
+            <option value="title">Tên / Mô tả</option>
+            <option value="voucherId">ID voucher</option>
+          </select>
           <select
             className="admin-input admin-select"
             style={{ width: 'auto' }}

@@ -19,7 +19,6 @@ import {
   type AuthContext,
   type BranchInfo,
 } from "./redemption.schemas";
-import type { AuditActor } from "../../admin/audit.helper";
 
 // ============================================================
 // VALIDATE
@@ -495,32 +494,6 @@ export async function confirmVoucher(
           voucherCode: true,
           usedAt: true,
           usedAtBranchId: true,
-        },
-      });
-
-      // 4d. Write audit log (trong transaction)
-      const actor: AuditActor = {
-        userId: auth.userId,
-        actorType: "PARTNER",
-        ipAddress: undefined,
-      };
-
-      await tx.adminAuditLog.create({
-        data: {
-          action: "VOUCHER_CONFIRM",
-          targetType: "ISSUED_VOUCHER",
-          targetId: String(updated.issuedVoucherId),
-          description: `Xác nhận sử dụng voucher "${internal.voucher.title}" (#${updated.issuedVoucherId})`,
-          metadata: {
-            issuedVoucherId: updated.issuedVoucherId,
-            voucherCode: updated.voucherCode,
-            voucherTitle: internal.voucher.title,
-            partnerId: String(internal.partner.partnerId),
-            branchId: String(confirmBranchId),
-            actorRole: auth.role,
-            customerId,
-            usedAt: usedAt.toISOString(),
-          },
         },
       });
 

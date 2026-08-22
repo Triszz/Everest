@@ -387,6 +387,7 @@ export const adminVouchersApi = {
     page?: number;
     limit?: number;
     search?: string;
+    searchField?: 'title' | 'voucherId';
     categoryId?: number;
     partnerId?: number;
     approvalStatus?: string;

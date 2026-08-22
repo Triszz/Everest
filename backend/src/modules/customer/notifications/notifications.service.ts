@@ -6,8 +6,9 @@
  * - Notifications: các thông báo thực tế (order, voucher tặng, etc.)
  */
 import { prisma } from "../../../config/prisma";
+import { Prisma } from "../../../generated/prisma/client";
 import type { UpdateNotificationsInput } from "./notifications.schemas";
-import type { NotificationType } from "@prisma/client";
+import type { NotificationType } from "../../../generated/prisma/enums";
 import { buildPagination } from "../shared";
 
 const DEFAULT_PREFS: Record<string, boolean> = {
@@ -78,7 +79,7 @@ export const notificationsService = {
         type,
         title,
         message,
-        data: data || undefined,
+        data: (data ?? undefined) as Prisma.InputJsonValue,
       },
     });
   },

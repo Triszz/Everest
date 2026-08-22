@@ -1,4 +1,4 @@
-export type AuditActorType = "ADMIN" | "SYSTEM" | "CUSTOMER" | "PARTNER";
+export type AuditActorType = "ADMIN" | "CUSTOMER" | "PARTNER";
 
 export type AuditTargetType =
   | "USER"
@@ -10,8 +10,7 @@ export type AuditTargetType =
   | "BANNER"
   | "POPUP"
   | "POST"
-  | "ORDER"
-  | "ADMIN";
+  | "ORDER";
 
 export interface AuditLogActor {
   userId: string;
@@ -63,41 +62,24 @@ export const AUDIT_ACTIONS: Array<{ value: string; label: string }> = [
   { value: "UPDATE_USER_ROLE", label: "Đổi quyền user" },
   { value: "APPROVE_PARTNER", label: "Duyệt đối tác" },
   { value: "REJECT_PARTNER", label: "Từ chối đối tác" },
-  { value: "TOGGLE_PARTNER_LOCK", label: "Khóa/Mở đối tác" },
-  { value: "CREATE_BRANCH", label: "Tạo chi nhánh" },
-  { value: "UPDATE_BRANCH", label: "Cập nhật chi nhánh" },
-  { value: "DELETE_BRANCH", label: "Xóa chi nhánh" },
-  { value: "TOGGLE_BRANCH_LOCK", label: "Khóa/Mở chi nhánh" },
-  { value: "CREATE_CATEGORY", label: "Tạo danh mục" },
-  { value: "UPDATE_CATEGORY", label: "Sửa danh mục" },
-  { value: "DELETE_CATEGORY", label: "Xóa danh mục" },
+  { value: "LOCK_PARTNER", label: "Khóa/Mở đối tác" },
+  { value: "LOCK_BRANCH", label: "Khóa/Mở chi nhánh" },
+  { value: "CREATE_VOUCHER", label: "Tạo voucher" },
+  { value: "SUBMIT_VOUCHER", label: "Gửi duyệt voucher" },
   { value: "APPROVE_VOUCHER", label: "Duyệt voucher" },
   { value: "REJECT_VOUCHER", label: "Từ chối voucher" },
-  { value: "TOGGLE_VOUCHER_DISPLAY", label: "Ẩn/Hiện voucher" },
-  { value: "DELETE_VOUCHER", label: "Xóa voucher" },
-  { value: "UPSERT_POLICY", label: "Lưu chính sách" },
-  { value: "DELETE_POLICY", label: "Xóa chính sách" },
-  { value: "CREATE_BANNER", label: "Tạo banner" },
-  { value: "UPDATE_BANNER", label: "Sửa banner" },
-  { value: "UPDATE_BANNER_STATUS", label: "Bật/Tắt banner" },
-  { value: "DELETE_BANNER", label: "Xóa banner" },
-  { value: "CREATE_POPUP", label: "Tạo popup" },
-  { value: "UPDATE_POPUP", label: "Sửa popup" },
-  { value: "UPDATE_POPUP_STATUS", label: "Bật/Tắt popup" },
-  { value: "DELETE_POPUP", label: "Xóa popup" },
-  { value: "CREATE_POST", label: "Tạo bài viết" },
-  { value: "UPDATE_POST", label: "Sửa bài viết" },
-  { value: "UPDATE_POST_STATUS", label: "Đăng/Ẩn bài viết" },
-  { value: "DELETE_POST", label: "Xóa bài viết" },
+  { value: "SET_VOUCHER_DISPLAY", label: "Hiện/Ẩn voucher" },
+  { value: "UPDATE_VOUCHER_DATES", label: "Cập nhật ngày voucher" },
+  { value: "EXPIRE_VOUCHER", label: "Hết hạn voucher" },
   { value: "CANCEL_ORDER", label: "Hủy đơn" },
   { value: "REFUND_ORDER", label: "Hoàn tiền" },
+  { value: "MARK_ORDER_PAID", label: "Đánh dấu thanh toán" },
   { value: "CREATE_ORDER", label: "Tạo đơn" },
   { value: "PAY_ORDER", label: "Thanh toán đơn" },
 ];
 
 export const AUDIT_ACTOR_TYPE_LABELS: Record<AuditActorType, string> = {
   ADMIN: "Quản trị viên",
-  SYSTEM: "Hệ thống",
   CUSTOMER: "Khách hàng",
   PARTNER: "Đối tác",
 };
@@ -113,5 +95,4 @@ export const AUDIT_TARGET_TYPE_LABELS: Record<AuditTargetType, string> = {
   POPUP: "Popup",
   POST: "Bài viết",
   ORDER: "Đơn hàng",
-  ADMIN: "Admin",
 };

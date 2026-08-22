@@ -35,6 +35,7 @@ interface Filters {
   page: number;
   limit: number;
   search: string;
+  searchField: 'title' | 'voucherId';
   approvalStatus: string;
   partnerId?: number;
 }
@@ -49,6 +50,7 @@ export function useVoucherManagement(partnerId?: number) {
     page: 1,
     limit: 20,
     search: '',
+    searchField: 'title',
     approvalStatus: '',
     partnerId,
   });
@@ -66,6 +68,7 @@ export function useVoucherManagement(partnerId?: number) {
         page: filters.page,
         limit: filters.limit,
         search: filters.search || undefined,
+        searchField: filters.searchField,
         partnerId: filters.partnerId,
         approvalStatus: filters.approvalStatus || undefined,
       });
@@ -188,7 +191,7 @@ export function useVoucherManagement(partnerId?: number) {
   }, []);
 
   const resetFilters = useCallback(() => {
-    setFilters({ page: 1, limit: 20, search: '', approvalStatus: '', partnerId });
+    setFilters({ page: 1, limit: 20, search: '', searchField: 'title', approvalStatus: '', partnerId });
   }, [partnerId]);
 
   return {

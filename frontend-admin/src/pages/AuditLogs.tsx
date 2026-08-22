@@ -13,7 +13,6 @@ import {
 const ACTOR_TYPES: Array<{ value: '' | AuditActorType; label: string }> = [
   { value: '', label: 'Tất cả actor' },
   { value: 'ADMIN', label: AUDIT_ACTOR_TYPE_LABELS.ADMIN },
-  { value: 'SYSTEM', label: AUDIT_ACTOR_TYPE_LABELS.SYSTEM },
   { value: 'CUSTOMER', label: AUDIT_ACTOR_TYPE_LABELS.CUSTOMER },
   { value: 'PARTNER', label: AUDIT_ACTOR_TYPE_LABELS.PARTNER },
 ];
