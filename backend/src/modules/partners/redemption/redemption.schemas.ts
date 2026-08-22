@@ -123,6 +123,17 @@ export interface ValidatedVoucherData {
   validTo: string;
   /** Ngày đã sử dụng (null nếu chưa dùng) */
   usedAt: string | null;
+  /**
+   * Branch ID nơi voucher đã được sử dụng.
+   * - Validate response: chỉ set khi voucher đang ở trạng thái "Used" (history view).
+   * - Confirm response: set ngay sau khi xác nhận thành công (chắc chắn có giá trị).
+   * - Validate response cho voucher "Unused": undefined.
+   */
+  usedAtBranchId?: number | null;
+  /**
+   * Tên branch nơi voucher đã sử dụng (chỉ set khi usedAtBranchId được set).
+   */
+  usedAtBranchName?: string | null;
   /** Thông tin voucher */
   voucher: {
     title: string;
@@ -171,6 +182,8 @@ export interface ConfirmSuccessResponse {
     voucherCode: string;
     usedAt: string;
     usedAtBranchId: number;
+    /** Tên branch nơi voucher được xác nhận (optional, có thể null nếu lookup fail) */
+    branchName?: string | null;
   };
   message: "Xác nhận sử dụng voucher thành công";
 }

@@ -1,4 +1,4 @@
-// ── Voucher types (matching backend response shapes) ────────────────────────
+﻿// ΓöÇΓöÇ Voucher types (matching backend response shapes) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 export type ApprovalStatus = 'Draft' | 'Pending' | 'Approved' | 'Rejected';
 export type DisplayStatus = 'Visible' | 'Hidden';

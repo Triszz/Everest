@@ -150,6 +150,7 @@ export default function LoginScreen() {
           <View style={styles.rememberRow}>
             <TouchableOpacity
               style={styles.forgotButton}
+              onPress={() => router.push("/(auth)/forgot-password")}
               accessibilityLabel="Quên mật khẩu"
               accessibilityRole="link"
             >

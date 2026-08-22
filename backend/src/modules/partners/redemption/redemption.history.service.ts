@@ -14,6 +14,11 @@ import type {
  * Lấy lịch sử redemption
  * Sắp xếp theo usedAt DESC
  *
+ * Filter theo scope:
+ * - Partner_Owner (không có branchId trong JWT): thấy TẤT CẢ chi nhánh
+ *   thuộc partner của mình.
+ * - Partner_Cashier (có branchId trong JWT): chỉ thấy chi nhánh của mình.
+ *
  * @param auth - context từ JWT (partnerId, branchId)
  * @param query - filter params
  */
@@ -43,7 +48,8 @@ export async function getRedemptionHistory(
     usedAt: { not: null },
   };
 
-  // Branch filter - cashier chỉ thấy branch của mình
+  // Branch filter — chỉ áp dụng khi auth.branchId có giá trị (Cashier).
+  // Partner_Owner có branchId === undefined → KHÔNG filter → thấy tất cả chi nhánh.
   if (auth.branchId !== undefined) {
     where.usedAtBranchId = auth.branchId;
   }

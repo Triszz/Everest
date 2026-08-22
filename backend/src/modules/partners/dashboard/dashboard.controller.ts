@@ -35,6 +35,10 @@ export async function getDashboardStats(
 
   const data = await getDashboardData(auth, parsed.data);
 
+  // Header chống browser/proxy cache để dashboard luôn phản ánh data mới nhất
+  // sau khi user thực hiện action ở trang khác (vd: confirm voucher ở /validate).
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+  res.setHeader("Pragma", "no-cache");
   res.status(200).json({
     success: true,
     data,
