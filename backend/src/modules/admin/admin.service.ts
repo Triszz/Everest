@@ -24,6 +24,7 @@ import type {
   ListVouchersInput,
   ApproveVoucherInput,
   RejectVoucherInput,
+  ToggleVoucherLockInput,
   ListPoliciesInput,
   GetPolicyByIdInput,
   UpsertPolicyInput,
@@ -155,7 +156,7 @@ export const adminService = {
         action: AuditAction.UPDATE_USER_STATUS,
         targetType: AuditTarget.USER,
         targetId: userId,
-        description: `Admin ${actor.userId} đổi trạng thái user ${userId} (${user.email}) thành ${input.status}`,
+        description: `Admin ${actor.email} đổi trạng thái user ${userId} (${user.email}) thành ${input.status}`,
         metadata: {
           userId,
           email: user.email,
@@ -231,7 +232,7 @@ export const adminService = {
         action: AuditAction.UPDATE_USER_ROLE,
         targetType: AuditTarget.USER,
         targetId: userId,
-        description: `Admin ${actor.userId} đổi role user ${userId} (${user.email}) từ ${user.role} → ${input.role}`,
+        description: `Admin ${actor.email} đổi role user ${userId} (${user.email}) từ ${user.role} → ${input.role}`,
         metadata: {
           userId,
           email: user.email,
@@ -381,7 +382,7 @@ export const adminService = {
         action: AuditAction.APPROVE_PARTNER,
         targetType: AuditTarget.PARTNER,
         targetId: String(partnerId),
-        description: `Admin ${actor.userId} duyệt đối tác "${partner.companyName}" (#${partnerId})`,
+        description: `Admin ${actor.email} duyệt đối tác "${partner.companyName}" (#${partnerId})`,
         metadata: {
           partnerId,
           companyName: partner.companyName,
@@ -423,7 +424,7 @@ export const adminService = {
         action: AuditAction.REJECT_PARTNER,
         targetType: AuditTarget.PARTNER,
         targetId: String(partnerId),
-        description: `Admin ${actor.userId} từ chối đối tác "${partner.companyName}" (#${partnerId}). Lý do: ${input.reason ?? "Không có"}`,
+        description: `Admin ${actor.email} từ chối đối tác "${partner.companyName}" (#${partnerId}). Lý do: ${input.reason ?? "Không có"}`,
         metadata: {
           partnerId,
           companyName: partner.companyName,
@@ -453,6 +454,13 @@ export const adminService = {
         where: { partnerId },
         data: { isLocked: newLocked },
       });
+      const voucherResult = await tx.voucher.updateMany({
+        where: { partnerId },
+        data: {
+          isLocked: newLocked,
+          displayStatus: newLocked ? "Hidden" : "Visible",
+        },
+      });
       const updated = await tx.partner.findUnique({
         where: { partnerId },
         select: {
@@ -469,19 +477,20 @@ export const adminService = {
         action: AuditAction.LOCK_PARTNER,
         targetType: AuditTarget.PARTNER,
         targetId: String(partnerId),
-        description: `Admin ${actor.userId} ${newLocked ? "khóa" : "mở khóa"} đối tác "${partner.companyName}" (#${partnerId})`,
+        description: `Admin ${actor.email} ${newLocked ? "khóa" : "mở khóa"} đối tác "${partner.companyName}" (#${partnerId})`,
         metadata: {
           partnerId,
           companyName: partner.companyName,
           oldLocked: partner.isLocked,
           newLocked,
           affectedBranches: branchResult.count,
+          affectedVouchers: voucherResult.count,
         },
       });
 
       return {
         partner: updated!,
-        affected: { branches: branchResult.count, cashiers: 0 },
+        affected: { branches: branchResult.count, vouchers: voucherResult.count },
       };
     });
 
@@ -694,7 +703,7 @@ export const adminService = {
         action: AuditAction.LOCK_BRANCH,
         targetType: AuditTarget.BRANCH,
         targetId: String(branchId),
-        description: `Admin ${actor.userId} ${input.locked ? "khóa" : "mở khóa"} chi nhánh "${branch.branchName}" (#${branchId})`,
+        description: `Admin ${actor.email} ${input.locked ? "khóa" : "mở khóa"} chi nhánh "${branch.branchName}" (#${branchId})`,
         metadata: {
           branchId,
           partnerId,
@@ -876,6 +885,7 @@ export const adminService = {
           availableQuantity: true,
           approvalStatus: true,
           displayStatus: true,
+          isLocked: true,
           startDate: true,
           endDate: true,
           category: { select: { categoryId: true, categoryName: true } },
@@ -909,6 +919,7 @@ export const adminService = {
         expiryDays: true,
         approvalStatus: true,
         displayStatus: true,
+        isLocked: true,
         createdAt: true,
         updatedAt: true,
         partner: {
@@ -941,7 +952,7 @@ export const adminService = {
     const result = await prisma.$transaction(async (tx) => {
       const updated = await tx.voucher.update({
         where: { voucherId },
-        data: { approvalStatus: "Approved" },
+        data: { approvalStatus: "Approved", displayStatus: "Visible" },
         select: {
           voucherId: true,
           title: true,
@@ -955,7 +966,7 @@ export const adminService = {
         action: AuditAction.APPROVE_VOUCHER,
         targetType: AuditTarget.VOUCHER,
         targetId: String(voucherId),
-        description: `Admin ${actor.userId} duyệt voucher "${voucher.title}" (#${voucherId})`,
+        description: `Admin ${actor.email} duyệt voucher "${voucher.title}" (#${voucherId})`,
         metadata: {
           voucherId,
           title: voucher.title,
@@ -995,7 +1006,7 @@ export const adminService = {
         action: AuditAction.REJECT_VOUCHER,
         targetType: AuditTarget.VOUCHER,
         targetId: String(voucherId),
-        description: `Admin ${actor.userId} từ chối voucher "${voucher.title}" (#${voucherId}). Lý do: ${input.reason ?? "Không có"}`,
+        description: `Admin ${actor.email} từ chối voucher "${voucher.title}" (#${voucherId}). Lý do: ${input.reason ?? "Không có"}`,
         metadata: {
           voucherId,
           title: voucher.title,
@@ -1047,7 +1058,7 @@ export const adminService = {
         action: AuditAction.SET_VOUCHER_DISPLAY,
         targetType: AuditTarget.VOUCHER,
         targetId: String(voucherId),
-        description: `Admin ${actor.userId} ${input.displayStatus === "Visible" ? "hiện" : "ẩn"} voucher "${voucher.title}" (#${voucherId})`,
+        description: `Admin ${actor.email} ${input.displayStatus === "Visible" ? "hiện" : "ẩn"} voucher "${voucher.title}" (#${voucherId})`,
         metadata: {
           voucherId,
           title: voucher.title,
@@ -1091,7 +1102,7 @@ export const adminService = {
         action: AuditAction.UPDATE_VOUCHER_DATES,
         targetType: AuditTarget.VOUCHER,
         targetId: String(voucherId),
-        description: `Admin ${actor.userId} cập nhật ngày kết thúc voucher "${voucher.title}" (#${voucherId})`,
+        description: `Admin ${actor.email} cập nhật ngày kết thúc voucher "${voucher.title}" (#${voucherId})`,
         metadata: {
           voucherId,
           title: voucher.title,
@@ -1140,12 +1151,49 @@ export const adminService = {
         action: AuditAction.EXPIRE_VOUCHER,
         targetType: AuditTarget.VOUCHER,
         targetId: String(voucherId),
-        description: `Admin ${actor.userId} force-expire voucher "${voucher.title}" (#${voucherId})`,
+        description: `Admin ${actor.email} force-expire voucher "${voucher.title}" (#${voucherId})`,
         metadata: {
           voucherId,
           title: voucher.title,
           oldEndDate: voucher.endDate?.toISOString(),
           newEndDate: now.toISOString(),
+        },
+      });
+
+      return updated;
+    });
+
+    return result;
+  },
+
+  async toggleVoucherLock(voucherId: number, input: ToggleVoucherLockInput, actor: AuditActor) {
+    const voucher = await prisma.voucher.findUnique({ where: { voucherId } });
+    if (!voucher) throw new AppError("Voucher không tồn tại", 404, "NOT_FOUND");
+
+    const result = await prisma.$transaction(async (tx) => {
+      const updated = await tx.voucher.update({
+        where: { voucherId },
+        data: { isLocked: input.locked },
+        select: {
+          voucherId: true,
+          title: true,
+          isLocked: true,
+          displayStatus: true,
+          approvalStatus: true,
+          updatedAt: true,
+        },
+      });
+
+      await logAudit(tx, actor)({
+        action: AuditAction.LOCK_VOUCHER,
+        targetType: AuditTarget.VOUCHER,
+        targetId: String(voucherId),
+        description: `Admin ${actor.email} ${input.locked ? "khóa" : "mở khóa"} voucher "${voucher.title}" (#${voucherId})`,
+        metadata: {
+          voucherId,
+          title: voucher.title,
+          oldLocked: voucher.isLocked,
+          newLocked: input.locked,
         },
       });
 
@@ -1518,7 +1566,7 @@ export const adminService = {
         where,
         skip,
         take: limit,
-        orderBy: [{ status: "asc" }, { publishedAt: "desc" }, { updatedAt: "desc" }],
+        orderBy: [{ status: "asc" }, { updatedAt: "desc" }],
         select: {
           postId: true,
           authorId: true,
@@ -1526,7 +1574,8 @@ export const adminService = {
           content: true,
           imageUrl: true,
           status: true,
-          publishedAt: true,
+
+
           createdAt: true,
           updatedAt: true,
           author: {
@@ -1555,7 +1604,6 @@ export const adminService = {
         content: true,
         imageUrl: true,
         status: true,
-        publishedAt: true,
         createdAt: true,
         updatedAt: true,
         author: {
@@ -1581,7 +1629,6 @@ export const adminService = {
         content: input.content,
         imageUrl: input.imageUrl ?? null,
         status,
-        publishedAt: status === "Visible" ? new Date() : null,
       },
       select: {
         postId: true,
@@ -1590,7 +1637,6 @@ export const adminService = {
         content: true,
         imageUrl: true,
         status: true,
-        publishedAt: true,
         createdAt: true,
         updatedAt: true,
         author: {
@@ -1611,12 +1657,15 @@ export const adminService = {
     const post = await prisma.post.findUnique({ where: { postId } });
     if (!post) throw new AppError("Bài viết không tồn tại", 404, "NOT_FOUND");
 
+    const newStatus = input.status as PostStatus | undefined;
+
     const result = await prisma.post.update({
       where: { postId },
       data: {
         ...(input.title !== undefined ? { title: input.title } : {}),
         ...(input.content !== undefined ? { content: input.content } : {}),
         ...(input.imageUrl !== undefined ? { imageUrl: input.imageUrl } : {}),
+        ...(newStatus !== undefined ? { status: newStatus } : {}),
       },
       select: {
         postId: true,
@@ -1625,7 +1674,6 @@ export const adminService = {
         content: true,
         imageUrl: true,
         status: true,
-        publishedAt: true,
         createdAt: true,
         updatedAt: true,
         author: {
@@ -1647,14 +1695,11 @@ export const adminService = {
     if (!post) throw new AppError("Bài viết không tồn tại", 404, "NOT_FOUND");
 
     const nextStatus = input.status as PostStatus;
-    const shouldStampPublishedAt =
-      nextStatus === "Visible" && post.publishedAt === null;
 
     const result = await prisma.post.update({
       where: { postId },
       data: {
         status: nextStatus,
-        ...(shouldStampPublishedAt ? { publishedAt: new Date() } : {}),
       },
       select: {
         postId: true,
@@ -1663,7 +1708,6 @@ export const adminService = {
         content: true,
         imageUrl: true,
         status: true,
-        publishedAt: true,
         createdAt: true,
         updatedAt: true,
         author: {
@@ -1731,6 +1775,7 @@ export const adminService = {
           receiverEmail: true,
           giftMessage: true,
           cancelledAt: true,
+          cancelledBy: true,
           cancelReason: true,
           refundedAt: true,
           refundAmount: true,
@@ -1868,7 +1913,7 @@ export const adminService = {
         action: AuditAction.CANCEL_ORDER,
         targetType: AuditTarget.ORDER,
         targetId: String(orderId),
-        description: `Admin ${actor.userId} hủy đơn hàng #${orderId}`,
+        description: `Admin ${actor.email} hủy đơn hàng #${orderId}`,
         metadata: {
           orderId,
           customerId: order.customerId,
@@ -1905,14 +1950,7 @@ export const adminService = {
       throw new AppError("Đơn đã được hoàn tiền trước đó", 400, "ALREADY_REFUNDED");
     }
 
-    const refundAmount = input.amount ?? Number(order.totalAmount);
-    if (refundAmount > Number(order.totalAmount)) {
-      throw new AppError(
-        "Số tiền hoàn không được lớn hơn tổng đơn",
-        400,
-        "AMOUNT_TOO_HIGH",
-      );
-    }
+    const refundAmount = Number(order.totalAmount);
 
     const result = await prisma.$transaction(async (tx) => {
       const updated = await tx.order.update({
@@ -1938,7 +1976,7 @@ export const adminService = {
         action: AuditAction.REFUND_ORDER,
         targetType: AuditTarget.ORDER,
         targetId: String(orderId),
-        description: `Admin ${actor.userId} hoàn tiền đơn hàng #${orderId} (${refundAmount.toLocaleString("vi-VN")}đ)`,
+        description: `Admin ${actor.email} hoàn tiền đơn hàng #${orderId} (${refundAmount.toLocaleString("vi-VN")}đ)`,
         metadata: {
           orderId,
           customerId: order.customerId,
@@ -1971,7 +2009,7 @@ export const adminService = {
         action: AuditAction.MARK_ORDER_PAID,
         targetType: AuditTarget.ORDER,
         targetId: String(orderId),
-        description: `Admin ${actor.userId} đánh dấu đơn hàng #${orderId} là đã thanh toán (thủ công)`,
+        description: `Admin ${actor.email} đánh dấu đơn hàng #${orderId} là đã thanh toán (thủ công)`,
         metadata: {
           orderId,
           customerId: order.customerId,
