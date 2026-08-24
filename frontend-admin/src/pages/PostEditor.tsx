@@ -320,6 +320,7 @@ export default function PostEditor() {
               <div className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)', display: 'grid', gap: '0.25rem' }}>
                 <div>Tác giả: {original.author?.fullName ?? '—'}</div>
                 <div>Tạo lúc: {new Date(original.createdAt).toLocaleString('vi-VN')}</div>
+                <div>Trạng thái: {original.status === 'Visible' ? 'Đã đăng' : 'Bản nháp'}</div>
               </div>
             </div>
           )}

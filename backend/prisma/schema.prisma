@@ -233,7 +233,7 @@ model Post {
 
   author User @relation("PostAuthor", fields: [authorId], references: [userId], onDelete: Restrict)
 
-  @@index([status])
+  @@index([status, createdAt(sort: Desc)])
   @@map("posts")
 }
 

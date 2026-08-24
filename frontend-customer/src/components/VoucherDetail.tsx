@@ -1,9 +1,9 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { UtensilsCrossed, Wifi, ShoppingBag, Car, Loader2, CheckCircle2 } from 'lucide-react';
+import { UtensilsCrossed, Wifi, ShoppingBag, Car, Loader2, CheckCircle2, MapPin, CalendarRange, Clock, Phone } from 'lucide-react';
 import { voucherApi, cartApi, reviewApi } from '../services';
 import type { Voucher, Review } from '../services';
-import { formatPrice, formatDate } from '../utils';
+import { formatPrice, formatDate, formatDateTime } from '../utils';
 import Loading from './Loading';
 import { Breadcrumb } from './Breadcrumb';
 
@@ -63,6 +63,15 @@ export function VoucherDetail() {
     : 0;
   const totalPrice = Number(voucher.salePrice) * qty;
   const imageUrl = voucher.imageUrl || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&h=600&fit=crop';
+
+  // BR-CUS-03: Tính số ngày còn lại từ endDate → hiển thị countdown overlay
+  const daysLeft = (() => {
+    if (!voucher.endDate) return null;
+    const end = new Date(voucher.endDate).getTime();
+    const now = Date.now();
+    return Math.max(0, Math.ceil((end - now) / (1000 * 60 * 60 * 24)));
+  })();
+  const isExpiringSoon = daysLeft !== null && daysLeft <= 5;
 
   const handleAddToCart = async () => {
     const token = localStorage.getItem('access_token');
@@ -159,6 +168,7 @@ export function VoucherDetail() {
           <div>
             <div
               style={{
+                position: 'relative',
                 borderRadius: 16,
                 overflow: 'hidden',
                 background: 'white',
@@ -170,6 +180,43 @@ export function VoucherDetail() {
                 alt={voucher.title}
                 style={{ width: '100%', height: 360, objectFit: 'cover', display: 'block' }}
               />
+
+              {/* Countdown badge - hiển thị trên ảnh khi còn ≤ 5 ngày */}
+              {isExpiringSoon && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 16,
+                    left: 16,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '10px 14px',
+                    background: daysLeft === 0
+                      ? 'rgba(15, 23, 42, 0.92)'
+                      : 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)',
+                    color: 'white',
+                    borderRadius: 12,
+                    boxShadow: '0 4px 12px rgba(239, 68, 68, 0.4)',
+                    fontFamily: 'Manrope, sans-serif',
+                    animation: 'pulse 1.5s ease-in-out infinite',
+                  }}
+                >
+                  <Clock size={18} />
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 600, opacity: 0.9, lineHeight: 1.2 }}>
+                      {daysLeft === 0 ? 'Hết hạn hôm nay' : 'Sắp hết hạn'}
+                    </div>
+                    <div style={{ fontSize: 16, fontWeight: 800, lineHeight: 1.2 }}>
+                      {daysLeft === 0
+                        ? 'Hết hạn!'
+                        : daysLeft === 1
+                          ? 'Còn 1 ngày'
+                          : `Còn ${daysLeft} ngày`}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Meta row */}
@@ -227,7 +274,16 @@ export function VoucherDetail() {
                 </div>
                 <div>
                   <div style={{ fontSize: 12, color: '#94A3B8', marginBottom: 4 }}>HSD</div>
-                  <div style={{ fontWeight: 700, color: '#EF4444' }}>{voucher.expiryDays} ngày</div>
+                  <div style={{
+                    fontWeight: 700,
+                    color: isExpiringSoon ? '#EF4444' : '#1E293B',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}>
+                    {isExpiringSoon && <Clock size={14} />}
+                    {daysLeft === 0 ? 'Hết hạn hôm nay' : `Còn ${daysLeft ?? voucher.expiryDays} ngày`}
+                  </div>
                 </div>
               </div>
             </div>
@@ -318,6 +374,111 @@ export function VoucherDetail() {
               <div style={{ fontSize: 14, fontWeight: 700, color: '#1E293B' }}>{item.label}</div>
             </div>
           ))}
+        </div>
+
+        {/* Thời gian áp dụng + Chi nhánh — grid 2 cột */}
+        <div style={{ marginTop: 24, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+          {/* Thời gian */}
+          <div style={{ background: 'white', borderRadius: 16, padding: 24, boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: '#E8F4FA', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <CalendarRange size={18} color="#0E76A8" />
+              </div>
+              <h3 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 16, fontWeight: 800, color: '#1E293B', margin: 0 }}>
+                Thời gian áp dụng
+              </h3>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={{ background: '#F8FAFC', borderRadius: 12, padding: 14 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, fontFamily: 'Inter, sans-serif' }}>
+                  Ngày mở bán
+                </div>
+                <div style={{ fontFamily: 'Manrope, sans-serif', fontSize: 15, fontWeight: 700, color: '#0E76A8' }}>
+                  {formatDate(voucher.startDate)}
+                </div>
+              </div>
+              <div style={{ background: '#FEF2F2', borderRadius: 12, padding: 14 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6, fontFamily: 'Inter, sans-serif' }}>
+                  Ngày đóng bán
+                </div>
+                <div style={{ fontFamily: 'Manrope, sans-serif', fontSize: 15, fontWeight: 700, color: '#EF4444' }}>
+                  {formatDate(voucher.endDate)}
+                </div>
+              </div>
+            </div>
+            {isExpiringSoon && (
+              <div style={{
+                marginTop: 12,
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '10px 12px',
+                background: '#FEF2F2',
+                border: '1px solid #FECACA',
+                borderRadius: 10,
+                fontSize: 13,
+                color: '#991B1B',
+                fontFamily: 'Inter, sans-serif',
+                fontWeight: 600,
+              }}>
+                <Clock size={14} />
+                {daysLeft === 0
+                  ? '⚠️ Voucher hết hạn hôm nay - hãy sử dụng ngay!'
+                  : `⚠️ Voucher sắp hết hạn - chỉ còn ${daysLeft} ngày`}
+              </div>
+            )}
+          </div>
+
+          {/* Chi nhánh áp dụng */}
+          <div style={{ background: 'white', borderRadius: 16, padding: 24, boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: '#ECFDF5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <MapPin size={18} color="#10B981" />
+              </div>
+              <h3 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 16, fontWeight: 800, color: '#1E293B', margin: 0 }}>
+                Chi nhánh áp dụng
+                {voucher.voucherBranches && voucher.voucherBranches.length > 0 && (
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#64748B', marginLeft: 8 }}>
+                    ({voucher.voucherBranches.length})
+                  </span>
+                )}
+              </h3>
+            </div>
+            {voucher.voucherBranches && voucher.voucherBranches.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 260, overflowY: 'auto' }}>
+                {voucher.voucherBranches.map((vb) => (
+                  <div
+                    key={vb.branch.branchId}
+                    style={{
+                      padding: 12,
+                      background: '#F8FAFC',
+                      borderRadius: 10,
+                      border: '1px solid #E2E8F0',
+                    }}
+                  >
+                    <div style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, fontWeight: 700, color: '#1E293B', marginBottom: 4 }}>
+                      {vb.branch.branchName}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, fontSize: 13, color: '#475569', marginBottom: 3, fontFamily: 'Inter, sans-serif' }}>
+                      <MapPin size={13} color="#94A3B8" style={{ marginTop: 2, flexShrink: 0 }} />
+                      <span>{vb.branch.address}</span>
+                    </div>
+                    {vb.branch.phoneNumber && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#0E76A8', fontFamily: 'Inter, sans-serif', fontWeight: 600 }}>
+                        <Phone size={13} />
+                        <a href={`tel:${vb.branch.phoneNumber}`} style={{ color: '#0E76A8', textDecoration: 'none' }}>
+                          {vb.branch.phoneNumber}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ padding: '24px 12px', textAlign: 'center', color: '#94A3B8', fontSize: 13, fontFamily: 'Inter, sans-serif' }}>
+                <MapPin size={28} color="#CBD5E1" style={{ marginBottom: 8 }} />
+                <div>Áp dụng tại tất cả chi nhánh của đối tác.</div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Tabs section */}
@@ -469,6 +630,7 @@ export function VoucherDetail() {
       <style>{`
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }
       `}</style>
     </div>
   );

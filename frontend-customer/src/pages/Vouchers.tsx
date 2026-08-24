@@ -8,6 +8,7 @@ import {
   PRICE_OPTIONS,
   SORT_OPTIONS,
   AREA_OPTIONS,
+  VALIDITY_OPTIONS,
 } from "../utils";
 import { useDebounce } from "../hooks";
 import {
@@ -34,6 +35,10 @@ import {
   LayoutGrid,
   MapPin,
   Store,
+  ChevronDown,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 
 const CATEGORY_ICONS: Record<number, React.ElementType> = {
@@ -138,6 +143,75 @@ interface FilterChip {
 
 import { formatPrice } from "../utils";
 
+/**
+ * PriceInput - Component nhập số với internal state để tránh bị mất focus khi parent re-render.
+ * Truyền giá trị lên parent chỉ khi user blur hoặc nhấn Enter (debounce nhẹ 300ms).
+ */
+const PriceInput = React.memo(function PriceInput({
+  initialValue,
+  placeholder,
+  onCommit,
+}: {
+  initialValue: string;
+  placeholder: string;
+  onCommit: (value: string) => void;
+}) {
+  const [internal, setInternal] = useState(initialValue);
+  const lastEmittedRef = useRef(initialValue);
+
+  // Khi initialValue đổi từ bên ngoài (VD: click preset), sync vào internal
+  useEffect(() => {
+    if (initialValue !== lastEmittedRef.current) {
+      lastEmittedRef.current = initialValue;
+      setInternal(initialValue);
+    }
+  }, [initialValue]);
+
+  const commit = useCallback(
+    (value: string) => {
+      lastEmittedRef.current = value;
+      onCommit(value);
+    },
+    [onCommit],
+  );
+
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      placeholder={placeholder}
+      value={internal}
+      onChange={(e) => {
+        const raw = e.target.value.replace(/[^\d]/g, "");
+        setInternal(raw);
+      }}
+      onFocus={(e) => (e.currentTarget.style.borderColor = "#059669")}
+      onBlur={(e) => {
+        e.currentTarget.style.borderColor = "#E2E8F0";
+        commit(internal);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.currentTarget.blur();
+        }
+      }}
+      style={{
+        width: "100%",
+        minWidth: 0,
+        padding: "9px 10px",
+        border: "1.5px solid #E2E8F0",
+        borderRadius: 8,
+        fontSize: 13,
+        fontFamily: "Inter, sans-serif",
+        color: "#1E293B",
+        outline: "none",
+        boxSizing: "border-box",
+      }}
+    />
+  );
+});
+
 export function VouchersPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [vouchers, setVouchers] = useState<Voucher[]>([]);
@@ -174,10 +248,24 @@ export function VouchersPage() {
     .map(Number)
     .filter((n) => !isNaN(n) && n > 0);
   const discount = searchParams.get("discount") || "";
-  const priceRange = searchParams.get("price") || "";
   const area = searchParams.get("area") || "";
   const partnerId = searchParams.get("partner_id") || "";
   const partnerName = searchParams.get("partner_name") || "";
+  const validityStatus = searchParams.get("validity_status") || "";
+  // Custom price range inputs - local state (không sync với URL để tránh re-render khi đang nhập)
+  const [minPriceInput, setMinPriceInput] = useState("");
+  const [maxPriceInput, setMaxPriceInput] = useState("");
+  // Debounced values để gọi API - tránh gọi fetch liên tục khi user đang gõ
+  const [debouncedMinPrice, setDebouncedMinPrice] = useState("");
+  const [debouncedMaxPrice, setDebouncedMaxPrice] = useState("");
+  useEffect(() => {
+    const t1 = setTimeout(() => setDebouncedMinPrice(minPriceInput), 400);
+    return () => clearTimeout(t1);
+  }, [minPriceInput]);
+  useEffect(() => {
+    const t2 = setTimeout(() => setDebouncedMaxPrice(maxPriceInput), 400);
+    return () => clearTimeout(t2);
+  }, [maxPriceInput]);
 
   // Derive active filter chips cho hiển thị
   const activeFilters: FilterChip[] = [
@@ -187,10 +275,23 @@ export function VouchersPage() {
       categoryId: id,
     })),
     ...(discount ? [{ key: "discount", label: `Giảm ≥ ${discount}%` }] : []),
-    ...(priceRange
-      ? [{ key: "price", label: PRICE_OPTIONS.find((p) => p.value === priceRange)?.label || "Khoảng giá" }]
+    ...(minPriceInput || maxPriceInput
+      ? [
+          {
+            key: "price",
+            label: `💰 ${minPriceInput ? formatPrice(Number(minPriceInput)) : "0"} - ${maxPriceInput ? formatPrice(Number(maxPriceInput)) : "∞"}`,
+          },
+        ]
       : []),
     ...(area ? [{ key: "area", label: `📍 ${AREA_OPTIONS.find((a) => a.value === area)?.label || area}` }] : []),
+    ...(validityStatus
+      ? [
+          {
+            key: "validity_status",
+            label: `⏱️ ${VALIDITY_OPTIONS.find((v) => v.value === validityStatus)?.label || validityStatus}`,
+          },
+        ]
+      : []),
     ...(partnerId
       ? [
           {
@@ -223,6 +324,10 @@ export function VouchersPage() {
       } else {
         newParams.set("categories", newCats.join(","));
       }
+    } else if (key === "price") {
+      setMinPriceInput("");
+      setMaxPriceInput("");
+      return; // không cần update URL
     } else {
       newParams.delete(key);
     }
@@ -235,6 +340,8 @@ export function VouchersPage() {
     newParams.set("page", "1");
     setSearchParams(newParams);
     setLocalSearch("");
+    setMinPriceInput("");
+    setMaxPriceInput("");
   };
 
   const toggleCategory = (id: number) => {
@@ -264,6 +371,7 @@ export function VouchersPage() {
     setLoading(true);
     setError(null);
 
+    // Xây dựng params cho API
     const params: Record<string, unknown> = {
       page: currentPage,
       sort: sort as "price_asc" | "price_desc" | "popular" | "newest",
@@ -272,11 +380,11 @@ export function VouchersPage() {
       ...(categoryIds.length > 0 && { category_ids: categoryIds }),
       // BR-CUS-03: truyền các filter mới xuống backend
       ...(discount && { discount_min: Number(discount) }),
-      ...(priceRange && {
-        min_price: Number(priceRange.split("-")[0]),
-        max_price: Number(priceRange.split("-")[1]) || 999999999,
-      }),
+      // Price range dùng local state (minPriceInput, maxPriceInput)
+      ...(debouncedMinPrice && { min_price: Number(debouncedMinPrice) }),
+      ...(debouncedMaxPrice && { max_price: Number(debouncedMaxPrice) }),
       ...(area && { area }),
+      ...(validityStatus && { validity_status: validityStatus }),
       ...(partnerId && { partner_id: Number(partnerId) }),
       ...(partnerName && { partner_name: partnerName }),
     };
@@ -297,7 +405,7 @@ export function VouchersPage() {
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [currentPage, sort, debouncedSearch, categoriesParam, discount, priceRange, area, partnerId, partnerName]);
+  }, [currentPage, sort, debouncedSearch, categoriesParam, discount, area, partnerId, partnerName, validityStatus, debouncedMinPrice, debouncedMaxPrice]);
 
   const hasActiveFilters = activeFilters.length > 0;
 
@@ -588,7 +696,7 @@ export function VouchersPage() {
         </div>
       </div>
 
-      {/* BR-CUS-03: Area filter */}
+      {/* BR-CUS-03: Area filter - Province List */}
       <div>
         <h3
           style={{
@@ -604,28 +712,122 @@ export function VouchersPage() {
         >
           <MapPin size={14} /> Khu vực
         </h3>
-        <select
-          value={area}
-          onChange={(e) => updateParams("area", e.target.value)}
+        <div
           style={{
-            width: "100%",
-            padding: "10px 14px",
-            border: "1.5px solid #E2E8F0",
-            borderRadius: 10,
-            fontSize: 13,
-            fontFamily: "Inter, sans-serif",
-            color: "#1E293B",
-            background: "white",
-            cursor: "pointer",
-            outline: "none",
+            display: "flex",
+            flexDirection: "column",
+            gap: 3,
+            maxHeight: 320,
+            overflowY: "auto",
+            paddingRight: 4,
           }}
         >
-          {AREA_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
+          {AREA_OPTIONS.map((opt) => {
+            const selected = area === opt.value;
+            return (
+              <button
+                key={opt.value}
+                onClick={() => updateParams("area", opt.value)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "8px 12px",
+                  borderRadius: 8,
+                  background: selected ? "#E8F4FA" : "transparent",
+                  border: selected ? "1.5px solid #BAE6FD" : "1.5px solid transparent",
+                  cursor: "pointer",
+                  transition: "all 0.15s",
+                  textAlign: "left",
+                }}
+                onMouseEnter={(e) => {
+                  if (!selected) e.currentTarget.style.background = "#F8FAFC";
+                }}
+                onMouseLeave={(e) => {
+                  if (!selected) e.currentTarget.style.background = "transparent";
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily: "Inter, sans-serif",
+                    fontSize: 13,
+                    fontWeight: selected ? 600 : 400,
+                    color: selected ? "#0E76A8" : "#334155",
+                  }}
+                >
+                  {opt.label}
+                </span>
+                {selected && (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0E76A8" strokeWidth="2.5">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* BR-CUS-03: Validity Status Filter */}
+      <div>
+        <h3
+          style={{
+            fontFamily: "Manrope, sans-serif",
+            fontSize: 14,
+            fontWeight: 800,
+            color: "#1E293B",
+            marginBottom: 12,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          <Clock size={14} /> Trạng thái
+        </h3>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {VALIDITY_OPTIONS.map((opt) => {
+            const selected = validityStatus === opt.value;
+            return (
+              <button
+                key={opt.value}
+                onClick={() => updateParams("validity_status", opt.value)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "9px 12px",
+                  borderRadius: 10,
+                  background: selected ? "#EEF2FF" : "transparent",
+                  border: selected ? "1.5px solid #C7D2FE" : "1.5px solid #E2E8F0",
+                  cursor: "pointer",
+                  transition: "all 0.15s",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  {opt.value === "available" && <CheckCircle2 size={14} color={selected ? "#6366F1" : "#94A3B8"} />}
+                  {opt.value === "selling" && <Clock size={14} color={selected ? "#6366F1" : "#94A3B8"} />}
+                  {opt.value === "expiring_soon" && <AlertCircle size={14} color={selected ? "#6366F1" : "#94A3B8"} />}
+                  {opt.value === "" && <CheckCircle2 size={14} color={selected ? "#6366F1" : "#94A3B8"} />}
+                  <span
+                    style={{
+                      fontFamily: "Inter, sans-serif",
+                      fontSize: 13,
+                      fontWeight: selected ? 700 : 400,
+                      color: selected ? "#4F46E5" : "#334155",
+                    }}
+                  >
+                    {opt.label}
+                  </span>
+                </div>
+                {selected && (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6366F1" strokeWidth="2.5">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Discount */}
@@ -678,7 +880,7 @@ export function VouchersPage() {
         </div>
       </div>
 
-      {/* Price range */}
+      {/* Price range - Preset + Custom Min/Max Input */}
       <div>
         <h3
           style={{
@@ -692,39 +894,112 @@ export function VouchersPage() {
           Khoảng giá
         </h3>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {PRICE_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => updateParams("price", opt.value)}
+          {/* Tất cả mức giá */}
+          <button
+            onClick={() => {
+              setMinPriceInput("");
+              setMaxPriceInput("");
+            }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "9px 12px",
+              borderRadius: 10,
+              background: !minPriceInput && !maxPriceInput ? "#ECFDF5" : "transparent",
+              border: !minPriceInput && !maxPriceInput ? "1.5px solid #6EE7B7" : "1.5px solid #E2E8F0",
+              cursor: "pointer",
+              transition: "all 0.15s",
+            }}
+          >
+            <span
               style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "9px 12px",
-                borderRadius: 10,
-                background: priceRange === opt.value ? "#ECFDF5" : "transparent",
-                border: priceRange === opt.value ? "1.5px solid #6EE7B7" : "1.5px solid #E2E8F0",
-                cursor: "pointer",
-                transition: "all 0.15s",
+                fontFamily: "Inter, sans-serif",
+                fontSize: 13,
+                fontWeight: !minPriceInput && !maxPriceInput ? 700 : 400,
+                color: !minPriceInput && !maxPriceInput ? "#065F46" : "#334155",
               }}
             >
-              <span
+              Tất cả mức giá
+            </span>
+            {!minPriceInput && !maxPriceInput && (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            )}
+          </button>
+
+          {/* Preset options */}
+          {PRICE_OPTIONS.slice(1).map((opt) => {
+            const [presetMin, presetMax] = opt.value.split("-");
+            const selected = minPriceInput === presetMin && (maxPriceInput === presetMax || (presetMax === "999999999" && !maxPriceInput));
+            return (
+              <button
+                key={opt.value}
+                onClick={() => {
+                  setMinPriceInput(presetMin);
+                  setMaxPriceInput(presetMax === "999999999" ? "" : presetMax);
+                }}
                 style={{
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: 13,
-                  fontWeight: priceRange === opt.value ? 700 : 400,
-                  color: priceRange === opt.value ? "#065F46" : "#334155",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "9px 12px",
+                  borderRadius: 10,
+                  background: selected ? "#ECFDF5" : "transparent",
+                  border: selected ? "1.5px solid #6EE7B7" : "1.5px solid #E2E8F0",
+                  cursor: "pointer",
+                  transition: "all 0.15s",
                 }}
               >
-                {opt.label}
-              </span>
-              {priceRange === opt.value && (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              )}
-            </button>
-          ))}
+                <span
+                  style={{
+                    fontFamily: "Inter, sans-serif",
+                    fontSize: 13,
+                    fontWeight: selected ? 700 : 400,
+                    color: selected ? "#065F46" : "#334155",
+                  }}
+                >
+                  {opt.label}
+                </span>
+                {selected && (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                )}
+              </button>
+            );
+          })}
+
+          {/* Custom min/max input */}
+          <div style={{ marginTop: 4 }}>
+            <div
+              style={{
+                fontSize: 11,
+                color: "#94A3B8",
+                fontFamily: "Inter, sans-serif",
+                fontWeight: 600,
+                marginBottom: 6,
+                textTransform: "uppercase",
+                letterSpacing: 0.5,
+              }}
+            >
+              Hoặc nhập khoảng giá
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <PriceInput
+                initialValue={minPriceInput}
+                placeholder="Từ"
+                onCommit={(v) => setMinPriceInput(v)}
+              />
+              <span style={{ color: "#94A3B8", fontSize: 13, flexShrink: 0 }}>—</span>
+              <PriceInput
+                initialValue={maxPriceInput}
+                placeholder="Đến"
+                onCommit={(v) => setMaxPriceInput(v)}
+              />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1084,7 +1359,7 @@ export function VouchersPage() {
             {/* Count */}
             <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#64748B", whiteSpace: "nowrap" }}>
               {loading ? "..." : `${vouchers.length} voucher`}
-              {(localSearch || categoryIds.length > 0 || discount || priceRange || area || partnerId) &&
+              {(localSearch || categoryIds.length > 0 || discount || minPriceInput || maxPriceInput || area || validityStatus || partnerId) &&
                 !loading &&
                 ` được tìm thấy`}
             </span>
@@ -1253,6 +1528,12 @@ export function VouchersPage() {
                     voucher.imageUrl ||
                     "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&h=300&fit=crop";
 
+                  // Tính số ngày còn lại từ endDate
+                  const daysLeft = voucher.endDate
+                    ? Math.max(0, Math.ceil((new Date(voucher.endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+                    : null;
+                  const isExpiringSoon = daysLeft !== null && daysLeft <= 5;
+
                   return (
                     <Link
                       key={voucher.voucherId}
@@ -1302,6 +1583,8 @@ export function VouchersPage() {
                             -{discount_pct}%
                           </span>
                         )}
+
+                        {/* Countdown badge đã chuyển xuống dưới phần giá */}
                         <span
                           style={{
                             position: "absolute",
@@ -1403,6 +1686,38 @@ export function VouchersPage() {
                             </span>
                           )}
                         </div>
+
+                        {/* Countdown dưới giá - chỉ khi ≤5 ngày */}
+                        {isExpiringSoon && (
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 4,
+                              padding: "4px 8px",
+                              borderRadius: 6,
+                              fontSize: 11,
+                              fontWeight: 700,
+                              fontFamily: "Inter, sans-serif",
+                              color: "white",
+                              alignSelf: "flex-start",
+                              background:
+                                daysLeft === 0
+                                  ? "rgba(15, 23, 42, 0.92)"
+                                  : daysLeft === 1
+                                    ? "linear-gradient(135deg, #DC2626 0%, #991B1B 100%)"
+                                    : "linear-gradient(135deg, #F59E0B 0%, #EF4444 100%)",
+                              boxShadow: "0 2px 6px rgba(239, 68, 68, 0.35)",
+                            }}
+                          >
+                            <Clock size={11} />
+                            {daysLeft === 0
+                              ? "Hết hạn hôm nay"
+                              : daysLeft === 1
+                                ? "Còn 1 ngày"
+                                : `Còn ${daysLeft} ngày`}
+                          </div>
+                        )}
                       </div>
                     </Link>
                   );

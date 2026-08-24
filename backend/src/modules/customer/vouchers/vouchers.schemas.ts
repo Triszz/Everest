@@ -54,6 +54,11 @@ export const voucherQuerySchema = z.object({
   partner_name: z.string().optional(),
   discount_min: intFromString("discount_min phải là số").optional(),
   area: z.string().optional(),
+  // BR-CUS-03: Filter theo trạng thái hiệu lực
+  // - "available": Còn hàng (available_quantity > 0)
+  // - "selling": Đang trong thời gian bán (start_date <= now <= end_date)
+  // - "expiring_soon": Sắp hết hạn (còn ≤ 3 ngày)
+  validity_status: z.enum(["available", "selling", "expiring_soon"]).optional(),
   sort: z
     .enum(["price_asc", "price_desc", "popular", "newest"])
     .optional()

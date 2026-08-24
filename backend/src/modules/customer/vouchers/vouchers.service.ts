@@ -20,7 +20,7 @@ import {
 export const vouchersService = {
   /**
    * Lấy danh sách voucher hiển thị cho customer.
-   * Hỗ trợ filter: search, category(s), price range, partner, area, discount_min.
+   * Hỗ trợ filter: search, category(s), price range, partner, area, discount_min, validity_status.
    * Sort: price_asc | price_desc | popular | newest.
    *
    * Lưu ý: discount_min được filter ở tầng JS (sau khi tính %)
@@ -37,6 +37,7 @@ export const vouchersService = {
       partner_name,
       discount_min,
       area,
+      validity_status,
       sort,
       page,
       limit,
@@ -78,6 +79,23 @@ export const vouchersService = {
       where.voucherBranches = {
         some: { branch: { address: { contains: area, mode: "insensitive" } } },
       };
+    }
+
+    // BR-CUS-03: Filter theo trạng thái hiệu lực
+    if (validity_status === "available") {
+      where.availableQuantity = { gt: 0 };
+    } else if (validity_status === "selling") {
+      const now = new Date();
+      where.startDate = { lte: now };
+      where.endDate = { gte: now };
+    } else if (validity_status === "expiring_soon") {
+      const now = new Date();
+      const threeDaysLater = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+      where.endDate = {
+        gte: now,
+        lte: threeDaysLater,
+      };
+      where.availableQuantity = { gt: 0 };
     }
 
     const orderBy: Prisma.VoucherOrderByWithRelationInput = {};

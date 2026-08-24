@@ -87,6 +87,15 @@ export const emailOtpController = {
     if (input.purpose === "REGISTER_VERIFY") {
       const user = await prisma.user.findUnique({
         where: { email: result.email },
+        select: {
+          userId: true,
+          email: true,
+          fullName: true,
+          role: true,
+          status: true,
+          partnerId: true,
+          emailVerified: true,
+        },
       });
       if (!user) {
         throw new AppError("Không tìm thấy tài khoản", 404, "NOT_FOUND");

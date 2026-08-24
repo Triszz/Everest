@@ -117,6 +117,11 @@ export default function PostManagement() {
                     </span>
                   </td>
                   <td>
+                    <span className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)' }}>
+                      {formatDate(post.createdAt)}
+                    </span>
+                  </td>
+                  <td>
                     <span className={`badge ${post.status === 'Visible' ? 'badge-active' : 'badge-info'}`}>
                       {post.status === 'Visible' ? 'Hiện' : 'Ẩn'}
                     </span>

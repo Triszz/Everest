@@ -323,7 +323,10 @@ export const partnerService = {
   ) {
     const [branch, cashier] = await Promise.all([
       prisma.branch.findFirst({ where: { branchId, partnerId } }),
-      prisma.user.findUnique({ where: { email: cashierEmail } }),
+      prisma.user.findUnique({
+        where: { email: cashierEmail },
+        select: { userId: true, role: true, partnerId: true },
+      }),
     ]);
 
     if (!branch)
@@ -395,6 +398,7 @@ export const partnerService = {
   ) {
     const existing = await prisma.user.findUnique({
       where: { email: data.email },
+      select: { userId: true, partnerId: true },
     });
 
     if (existing) {

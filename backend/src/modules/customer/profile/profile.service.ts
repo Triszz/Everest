@@ -47,6 +47,7 @@ export const profileService = {
     if (input.phoneNumber) {
       const existing = await prisma.user.findFirst({
         where: { phoneNumber: input.phoneNumber, NOT: { userId } },
+        select: { userId: true },
       });
       if (existing) {
         throw new AppError("Số điện thoại đã được sử dụng", 409, "CONFLICT");

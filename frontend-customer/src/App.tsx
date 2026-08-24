@@ -15,6 +15,8 @@ import { OrderSuccessPage } from './pages/OrderSuccess';
 import { OrdersPage } from './pages/Orders';
 import { VouchersPage } from './pages/Vouchers';
 import { CategoryPage } from './pages/Category';
+import { PostsPage } from './pages/Posts';
+import { PostDetail } from './components/PostDetail';
 import { ProfilePage } from './pages/Profile';
 import { SettingsPage } from './pages/Settings';
 import { EditProfilePage } from './pages/EditProfile';
@@ -58,6 +60,8 @@ function App() {
           <Route path="/voucher/:id" element={<VoucherDetail />} />
           <Route path="/vouchers" element={<VouchersPage />} />
           <Route path="/category/:id" element={<CategoryPage />} />
+          <Route path="/posts" element={<PostsPage />} />
+          <Route path="/posts/:id" element={<PostDetail />} />
           <Route path="/cart" element={<CartPage />} />
           <Route path="/my-voucher" element={<MyVoucher />} />
           <Route path="/checkout" element={<Checkout />} />
