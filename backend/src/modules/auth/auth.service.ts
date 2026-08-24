@@ -230,6 +230,16 @@ export const authService = {
   async login(input: LoginInput) {
     const user = await prisma.user.findUnique({
       where: { email: input.email },
+      select: {
+        userId: true,
+        email: true,
+        passwordHash: true,
+        fullName: true,
+        role: true,
+        status: true,
+        partnerId: true,
+        emailVerified: true,
+      },
     });
 
     if (!user || !user.passwordHash) {
@@ -293,6 +303,11 @@ export const authService = {
           ...(input.phoneNumber ? [{ phoneNumber: input.phoneNumber }] : []),
         ],
       },
+      select: {
+        userId: true,
+        email: true,
+        phoneNumber: true,
+      },
     });
 
     if (existing) {
@@ -341,6 +356,11 @@ export const authService = {
             { email: input.email },
             ...(input.phoneNumber ? [{ phoneNumber: input.phoneNumber }] : []),
           ],
+        },
+        select: {
+          userId: true,
+          email: true,
+          phoneNumber: true,
         },
       }),
       prisma.partner.findUnique({ where: { taxCode: input.taxCode } }),
@@ -425,6 +445,14 @@ export const authService = {
     where: {
       userId: decoded.userId,
     },
+    select: {
+      userId: true,
+      email: true,
+      role: true,
+      status: true,
+      partnerId: true,
+      emailVerified: true,
+    },
   });
 
   /*
@@ -501,7 +529,10 @@ export const authService = {
     currentPassword: string,
     newPassword: string,
   ) {
-    const user = await prisma.user.findUnique({ where: { userId } });
+    const user = await prisma.user.findUnique({
+      where: { userId },
+      select: { userId: true, passwordHash: true },
+    });
     if (!user?.passwordHash)
       throw new AppError("Người dùng không tồn tại", 404, "NOT_FOUND");
 
@@ -527,6 +558,10 @@ export const authService = {
     if (data.phoneNumber) {
       const existing = await prisma.user.findFirst({
         where: { phoneNumber: data.phoneNumber, NOT: { userId } },
+        select: {
+          userId: true,
+          phoneNumber: true,
+        },
       });
       if (existing)
         throw new AppError("Số điện thoại đã được sử dụng", 409, "CONFLICT");

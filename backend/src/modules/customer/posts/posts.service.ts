@@ -12,7 +12,7 @@ const POST_LIST_SELECT = {
   title: true,
   content: true,
   imageUrl: true,
-  publishedAt: true,
+  createdAt: true,
   author: {
     select: {
       userId: true,
@@ -36,7 +36,7 @@ export const postsService = {
         where,
         skip,
         take: limit,
-        orderBy: { publishedAt: "desc" },
+        orderBy: { createdAt: "desc" },
         select: POST_LIST_SELECT,
       }),
       prisma.post.count({ where }),

@@ -17,7 +17,10 @@ export const passwordService = {
    * Ghi PasswordReset record vào DB (hoặc gửi email trong thực tế).
    */
   async requestReset(email: string, ipAddress?: string) {
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { userId: true },
+    });
 
     // Luôn trả 200 để tránh user enumeration attack
     // Nếu user không tồn tại → vẫn return như bình thường (không leak thông tin)
@@ -135,7 +138,10 @@ export const passwordService = {
       throw new AppError(verifyResult.reason, 400, "OTP_INVALID");
     }
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { userId: true, passwordHash: true },
+    });
     if (!user) {
       throw new AppError("Không tìm thấy tài khoản", 404, "USER_NOT_FOUND");
     }

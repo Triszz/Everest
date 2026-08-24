@@ -671,7 +671,6 @@ export interface PostResponse {
   content: string;
   imageUrl: string | null;
   status: PostStatus;
-  publishedAt: string | null;
   createdAt: string;
   updatedAt: string;
   author: PostAuthor;

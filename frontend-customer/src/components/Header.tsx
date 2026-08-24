@@ -108,6 +108,7 @@ export function Header() {
           <nav style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <NavLink to="/" label="Marketplace" isActive={location.pathname === '/'} />
             <NavLink to="/vouchers" label="All Vouchers" isActive={location.pathname === '/vouchers'} />
+            <NavLink to="/posts" label="Posts" isActive={location.pathname.startsWith('/posts')} />
             <NavLink to="/my-voucher" label="My Vouchers" isActive={location.pathname === '/my-voucher'} />
           </nav>
 

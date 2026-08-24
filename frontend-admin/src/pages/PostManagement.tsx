@@ -119,7 +119,7 @@ export default function PostManagement() {
                   </td>
                   <td>
                     <span className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)' }}>
-                      {formatDate(post.publishedAt)}
+                      {formatDate(post.createdAt)}
                     </span>
                   </td>
                   <td>

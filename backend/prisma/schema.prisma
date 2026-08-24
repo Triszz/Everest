@@ -228,13 +228,12 @@ model Post {
   content     String     @db.Text
   imageUrl    String?    @map("image_url") @db.VarChar(255)
   status      PostStatus @default(Hidden)
-  publishedAt DateTime?  @map("published_at") @db.Timestamptz
   createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz
   updatedAt   DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
 
   author User @relation("PostAuthor", fields: [authorId], references: [userId], onDelete: Restrict)
 
-  @@index([status, publishedAt(sort: Desc)])
+  @@index([status, createdAt(sort: Desc)])
   @@map("posts")
 }
 

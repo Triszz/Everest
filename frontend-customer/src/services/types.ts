@@ -131,7 +131,7 @@ export interface Post {
   title: string;
   content: string;
   imageUrl: string | null;
-  publishedAt: string | null;
+  createdAt: string;
   author: {
     userId: string;
     fullName: string;
