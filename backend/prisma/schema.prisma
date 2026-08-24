@@ -262,6 +262,7 @@ model Voucher {
   expiryDays           Int                   @map("expiry_days")
   approvalStatus       VoucherApprovalStatus @default(Draft) @map("approval_status")
   displayStatus        VoucherDisplayStatus  @default(Hidden) @map("display_status")
+  isLocked             Boolean              @default(false) @map("is_locked")
   createdAt            DateTime              @default(now()) @map("created_at") @db.Timestamptz
   updatedAt            DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
 

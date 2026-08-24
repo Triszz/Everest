@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useToast } from '../components/shared/Toast'
 import { useVoucherManagement } from '../hooks/useVoucherManagement'
 
-type VoucherStatus = 'DRAFT' | 'PENDING_REVIEW' | 'REJECTED' | 'PUBLISHED' | 'PAUSED' | 'STOPPED' | 'EXPIRED' | 'SOLD_OUT'
+type VoucherStatus = 'DRAFT' | 'PENDING_REVIEW' | 'REJECTED' | 'PUBLISHED' | 'PAUSED' | 'STOPPED' | 'EXPIRED' | 'SOLD_OUT' | 'LOCKED'
 
 const statusConfig: Record<VoucherStatus, { label: string; cls: string }> = {
   DRAFT: { label: 'Nháp', cls: 'badge-info' },
@@ -14,6 +14,7 @@ const statusConfig: Record<VoucherStatus, { label: string; cls: string }> = {
   STOPPED: { label: 'Ngừng bán', cls: 'badge-info' },
   EXPIRED: { label: 'Hết hạn', cls: 'badge-locked' },
   SOLD_OUT: { label: 'Hết hàng', cls: 'badge-locked' },
+  LOCKED: { label: 'Đã khóa', cls: 'badge-locked' },
 }
 
 function isVoucherExpired(endDate: string, now: number) {
@@ -48,7 +49,7 @@ export default function Vouchers() {
   const {
     vouchers, stats, total, page, totalPages, filters,
     isLoading, isLoadingStats,
-    approveVoucher, rejectVoucher, toggleDisplayStatus,
+    approveVoucher, rejectVoucher, toggleDisplayStatus, toggleLock,
     updateEndDate, expireNow,
     updateFilters, resetFilters,
   } = useVoucherManagement(partnerId)
@@ -129,7 +130,16 @@ export default function Vouchers() {
       showToast('Vi phạm RB-03: Voucher phải có thời gian rõ ràng!', 'error')
       return
     }
-    await approveVoucher(v.voucherId)
+    try {
+      await approveVoucher(v.voucherId)
+    } catch {}
+  }
+
+  const handleToggleLock = async (v: typeof vouchers[0]) => {
+    try {
+      const updated = await toggleLock(v.voucherId, !v.isLocked)
+      setSelectedVoucher((previous) => previous && previous.voucherId === v.voucherId ? { ...previous, isLocked: updated.isLocked } : previous)
+    } catch {}
   }
 
   const handleToggleDisplay = async (v: typeof vouchers[0], displayStatus: 'Visible' | 'Hidden') => {
@@ -273,7 +283,8 @@ export default function Vouchers() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
           {vouchers.map((v) => {
             const expired = isVoucherExpired(v.endDate, now)
-            const status = expired ? 'EXPIRED' : mapApprovalStatus(v.approvalStatus)
+            const mappedStatus = mapApprovalStatus(v.approvalStatus)
+            const status = v.isLocked ? 'LOCKED' : (expired ? 'EXPIRED' : mappedStatus)
             const sc = statusConfig[status]
             const sold = v.totalQuantity - v.availableQuantity
             const lowStock = v.availableQuantity < v.totalQuantity * 0.1
@@ -311,6 +322,12 @@ export default function Vouchers() {
                     <span className={`badge ${v.displayStatus === 'Visible' ? 'badge-active' : 'badge-info'}`}>
                       {v.displayStatus === 'Visible' ? 'Đang hiện' : 'Đang ẩn'}
                     </span>
+                    {v.isLocked && (
+                      <span className="badge badge-locked">
+                        <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>lock</span>
+                        Đã khóa
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -392,19 +409,44 @@ export default function Vouchers() {
                     </div>
                   )}
                   {status !== 'PENDING_REVIEW' && (
-                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+                    <div style={{ display: 'flex', gap: '0.375rem', marginTop: '1rem' }}>
                       <button
                         className="admin-btn admin-btn-ghost"
                         style={{ flex: 1, fontSize: '0.75rem', padding: '0.375rem' }}
                         onClick={(e) => {
                           e.stopPropagation()
+                          openVoucherDetail(v)
+                        }}
+                        title="Xem chi tiết"
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>info</span>
+                        Chi tiết
+                      </button>
+                      <button
+                        className="admin-btn admin-btn-ghost"
+                        style={{ fontSize: '0.75rem', padding: '0.375rem' }}
+                        onClick={(e) => {
+                          e.stopPropagation()
                           handleToggleDisplay(v, v.displayStatus === 'Visible' ? 'Hidden' : 'Visible')
                         }}
+                        title={v.displayStatus === 'Visible' ? 'Ẩn voucher' : 'Hiện voucher'}
                       >
                         <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>
                           {v.displayStatus === 'Visible' ? 'visibility_off' : 'visibility'}
                         </span>
-                        {v.displayStatus === 'Visible' ? 'Đang hiện' : 'Đang ẩn'}
+                      </button>
+                      <button
+                        className="admin-btn admin-btn-ghost"
+                        style={{ fontSize: '0.75rem', padding: '0.375rem' }}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleToggleLock(v)
+                        }}
+                        title={v.isLocked ? 'Mở khóa voucher' : 'Khóa voucher'}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>
+                          {v.isLocked ? 'lock_open' : 'lock'}
+                        </span>
                       </button>
                     </div>
                   )}
@@ -430,6 +472,7 @@ export default function Vouchers() {
                   <th style={{ textAlign: 'right' }}>Giá bán</th>
                   <th style={{ textAlign: 'right' }}>Đã bán/Tổng</th>
                   <th>Hiển thị</th>
+                  <th>Khóa</th>
                   <th>Trạng thái</th>
                   <th style={{ textAlign: 'right' }}>Thao tác</th>
                 </tr>
@@ -437,7 +480,8 @@ export default function Vouchers() {
               <tbody>
                 {vouchers.map((v) => {
                   const expired = isVoucherExpired(v.endDate, now)
-                  const status = expired ? 'EXPIRED' : mapApprovalStatus(v.approvalStatus)
+                  const mappedStatus = mapApprovalStatus(v.approvalStatus)
+                  const status = v.isLocked ? 'LOCKED' : (expired ? 'EXPIRED' : mappedStatus)
                   const sc = statusConfig[status]
                   const sold = v.totalQuantity - v.availableQuantity
                   return (
@@ -464,6 +508,15 @@ export default function Vouchers() {
                         <span className={`badge ${v.displayStatus === 'Visible' ? 'badge-active' : 'badge-info'}`}>
                           {v.displayStatus === 'Visible' ? 'Đang hiện' : 'Đang ẩn'}
                         </span>
+                      </td>
+                      <td>
+                        {v.isLocked ? (
+                          <span className="badge badge-locked">
+                            <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>lock</span>
+                          </span>
+                        ) : (
+                          <span className="badge badge-active">—</span>
+                        )}
                       </td>
                       <td><span className={`badge ${sc.cls}`}>{sc.label}</span></td>
                       <td>
@@ -545,6 +598,12 @@ export default function Vouchers() {
                 <span className={`badge ${isVoucherExpired(selectedVoucher.endDate, now) ? 'badge-locked' : statusConfig[mapApprovalStatus(selectedVoucher.approvalStatus)].cls}`}>
                   {isVoucherExpired(selectedVoucher.endDate, now) ? 'Đã hết hạn' : statusConfig[mapApprovalStatus(selectedVoucher.approvalStatus)].label}
                 </span>
+                {selectedVoucher.isLocked && (
+                  <span className="badge badge-locked">
+                    <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>lock</span>
+                    Đã khóa
+                  </span>
+                )}
                 <button onClick={() => setSelectedVoucher(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-on-surface-variant)' }}>
                   <span className="material-symbols-outlined">close</span>
                 </button>
@@ -673,6 +732,32 @@ export default function Vouchers() {
                     >
                       <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>visibility_off</span>
                       Đang hiện
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Lock Status */}
+              <div style={{ marginBottom: '1.5rem' }}>
+                <h4 className="font-label-md" style={{ marginBottom: '0.75rem', color: 'var(--color-primary)', borderBottom: '1px solid rgba(0,92,134,0.2)', paddingBottom: '0.5rem' }}>
+                  TRẠNG THÁI KHÓA
+                </h4>
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  {selectedVoucher.isLocked ? (
+                    <button
+                      className="admin-btn admin-btn-success"
+                      onClick={() => handleToggleLock(selectedVoucher)}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>lock_open</span>
+                      Đã khóa
+                    </button>
+                  ) : (
+                    <button
+                      className="admin-btn admin-btn-danger"
+                      onClick={() => handleToggleLock(selectedVoucher)}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>lock</span>
+                      Mở khóa
                     </button>
                   )}
                 </div>

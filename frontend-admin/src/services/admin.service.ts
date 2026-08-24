@@ -88,6 +88,7 @@ export interface VoucherResponse {
   expiryDays: number;
   approvalStatus: 'Draft' | 'Pending' | 'Approved' | 'Rejected';
   displayStatus: 'Visible' | 'Hidden';
+  isLocked: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -455,6 +456,14 @@ export const adminVouchersApi = {
       { auth: true },
     ).then((res) => res.data);
   },
+
+  toggleLock(voucherId: number, body: { locked: boolean }): Promise<VoucherResponse> {
+    return patch<VoucherResponse>(
+      `/api/admin/vouchers/${voucherId}/lock`,
+      body,
+      { auth: true },
+    ).then((res) => res.data);
+  },
 };
 
 // ─── Policy API ─────────────────────────────────────────────────────────────────
@@ -779,6 +788,7 @@ export interface OrderResponse {
   receiverEmail: string | null;
   giftMessage: string | null;
   cancelledAt: string | null;
+  cancelledBy: string | null;
   cancelReason: string | null;
   refundedAt: string | null;
   refundAmount: string | null;

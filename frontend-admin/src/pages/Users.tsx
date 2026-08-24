@@ -17,13 +17,14 @@ const roleConfig: Record<UserRole, { label: string; bg: string; color: string }>
 }
 
 function statusBadge(status: AccountStatus) {
-  const cfg = statusConfig[status]
+  if (status === 'Active') return null;
+  const cfg = statusConfig[status];
   return (
     <span className={`badge ${cfg.cls}`}>
       <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'currentColor', display: 'inline-block' }} />
       {cfg.label}
     </span>
-  )
+  );
 }
 
 function roleChip(role: UserRole) {

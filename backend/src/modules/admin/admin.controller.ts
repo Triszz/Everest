@@ -31,6 +31,8 @@ import {
   approveVoucherSchema,
   rejectVoucherSchema,
   toggleVoucherDisplaySchema,
+  toggleVoucherLockSchema,
+  updateVoucherDatesSchema,
   listPoliciesSchema,
   getPolicyByIdSchema,
   upsertPolicySchema,
@@ -40,7 +42,6 @@ import {
   createBannerSchema,
   updateBannerSchema,
   updateBannerStatusSchema,
-  updateVoucherDatesSchema,
   listPopupsSchema,
   getPopupByIdSchema,
   createPopupSchema,
@@ -316,6 +317,13 @@ export const adminController = {
     const { voucherId } = parseQuery(getVoucherByIdSchema, req.params);
     const data = await adminService.expireVoucherNow(voucherId, req.user!);
     res.json({ success: true, data, message: "Voucher đã được hết hạn" });
+  }),
+
+  toggleVoucherLock: asyncHandler(async (req: Request, res: Response) => {
+    const { voucherId } = parseQuery(getVoucherByIdSchema, req.params);
+    const input = parseBody(toggleVoucherLockSchema, req.body);
+    const data = await adminService.toggleVoucherLock(voucherId, input, req.user!);
+    res.json({ success: true, data, message: input.locked ? "Khóa voucher thành công" : "Mở khóa voucher thành công" });
   }),
 
   getVoucherStats: asyncHandler(async (_req: Request, res: Response) => {

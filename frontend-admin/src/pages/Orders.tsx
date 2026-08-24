@@ -114,7 +114,7 @@ export default function Orders() {
               setPaymentStatusFilter(e.target.value as 'all' | OrderPaymentStatus);
             }}
           >
-            <option value="all">Tất cả thanh toán</option>
+            <option value="all">Tất cả</option>
             <option value="Pending">Chờ thanh toán</option>
             <option value="Paid">Đã thanh toán</option>
             <option value="Cancelled">Đã hủy</option>
@@ -152,7 +152,6 @@ export default function Orders() {
                 <th>Voucher</th>
                 <th>Số tiền</th>
                 <th>Thanh toán</th>
-                <th>Trạng thái</th>
                 <th>Ngày tạo</th>
                 <th style={{ textAlign: 'right' }}>Thao tác</th>
               </tr>
@@ -184,19 +183,19 @@ export default function Orders() {
                     )}
                   </td>
                   <td>
-                    <span className={`badge ${paymentStatusConfig[order.paymentStatus].cls}`}>
-                      {paymentStatusConfig[order.paymentStatus].label}
-                    </span>
-                  </td>
-                  <td>
                     {order.refundedAt ? (
-                      <span className="badge badge-info">Đã hoàn tiền</span>
+                      <>
+                        <span className="badge badge-info">Đã hoàn tiền</span>
+                        <div className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)', marginTop: '0.25rem' }}>
+                          Hoàn {formatDate(order.refundedAt)}
+                        </div>
+                      </>
                     ) : order.cancelledAt ? (
                       <span className="badge badge-locked">Đã hủy</span>
-                    ) : order.paymentStatus === 'Paid' ? (
-                      <span className="badge badge-active">Hoạt động</span>
                     ) : (
-                      <span className="badge badge-pending">Chờ</span>
+                      <span className={`badge ${paymentStatusConfig[order.paymentStatus].cls}`}>
+                        {paymentStatusConfig[order.paymentStatus].label}
+                      </span>
                     )}
                   </td>
                   <td>

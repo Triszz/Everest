@@ -5,9 +5,14 @@ import { useToast } from '../components/shared/Toast';
 import { adminPostsApi } from '../services/admin.service';
 import type { PostResponse, PostStatus } from '../services/admin.service';
 
-const STATUS_OPTIONS: { value: PostStatus; label: string; hint: string }[] = [
-  { value: 'Hidden', label: 'Bản nháp', hint: 'Chỉ admin thấy, chưa hiển thị cho khách' },
-  { value: 'Visible', label: 'Đăng ngay', hint: 'Hiển thị công khai trên trang chủ khách hàng' },
+const STATUS_OPTIONS_DRAFT: { value: PostStatus; label: string; hint: string }[] = [
+  { value: 'Hidden', label: 'Ẩn', hint: 'Không hiển thị cho khách' },
+  { value: 'Visible', label: 'Hiện', hint: 'Hiển thị công khai trên trang chủ khách hàng' },
+];
+
+const STATUS_OPTIONS_PUBLISHED: { value: PostStatus; label: string; hint: string }[] = [
+  { value: 'Visible', label: 'Hiện', hint: 'Hiển thị công khai trên trang chủ khách hàng' },
+  { value: 'Hidden', label: 'Ẩn', hint: 'Không hiển thị cho khách' },
 ];
 
 export default function PostEditor() {
@@ -63,7 +68,7 @@ export default function PostEditor() {
 
   const goBack = () => navigate('/content?tab=posts');
 
-  const handleSave = async (publish?: PostStatus) => {
+  const handleSave = async () => {
     if (!title.trim()) {
       showToast('Tiêu đề không được để trống', 'error');
       return;
@@ -76,23 +81,20 @@ export default function PostEditor() {
 
     setIsSaving(true);
     try {
-      const finalStatus = publish ?? status;
       if (isEdit && postId) {
         await adminPostsApi.update(Number(postId), {
           title: title.trim(),
           content,
           imageUrl: imageUrl.trim() || null,
+          status,
         });
-        if (publish && publish !== original?.status) {
-          await adminPostsApi.updateStatus(Number(postId), { status: finalStatus });
-        }
         showToast('Đã lưu thay đổi!', 'success');
       } else {
         await adminPostsApi.create({
           title: title.trim(),
           content,
           imageUrl: imageUrl.trim() || null,
-          status: finalStatus,
+          status,
         });
         showToast('Đã tạo bài viết!', 'success');
       }
@@ -143,25 +145,30 @@ export default function PostEditor() {
             {isEdit ? 'Sửa bài viết' : 'Tạo bài viết mới'}
           </div>
           <div className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)' }}>
-            {isEdit ? `Bài viết #${postId}` : 'Bản nháp'}
+            {isEdit ? `Bài viết #${postId}` : 'Tạo bài viết mới'}
             {dirty && ' · Có thay đổi chưa lưu'}
           </div>
         </div>
-        <button
-          className="admin-btn admin-btn-ghost"
-          onClick={() => handleSave('Hidden')}
-          disabled={isSaving}
-        >
-          Lưu nháp
-        </button>
-        <button
-          className="admin-btn admin-btn-primary"
-          onClick={() => handleSave('Visible')}
-          disabled={isSaving}
-        >
-          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>publish</span>
-          {isSaving ? 'Đang lưu...' : status === 'Visible' && isEdit ? 'Cập nhật & đăng' : 'Đăng'}
-        </button>
+        {!isEdit && (
+          <button
+            className="admin-btn admin-btn-primary"
+            onClick={() => handleSave()}
+            disabled={isSaving}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
+            {isSaving ? 'Đang tạo...' : 'Tạo'}
+          </button>
+        )}
+        {isEdit && (
+          <button
+            className="admin-btn admin-btn-primary"
+            onClick={() => handleSave()}
+            disabled={isSaving}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>save</span>
+            {isSaving ? 'Đang lưu...' : 'Lưu'}
+          </button>
+        )}
       </div>
 
       <div
@@ -240,7 +247,7 @@ export default function PostEditor() {
               Trạng thái
             </label>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              {STATUS_OPTIONS.map((opt) => (
+              {(isEdit && original?.status === 'Visible' ? STATUS_OPTIONS_PUBLISHED : STATUS_OPTIONS_DRAFT).map((opt) => (
                 <label
                   key={opt.value}
                   style={{
