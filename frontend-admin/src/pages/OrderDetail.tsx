@@ -16,7 +16,6 @@ export default function OrderDetail() {
   const [saving, setSaving] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [refundReason, setRefundReason] = useState('');
-  const [refundAmount, setRefundAmount] = useState('');
 
   useEffect(() => {
     if (!orderId) return;
@@ -41,7 +40,7 @@ export default function OrderDetail() {
     setSaving(true);
     try {
       const updated = await adminOrdersApi.cancel(order.orderId, { reason: cancelReason.trim() });
-      setOrder({ ...order, paymentStatus: updated.paymentStatus, cancelledAt: updated.cancelledAt, cancelReason: updated.cancelReason, updatedAt: updated.updatedAt });
+      setOrder({ ...order, paymentStatus: updated.paymentStatus, cancelledAt: updated.cancelledAt, cancelledBy: updated.cancelledBy, cancelReason: updated.cancelReason, updatedAt: updated.updatedAt });
       setCancelReason('');
       showToast('Đã hủy đơn hàng', 'success');
     } catch (error) { showToast(error instanceof Error ? error.message : 'Không thể hủy đơn', 'error'); }
@@ -50,14 +49,9 @@ export default function OrderDetail() {
 
   const refund = async () => {
     if (!order || !refundReason.trim()) return;
-    const amount = Number(refundAmount || order.totalAmount);
-    if (!amount || amount > Number(order.totalAmount)) {
-      showToast('Số tiền hoàn không hợp lệ', 'error');
-      return;
-    }
     setSaving(true);
     try {
-      const updated = await adminOrdersApi.refund(order.orderId, { reason: refundReason.trim(), amount });
+      const updated = await adminOrdersApi.refund(order.orderId, { reason: refundReason.trim() });
       setOrder({ ...order, refundedAt: updated.refundedAt, refundAmount: updated.refundAmount, refundReason: updated.refundReason, updatedAt: updated.updatedAt });
       showToast('Đã ghi nhận hoàn tiền mô phỏng', 'success');
     } catch (error) { showToast(error instanceof Error ? error.message : 'Không thể hoàn tiền', 'error'); }
@@ -70,7 +64,7 @@ export default function OrderDetail() {
   const refunded = Boolean(order.refundedAt);
   const canCancel = !cancelled && !refunded && (order.paymentStatus === 'Pending' || order.paymentStatus === 'Paid');
   const canMarkPaid = !cancelled && !refunded && order.paymentStatus === 'Pending';
-  const canRefund = cancelled && !refunded && order.paymentStatus === 'Paid';
+  const canRefund = cancelled && !refunded && order.paymentStatus === 'Paid' && order.cancelledBy !== null && order.cancelledBy !== order.customerId;
 
   return (
     <div style={{ maxWidth: '72rem', margin: '0 auto' }}>
@@ -106,7 +100,7 @@ export default function OrderDetail() {
               </div>
             </section>
           )}
-          {canRefund && <><input className="admin-input" type="number" placeholder={`Mặc định ${order.totalAmount}`} value={refundAmount} onChange={(e) => setRefundAmount(e.target.value)} /><textarea className="admin-input" placeholder="Lý do hoàn tiền mô phỏng" value={refundReason} onChange={(e) => setRefundReason(e.target.value)} /><button className="admin-btn admin-btn-primary" onClick={refund} disabled={saving || !refundReason.trim()}>Hoàn tiền mô phỏng</button></>}
+          {canRefund && <><textarea className="admin-input" placeholder="Lý do hoàn tiền mô phỏng" value={refundReason} onChange={(e) => setRefundReason(e.target.value)} /><button className="admin-btn admin-btn-primary" onClick={refund} disabled={saving || !refundReason.trim()}>Hoàn tiền mô phỏng ({money(order.totalAmount)})</button></>}
           {refunded && <p className="font-label-sm">Đã hoàn {money(order.refundAmount ?? 0)} lúc {date(order.refundedAt)}</p>}
         </aside>
       </div>

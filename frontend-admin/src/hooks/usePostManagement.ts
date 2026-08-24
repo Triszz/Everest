@@ -22,6 +22,7 @@ export interface UpdatePostPayload {
   title?: string;
   content?: string;
   imageUrl?: string | null;
+  status?: PostStatus;
 }
 
 export function usePostManagement() {

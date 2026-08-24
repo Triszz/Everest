@@ -217,11 +217,16 @@ export const toggleVoucherDisplaySchema = z.object({
   }),
 });
 
+export const toggleVoucherLockSchema = z.object({
+  locked: z.boolean({ message: "locked phải là true hoặc false" }),
+});
+
 export const updateVoucherDatesSchema = z.object({
   endDate: z.coerce.date({ message: "Ngày kết thúc không hợp lệ" }),
 });
 
 export type SetVoucherDisplayStatusInput = z.infer<typeof toggleVoucherDisplaySchema>;
+export type ToggleVoucherLockInput = z.infer<typeof toggleVoucherLockSchema>;
 export type UpdateVoucherDatesInput = z.infer<typeof updateVoucherDatesSchema>;
 
 export type ListVouchersInput = z.infer<typeof listVouchersSchema>;
@@ -389,6 +394,7 @@ export const updatePostSchema = z.object({
   title: z.string().min(2).max(200).optional(),
   content: z.string().min(2).optional(),
   imageUrl: z.string().url().max(255).optional().nullable(),
+  status: z.enum(["Visible", "Hidden"]).optional(),
 });
 
 export const updatePostStatusSchema = z.object({
@@ -433,10 +439,6 @@ export const refundOrderSchema = z.object({
     .string()
     .min(5, "Lý do hoàn tiền phải có ít nhất 5 ký tự")
     .max(500, "Lý do hoàn tiền tối đa 500 ký tự"),
-  amount: z.coerce
-    .number()
-    .positive("Số tiền hoàn phải lớn hơn 0")
-    .optional(),
 });
 
 export const markOrderPaidSchema = z.object({});

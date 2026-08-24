@@ -16,6 +16,7 @@ export type VoucherListItem = {
   endDate: string;
   approvalStatus: 'Draft' | 'Pending' | 'Approved' | 'Rejected';
   displayStatus: 'Visible' | 'Hidden';
+  isLocked: boolean;
   createdAt: string;
   updatedAt: string;
   category?: { categoryId: number; categoryName: string };
@@ -109,7 +110,7 @@ export function useVoucherManagement(partnerId?: number) {
       try {
         await adminVouchersApi.approve(voucherId, { note });
         showToast('Phê duyệt voucher thành công', 'success');
-        setVouchers(prev => prev.map(v => v.voucherId === voucherId ? { ...v, approvalStatus: 'Approved' } : v));
+        setVouchers(prev => prev.map(v => v.voucherId === voucherId ? { ...v, approvalStatus: 'Approved', displayStatus: 'Visible' } : v));
         await fetchStats();
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Lỗi khi phê duyệt voucher';
@@ -117,6 +118,22 @@ export function useVoucherManagement(partnerId?: number) {
       }
     },
     [fetchStats, showToast],
+  );
+
+  const toggleLock = useCallback(
+    async (voucherId: number, locked: boolean) => {
+      try {
+        const updated = await adminVouchersApi.toggleLock(voucherId, { locked });
+        showToast(locked ? 'Đã khóa voucher' : 'Đã mở khóa voucher', 'success');
+        setVouchers(prev => prev.map(v => v.voucherId === voucherId ? { ...v, isLocked: updated.isLocked } : v));
+        return updated;
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Lỗi khi cập nhật trạng thái khóa';
+        showToast(msg, 'error');
+        throw err;
+      }
+    },
+    [showToast],
   );
 
   const rejectVoucher = useCallback(
@@ -210,6 +227,7 @@ export function useVoucherManagement(partnerId?: number) {
     approveVoucher,
     rejectVoucher,
     toggleDisplayStatus,
+    toggleLock,
     updateEndDate,
     expireNow,
     updateFilters,

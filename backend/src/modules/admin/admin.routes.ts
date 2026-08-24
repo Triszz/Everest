@@ -40,6 +40,7 @@ router.post("/vouchers/:voucherId/approve", adminController.approveVoucher);
 router.post("/vouchers/:voucherId/reject", adminController.rejectVoucher);
 router.patch("/vouchers/:voucherId/display", adminController.setVoucherDisplayStatus);
 router.patch("/vouchers/:voucherId/dates", adminController.updateVoucherDates);
+router.patch("/vouchers/:voucherId/lock", adminController.toggleVoucherLock);
 router.post("/vouchers/:voucherId/expire", adminController.expireVoucherNow);
 
 router.get("/policies", adminController.listPolicies);

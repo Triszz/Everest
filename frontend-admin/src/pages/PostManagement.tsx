@@ -42,7 +42,7 @@ export default function PostManagement() {
     const next: PostStatus = post.status === 'Visible' ? 'Hidden' : 'Visible';
     try {
       await togglePostStatus(post.postId, next);
-      showToast(next === 'Visible' ? 'Đã đăng bài viết' : 'Đã ẩn bài viết', 'success');
+      showToast(next === 'Visible' ? 'Đã hiện bài viết' : 'Đã ẩn bài viết', 'success');
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Lỗi khi đổi trạng thái', 'error');
     }
@@ -87,7 +87,6 @@ export default function PostManagement() {
                 <th>Tiêu đề</th>
                 <th>Tác giả</th>
                 <th>Ngày tạo</th>
-                <th>Đăng lúc</th>
                 <th>Trạng thái</th>
                 <th style={{ textAlign: 'right' }}>Thao tác</th>
               </tr>
@@ -118,13 +117,8 @@ export default function PostManagement() {
                     </span>
                   </td>
                   <td>
-                    <span className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)' }}>
-                      {formatDate(post.publishedAt)}
-                    </span>
-                  </td>
-                  <td>
                     <span className={`badge ${post.status === 'Visible' ? 'badge-active' : 'badge-info'}`}>
-                      {post.status === 'Visible' ? 'Đã đăng' : 'Bản nháp'}
+                      {post.status === 'Visible' ? 'Hiện' : 'Ẩn'}
                     </span>
                   </td>
                   <td>
