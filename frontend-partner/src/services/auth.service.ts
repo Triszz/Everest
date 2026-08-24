@@ -114,3 +114,64 @@ export function apiUpdateMyProfile(input: UpdateUserProfileInput): Promise<MeRes
 export function apiChangePassword(input: ChangePasswordInput): Promise<void> {
   return put<void>('/api/auth/password', input, { auth: true }).then(res => res.data);
 }
+
+// ── Flat envelope dùng cho các endpoint auth/email-otp/* và /reset-password-otp ──
+// Lưu ý: các endpoint này trả về flat { success, message, ... } chứ KHÔNG bọc
+// trong `data` (khác với /login, /me, /password... bọc trong { data }).
+// Caller nên đọc trực tiếp các field top-level.
+export interface FlatAuthResponse {
+  success: true;
+  message?: string;
+  expiresIn?: number;
+  sent?: boolean;
+}
+
+/**
+ * POST /api/auth/email-otp/send
+ * Body: { email, purpose: "RESET_PASSWORD" }
+ *
+ * 200 → { success: true, message, expiresIn, sent }
+ * 429 → RATE_LIMIT (đã gửi OTP < 60s trước)
+ *
+ * Public endpoint (chưa đăng nhập) — dùng `skipAuthRefresh: true` để tránh
+ * global 401 → refresh flow đệ quy.
+ */
+export function apiSendResetOtp(email: string): Promise<FlatAuthResponse> {
+  return post<FlatAuthResponse>(
+    '/api/auth/email-otp/send',
+    { email, purpose: 'RESET_PASSWORD' },
+    { skipAuthRefresh: true },
+  );
+}
+
+/**
+ * POST /api/auth/email-otp/resend
+ * Gửi lại OTP khi user chưa nhận được email hoặc muốn mã mới.
+ * (rate-limit 60s cooldown đẫ handle ở backend)
+ */
+export function apiResendResetOtp(email: string): Promise<FlatAuthResponse> {
+  return post<FlatAuthResponse>(
+    '/api/auth/email-otp/resend',
+    { email, purpose: 'RESET_PASSWORD' },
+    { skipAuthRefresh: true },
+  );
+}
+
+/**
+ * POST /api/auth/reset-password-otp
+ * Body: { email, otp, newPassword }
+ *
+ * Verify OTP lần cuối + hash password + revoke mọi session.
+ * 200 → { success: true, message }
+ */
+export function apiResetPasswordWithOtp(
+  email: string,
+  otp: string,
+  newPassword: string,
+): Promise<FlatAuthResponse> {
+  return post<FlatAuthResponse>(
+    '/api/auth/reset-password-otp',
+    { email, otp, newPassword },
+    { skipAuthRefresh: true },
+  );
+}

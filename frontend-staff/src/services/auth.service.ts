@@ -114,3 +114,116 @@ export async function logout(): Promise<void> {
     // Ignore logout errors - always clear local storage
   }
 }
+
+// ── Forgot Password (reuses backend /api/auth/email-otp/* + /reset-password-otp) ──
+
+/**
+ * POST /api/auth/email-otp/send
+ * Body: { email, purpose: "RESET_PASSWORD" }
+ *
+ * 200 → { success: true, message, expiresIn, sent }
+ * 429 → RATE_LIMIT (đã gửi OTP < 60s trước — phải đợi cooldown)
+ *
+ * Public endpoint (chưa đăng nhập). Backend luôn trả 200 với
+ * generic message để tránh user enumeration.
+ */
+export async function requestPasswordReset(
+  email: string,
+): Promise<{ success: boolean; message?: string; error?: { code: string; message: string } }> {
+  try {
+    const response = await apiClient.post<{
+      success: true;
+      message?: string;
+      expiresIn?: number;
+    }>("/auth/email-otp/send", { email, purpose: "RESET_PASSWORD" });
+
+    return { success: true, message: response.data?.message };
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return {
+        success: false,
+        error: { code: error.code, message: error.message },
+      };
+    }
+    return {
+      success: false,
+      error: {
+        code: "UNKNOWN_ERROR",
+        message: "Không thể gửi yêu cầu. Vui lòng thử lại sau.",
+      },
+    };
+  }
+}
+
+/**
+ * POST /api/auth/email-otp/resend
+ * Body: { email, purpose: "RESET_PASSWORD" }
+ *
+ * Gửi lại OTP — backend có rate-limit 60s cooldown.
+ */
+export async function resendPasswordReset(
+  email: string,
+): Promise<{ success: boolean; message?: string; error?: { code: string; message: string } }> {
+  try {
+    const response = await apiClient.post<{
+      success: true;
+      message?: string;
+      expiresIn?: number;
+    }>("/auth/email-otp/resend", { email, purpose: "RESET_PASSWORD" });
+
+    return { success: true, message: response.data?.message };
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return {
+        success: false,
+        error: { code: error.code, message: error.message },
+      };
+    }
+    return {
+      success: false,
+      error: {
+        code: "UNKNOWN_ERROR",
+        message: "Không thể gửi lại mã. Vui lòng thử lại sau.",
+      },
+    };
+  }
+}
+
+/**
+ * POST /api/auth/reset-password-otp
+ * Body: { email, otp, newPassword }
+ *
+ * Verify OTP lần cuối + hash password + revoke tất cả UserSession.
+ * KHÔNG pre-verify OTP — backend tự verify + consume OTP trong bước này.
+ *
+ * 200 → { success: true, message }
+ * 400 → OTP_INVALID | VALIDATION_ERROR
+ */
+export async function resetPasswordWithOtp(
+  email: string,
+  otp: string,
+  newPassword: string,
+): Promise<{ success: boolean; message?: string; error?: { code: string; message: string } }> {
+  try {
+    const response = await apiClient.post<{
+      success: true;
+      message?: string;
+    }>("/auth/reset-password-otp", { email, otp, newPassword });
+
+    return { success: true, message: response.data?.message };
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return {
+        success: false,
+        error: { code: error.code, message: error.message },
+      };
+    }
+    return {
+      success: false,
+      error: {
+        code: "UNKNOWN_ERROR",
+        message: "Không thể đặt lại mật khẩu. Vui lòng thử lại sau.",
+      },
+    };
+  }
+}

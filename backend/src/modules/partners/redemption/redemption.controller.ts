@@ -173,6 +173,9 @@ export async function confirmVoucherHandler(
     }
 
     // CONFIRMED
+    // usedAtBranchId + branchName được populate bởi service trong `data` (xem
+    // `confirmVoucher` return shape). Trước đây controller đọc từ field không
+    // tồn tại trên ValidateVoucherData → luôn undefined → UI hiển thị "Branch #undefined".
     res.status(200).json({
       success: true,
       status: "CONFIRMED",
@@ -180,7 +183,8 @@ export async function confirmVoucherHandler(
         issuedVoucherId: result.data!.issuedVoucherId,
         voucherCode: result.data!.voucherCode,
         usedAt: result.data!.usedAt!,
-        usedAtBranchId: (result.data as { usedAtBranchId?: number }).usedAtBranchId!,
+        usedAtBranchId: result.data!.usedAtBranchId!,
+        branchName: result.data!.usedAtBranchName ?? null,
       },
       message: "Xác nhận sử dụng voucher thành công",
     });

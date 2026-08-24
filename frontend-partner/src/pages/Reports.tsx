@@ -56,6 +56,15 @@ const usageIcon = (
     <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
   </svg>
 );
+const liveIcon = (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2">
+    <circle cx="12" cy="12" r="2" />
+    <path d="M16.24 7.76a6 6 0 0 1 0 8.49" />
+    <path d="M7.76 16.24a6 6 0 0 1 0-8.49" />
+    <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+    <path d="M4.93 19.07a10 10 0 0 1 0-14.14" />
+  </svg>
+);
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 export function ReportsPage() {
@@ -311,10 +320,16 @@ export function ReportsPage() {
             style={{ display: 'none' }}
           />
           <KPICard
-            title="Đã phát hành" value={kpis?.totalIssued ?? 0}
+            title="Tổng voucher" value={kpis?.totalCatalog ?? kpis?.totalIssued ?? 0}
             icon={issuedIcon} iconBg="#EFF6FF"
             loading={loadingKPIs} format="number"
-            color="#3B82F6" subtitle="Tổng voucher"
+            color="#3B82F6" subtitle="Tất cả voucher trong catalog"
+          />
+          <KPICard
+            title="Đang bán" value={kpis?.totalLive ?? 0}
+            icon={liveIcon} iconBg="#ECFDF5"
+            loading={loadingKPIs} format="number"
+            color={C.success} subtitle="Voucher đang live (Approved + Visible)"
           />
           <KPICard
             title="Đã bán" value={kpis?.totalSold ?? 0}

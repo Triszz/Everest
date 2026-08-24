@@ -150,9 +150,31 @@ export function VoucherReportTable({
           <thead>
             <tr style={{ background: REPORT_COLORS.bgPage }}>
               <Th label="Tên voucher" sortKey="title" currentSort={sortBy} currentOrder={sortOrder} onClick={() => handleSort("title")} />
-              <Th label="Đã phát hành" sortKey="issued" currentSort={sortBy} currentOrder={sortOrder} onClick={() => handleSort("issued")} align="right" />
+              <Th
+                label="Tổng phát hành"
+                sortKey="totalQuantity"
+                currentSort={sortBy}
+                currentOrder={sortOrder}
+                onClick={() => handleSort("totalQuantity")}
+                align="right"
+              />
+              <Th
+                label="Đang bán"
+                sortKey="isLive"
+                currentSort={sortBy}
+                currentOrder={sortOrder}
+                onClick={() => handleSort("isLive")}
+              />
               <Th label="Đã bán" sortKey="sold" currentSort={sortBy} currentOrder={sortOrder} onClick={() => handleSort("sold")} align="right" />
               <Th label="Đã sử dụng" sortKey="used" currentSort={sortBy} currentOrder={sortOrder} onClick={() => handleSort("used")} align="right" />
+              <Th
+                label="Tỷ lệ bán"
+                sortKey="soldRate"
+                currentSort={sortBy}
+                currentOrder={sortOrder}
+                onClick={() => handleSort("soldRate")}
+                align="right"
+              />
               <Th label="Tỷ lệ dùng" sortKey="usageRate" currentSort={sortBy} currentOrder={sortOrder} onClick={() => handleSort("usageRate")} align="right" />
               <Th label="Trạng thái" sortKey="status" currentSort={sortBy} currentOrder={sortOrder} onClick={() => handleSort("status")} />
             </tr>
@@ -160,7 +182,7 @@ export function VoucherReportTable({
           <tbody>
             {!data?.length ? (
               <tr>
-                <td colSpan={6} style={{ padding: "48px 24px" }}>
+                <td colSpan={8} style={{ padding: "48px 24px" }}>
                   <EmptyState
                     title={search ? "Không tìm thấy voucher" : "Chưa có dữ liệu voucher"}
                     description={search ? "Thử thay đổi từ khóa tìm kiếm" : "Bắt đầu tạo voucher để xem thống kê"}
@@ -186,11 +208,41 @@ export function VoucherReportTable({
                   </td>
                   <td style={{ padding: "14px 16px", textAlign: "right" }}>
                     <span style={{
-                      fontFamily: "Inter, sans-serif", fontSize: 13,
+                      fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600,
                       color: REPORT_COLORS.text,
                     }}>
-                      {v.issued}
+                      {new Intl.NumberFormat("vi-VN").format(v.totalQuantity)}
                     </span>
+                  </td>
+                  <td style={{ padding: "14px 16px", textAlign: "center" }}>
+                    {v.isLive ? (
+                      <span
+                        title="Voucher đang được bày bán (Approved + Visible)"
+                        style={{
+                          display: "inline-flex", alignItems: "center", justifyContent: "center",
+                          width: 26, height: 26, borderRadius: "50%",
+                          background: "#ECFDF5", color: "#059669",
+                        }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      </span>
+                    ) : (
+                      <span
+                        title="Voucher chưa được bày bán (chưa duyệt hoặc đang ẩn)"
+                        style={{
+                          display: "inline-flex", alignItems: "center", justifyContent: "center",
+                          width: 26, height: 26, borderRadius: "50%",
+                          background: "#F1F5F9", color: "#94A3B8",
+                        }}
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="18" y1="6" x2="6" y2="18" />
+                          <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                      </span>
+                    )}
                   </td>
                   <td style={{ padding: "14px 16px", textAlign: "right" }}>
                     <span style={{
@@ -206,6 +258,16 @@ export function VoucherReportTable({
                       color: REPORT_COLORS.text,
                     }}>
                       {new Intl.NumberFormat("vi-VN").format(v.used)}
+                    </span>
+                  </td>
+                  <td style={{ padding: "14px 16px", textAlign: "right" }}>
+                    <span style={{
+                      fontFamily: "Manrope, sans-serif", fontSize: 13, fontWeight: 700,
+                      color: v.soldRate > 50 ? REPORT_COLORS.success
+                        : v.soldRate > 0 ? REPORT_COLORS.warning
+                        : REPORT_COLORS.textMuted,
+                    }}>
+                      {v.soldRate.toFixed(1)}%
                     </span>
                   </td>
                   <td style={{ padding: "14px 16px", textAlign: "right" }}>

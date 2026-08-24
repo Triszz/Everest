@@ -1,7 +1,7 @@
 import { prisma } from '../../config/prisma';
 import { AppError } from '../../middlewares/errorHandler';
 import { getPagination, buildPaginated } from '../../shared/utils/paginate';
-import type { CreateVoucherInput, UpdateVoucherInput, VoucherQuery } from './voucher.schemas';
+import type { CreateVoucherInput, UpdateVoucherInput, VoucherQuery, ToggleVoucherDisplayInput } from './voucher.schemas';
 
 // Các trạng thái cho phép chỉnh sửa
 const EDITABLE_STATUSES = ['Draft', 'Rejected'] as const;
@@ -11,21 +11,46 @@ export const voucherService = {
     // ── Tạo voucher mới (BR-PAR-02) ─────────────────────────────
 
     async create(partnerId: number, input: CreateVoucherInput) {
-        // Validate branchIds thuộc partner này
-        if (input.branchIds?.length) {
-            // Check for duplicates
-            const uniqueBranchIds = [...new Set(input.branchIds)];
-            if (uniqueBranchIds.length !== input.branchIds.length) {
-                throw new AppError('Danh sách chi nhánh chứa giá trị trùng lặp', 400, 'VALIDATION_ERROR');
-            }
+        // BR-PAR-02: Mỗi voucher phải gán với ≥ 1 chi nhánh của partner.
+        // Service-level guard (defense-in-depth ngoài schema zod).
+        if (!input.branchIds || input.branchIds.length === 0) {
+            throw new AppError(
+                'Voucher phải gán với ít nhất 1 chi nhánh của partner',
+                400,
+                'VALIDATION_ERROR',
+            );
+        }
 
-            const ownedBranches = await prisma.branch.findMany({
-                where: { partnerId, branchId: { in: uniqueBranchIds } },
-                select: { branchId: true },
-            });
-            if (ownedBranches.length !== uniqueBranchIds.length) {
-                throw new AppError('Một hoặc nhiều chi nhánh không thuộc đối tác này', 400, 'VALIDATION_ERROR');
-            }
+        // Validate branchIds thuộc partner này
+        // Check for duplicates
+        const uniqueBranchIds = [...new Set(input.branchIds)];
+        if (uniqueBranchIds.length !== input.branchIds.length) {
+            throw new AppError('Danh sách chi nhánh chứa giá trị trùng lặp', 400, 'VALIDATION_ERROR');
+        }
+
+        const ownedBranches = await prisma.branch.findMany({
+            where: { partnerId, branchId: { in: uniqueBranchIds } },
+            select: { branchId: true },
+        });
+        if (ownedBranches.length !== uniqueBranchIds.length) {
+            throw new AppError(
+                'Một hoặc nhiều chi nhánh không thuộc đối tác này',
+                400,
+                'VALIDATION_ERROR',
+            );
+        }
+
+        // Kiểm tra partner có ít nhất 1 chi nhánh.
+        // Nếu partner không tạo branch nào nhưng vẫn pass schema check
+        // (do gửi branchIds rỗng → bị chặn ở trên), thì đây là guard cuối.
+        // Trong trường hợp bình thường, đến đây chỉ fail nếu partner bị xóa branch
+        // ngay sau khi submit voucher.
+        if (ownedBranches.length === 0) {
+            throw new AppError(
+                'Partner chưa có chi nhánh nào. Vui lòng tạo chi nhánh trước khi tạo voucher',
+                400,
+                'VALIDATION_ERROR',
+            );
         }
 
         const category = await prisma.category.findUnique({
@@ -55,11 +80,9 @@ export const voucherService = {
                     expiryDays: input.expiryDays,
                     approvalStatus: 'Draft',
                     displayStatus: 'Hidden',
-                    ...(input.branchIds?.length && {
-                        voucherBranches: {
-                            create: input.branchIds.map((branchId) => ({ branchId })),
-                        },
-                    }),
+                    voucherBranches: {
+                        create: uniqueBranchIds.map((branchId) => ({ branchId })),
+                    },
                 },
                 include: {
                     category: { select: { categoryId: true, categoryName: true } },
@@ -176,14 +199,37 @@ export const voucherService = {
             }
         }
 
-        // Validate branchIds
-        if (input.branchIds?.length) {
+        // Validate branchIds (chỉ khi partner gửi lên, kể cả rỗng [])
+        if (input.branchIds !== undefined) {
+            // Service-level guard: không cho phép rỗng (đã có zod min(1) nhưng thêm guard để chắc)
+            if (input.branchIds.length === 0) {
+                throw new AppError(
+                    'Voucher phải gán với ít nhất 1 chi nhánh của partner',
+                    400,
+                    'VALIDATION_ERROR',
+                );
+            }
+
+            // Check for duplicates
+            const uniqueBranchIds = [...new Set(input.branchIds)];
+            if (uniqueBranchIds.length !== input.branchIds.length) {
+                throw new AppError(
+                    'Danh sách chi nhánh chứa giá trị trùng lặp',
+                    400,
+                    'VALIDATION_ERROR',
+                );
+            }
+
             const owned = await prisma.branch.findMany({
-                where: { partnerId, branchId: { in: input.branchIds } },
+                where: { partnerId, branchId: { in: uniqueBranchIds } },
                 select: { branchId: true },
             });
-            if (owned.length !== input.branchIds.length) {
-                throw new AppError('Một hoặc nhiều chi nhánh không hợp lệ', 400, 'VALIDATION_ERROR');
+            if (owned.length !== uniqueBranchIds.length) {
+                throw new AppError(
+                    'Một hoặc nhiều chi nhánh không thuộc đối tác này',
+                    400,
+                    'VALIDATION_ERROR',
+                );
             }
         }
 
@@ -273,5 +319,67 @@ export const voucherService = {
         }
 
         await prisma.voucher.delete({ where: { voucherId } });
+    },
+
+    // ── Bật/tắt hiển thị voucher (BR-PAR-DISPLAY) ─────────────────
+    // Phân biệt rõ với approval:
+    //   - approvalStatus (Draft/Pending/Approved/Rejected) → admin quyết định,
+    //     EDITABLE_STATUSES gate update và submit.
+    //   - displayStatus (Visible/Hidden) → partner tự quyết định sau khi
+    //     voucher đã Approved. Đây là action kinh doanh, không cần duyệt lại.
+    //
+    // Lý do tách: nếu partner quên bật Visible khi submit, admin approve xong
+    // voucher vẫn Hidden → partner không thể tự bật lại, phải nhờ admin.
+    // Tách endpoint này để partner có thể bật/tắt linh hoạt mà không phải
+    // submit lại voucher.
+
+    async setVoucherDisplayStatus(
+        voucherId: number,
+        partnerId: number,
+        input: ToggleVoucherDisplayInput,
+    ) {
+        const voucher = await prisma.voucher.findFirst({
+            where: { voucherId, partnerId },
+        });
+        if (!voucher) {
+            throw new AppError('Không tìm thấy voucher', 404, 'NOT_FOUND');
+        }
+
+        // Chỉ cho phép toggle khi đã được duyệt.
+        // Trước Approved, displayStatus chưa có ý nghĩa kinh doanh
+        // (chưa hiện trên store nên Visible/Hidden không khác biệt).
+        if (voucher.approvalStatus !== 'Approved') {
+            throw new AppError(
+                'Chỉ có thể bật/tắt hiển thị sau khi voucher được Admin duyệt',
+                400,
+                'VALIDATION_ERROR',
+            );
+        }
+
+        // Không cho toggle nếu voucher đã kết thúc (startDate > now).
+        // Khi này partner vẫn có thể xem lại nhưng không nên cho khách mua.
+        const now = new Date();
+        if (voucher.startDate > now) {
+            // Được phép toggle trước startDate (partner chuẩn bị).
+            // Sau startDate, vẫn được phép nếu còn hạn.
+        }
+        if (voucher.endDate < now) {
+            throw new AppError(
+                'Voucher đã hết hạn, không thể thay đổi trạng thái hiển thị',
+                400,
+                'VALIDATION_ERROR',
+            );
+        }
+
+        return prisma.voucher.update({
+            where: { voucherId },
+            data: { displayStatus: input.displayStatus },
+            select: {
+                voucherId: true,
+                title: true,
+                approvalStatus: true,
+                displayStatus: true,
+            },
+        });
     },
 };

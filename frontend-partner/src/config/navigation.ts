@@ -11,7 +11,7 @@ export interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard',   roles: ['Partner_Owner'] },
   { to: '/vouchers',  label: 'Vouchers',    roles: ['Partner_Owner'] },
-  { to: '/validate',  label: 'Validate',    roles: ['Partner_Owner', 'Partner_Cashier'] },
+  { to: '/validate',  label: 'Validate',    roles: ['Partner_Owner'] },
   { to: '/branches',  label: 'Chi nhánh',   roles: ['Partner_Owner'] },
   { to: '/reports',   label: 'Báo cáo',     roles: ['Partner_Owner'] },
 ];
@@ -27,7 +27,9 @@ export function getNavItems(role: PartnerRole): NavItem[] {
 export function getDefaultRoute(role: PartnerRole): string {
   switch (role) {
     case 'Partner_Owner':   return '/dashboard';
-    case 'Partner_Cashier': return '/validate';
+    // Partner_Cashier không được truy cập Partner Web — fallback
+    // dù sao cũng không kích hoạt (AuthContext từ chối role này).
+    case 'Partner_Cashier': return '/login';
   }
 }
 

@@ -4,9 +4,11 @@ import toast from 'react-hot-toast';
 import { VoucherForm } from '../components/voucher/VoucherForm';
 import { apiGetVoucher, apiUpdateVoucher } from '../services/voucher.service';
 import { apiListCategories } from '../services/category.service';
+import { apiListBranches } from '../services/branch.service';
 import { ApiException } from '../services/api-client';
 import { voucherDetailToFormData } from '../utils/voucherForm';
 import type { VoucherDetail, VoucherCategory, ApprovalStatus } from '../types/voucher';
+import type { Branch } from '../types/branch';
 
 // ── Design tokens (matching VoucherCreate / VoucherDetail) ──────────────────
 const COLORS = {
@@ -48,6 +50,10 @@ export function VoucherEditPage() {
   const [categories, setCategories] = useState<VoucherCategory[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
 
+  // BR-PAR-02: load danh sách chi nhánh của partner.
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [loadingBranches, setLoadingBranches] = useState(true);
+
   // Load categories (independent of voucher)
   useEffect(() => {
     let cancelled = false;
@@ -59,6 +65,22 @@ export function VoucherEditPage() {
         if (!cancelled) toast.error('Không thể tải danh mục');
       } finally {
         if (!cancelled) setLoadingCategories(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Load branches
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await apiListBranches();
+        if (!cancelled) setBranches(data);
+      } catch {
+        if (!cancelled) toast.error('Không thể tải danh sách chi nhánh');
+      } finally {
+        if (!cancelled) setLoadingBranches(false);
       }
     })();
     return () => { cancelled = true; };
@@ -216,6 +238,8 @@ export function VoucherEditPage() {
             initialData={voucherDetailToFormData(voucher)}
             categories={categories}
             loadingCategories={loadingCategories}
+            branches={branches}
+            loadingBranches={loadingBranches}
             onSubmit={handleSubmit}
             onCancel={handleCancel}
             isSubmitting={isSubmitting}

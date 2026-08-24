@@ -512,6 +512,13 @@ export async function confirmVoucher(
         validFrom: internal.issued.validFrom.toISOString(),
         validTo: internal.issued.validTo.toISOString(),
         usedAt: result.usedAt ? result.usedAt.toISOString() : null,
+        // Populate usedAtBranchId + usedAtBranchName để controller expose
+        // cho client (trước đây controller đọc từ field không tồn tại → undefined).
+        usedAtBranchId: result.usedAtBranchId,
+        usedAtBranchName:
+          internal.voucher.voucherBranches.find(
+            (b) => b.branchId === result.usedAtBranchId,
+          )?.branchName ?? null,
         voucher: {
           title: internal.voucher.title,
           description: null,

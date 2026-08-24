@@ -398,7 +398,16 @@ export const partnerService = {
     });
 
     if (existing) {
-      throw new AppError(`Email đã được sử dụng`, 409, "CONFLICT");
+      // Email là global unique trong toàn hệ thống (1 email = 1 tài khoản).
+      // Nếu user đang active ở partner khác, không thể tạo cashier trùng email.
+      // Thông báo phải rõ ràng để partner biết nguyên nhân.
+      const isOtherPartner = existing.partnerId && existing.partnerId !== partnerId;
+      const message = isOtherPartner
+        ? "Email này đã được sử dụng bởi một tài khoản thuộc partner khác. Mỗi email chỉ có thể đăng ký cho một tài khoản trong toàn hệ thống."
+        : existing.partnerId === partnerId
+          ? "Email này đã được sử dụng bởi một tài khoản thu ngân khác trong partner của bạn."
+          : "Email này đã được sử dụng bởi một tài khoản khác trong hệ thống.";
+      throw new AppError(message, 409, "CONFLICT");
     }
 
     const passwordHash = await bcrypt.hash(data.password, 12);
