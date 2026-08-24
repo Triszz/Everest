@@ -37,6 +37,15 @@ export interface Voucher {
     categoryId: number;
     categoryName: string;
   };
+  /** BR-CUS-03: Danh sách chi nhánh áp dụng voucher (trả về từ getById). */
+  voucherBranches?: Array<{
+    branch: {
+      branchId: number;
+      branchName: string;
+      address: string;
+      phoneNumber: string;
+    };
+  }>;
 }
 
 /** Query filter cho list voucher (BR-CUS-03 mở rộng). */

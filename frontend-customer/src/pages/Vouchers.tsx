@@ -1528,6 +1528,12 @@ export function VouchersPage() {
                     voucher.imageUrl ||
                     "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&h=300&fit=crop";
 
+                  // Tính số ngày còn lại từ endDate
+                  const daysLeft = voucher.endDate
+                    ? Math.max(0, Math.ceil((new Date(voucher.endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+                    : null;
+                  const isExpiringSoon = daysLeft !== null && daysLeft <= 5;
+
                   return (
                     <Link
                       key={voucher.voucherId}
@@ -1577,6 +1583,8 @@ export function VouchersPage() {
                             -{discount_pct}%
                           </span>
                         )}
+
+                        {/* Countdown badge đã chuyển xuống dưới phần giá */}
                         <span
                           style={{
                             position: "absolute",
@@ -1678,6 +1686,38 @@ export function VouchersPage() {
                             </span>
                           )}
                         </div>
+
+                        {/* Countdown dưới giá - chỉ khi ≤5 ngày */}
+                        {isExpiringSoon && (
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 4,
+                              padding: "4px 8px",
+                              borderRadius: 6,
+                              fontSize: 11,
+                              fontWeight: 700,
+                              fontFamily: "Inter, sans-serif",
+                              color: "white",
+                              alignSelf: "flex-start",
+                              background:
+                                daysLeft === 0
+                                  ? "rgba(15, 23, 42, 0.92)"
+                                  : daysLeft === 1
+                                    ? "linear-gradient(135deg, #DC2626 0%, #991B1B 100%)"
+                                    : "linear-gradient(135deg, #F59E0B 0%, #EF4444 100%)",
+                              boxShadow: "0 2px 6px rgba(239, 68, 68, 0.35)",
+                            }}
+                          >
+                            <Clock size={11} />
+                            {daysLeft === 0
+                              ? "Hết hạn hôm nay"
+                              : daysLeft === 1
+                                ? "Còn 1 ngày"
+                                : `Còn ${daysLeft} ngày`}
+                          </div>
+                        )}
                       </div>
                     </Link>
                   );
