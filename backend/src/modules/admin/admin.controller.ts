@@ -517,7 +517,7 @@ export const adminController = {
     res.json({
       success: true,
       data,
-      message: `Đã ghi nhận hoàn tiền (giả lập) ${input.amount?.toLocaleString('vi-VN') ?? ''}đ`,
+      message: "Đã ghi nhận hoàn tiền (giả lập)",
     });
   }),
 

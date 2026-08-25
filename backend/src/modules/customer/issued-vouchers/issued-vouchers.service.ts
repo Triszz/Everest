@@ -22,10 +22,26 @@ export const issuedVouchersService = {
     const { status, page, pageSize } = query;
     const { skip, pagination } = buildPagination(page, pageSize, 0);
 
+    const user = await prisma.user.findUnique({
+      where: { userId: customerId },
+      select: { email: true },
+    });
+
     // Build where clause — status cần cast đúng enum type
+    // Voucher thuộc về customerId nếu:
+    // - Đơn hàng tự mua (isGift = false AND customerId)
+    // - Hoặc đơn quà tặng (isGift = true AND receiverEmail khớp email của user)
     const where: Prisma.IssuedVoucherWhereInput = {
       orderItem: {
-        order: { customerId, paymentStatus: "Paid" },
+        order: {
+          paymentStatus: "Paid",
+          OR: [
+            { customerId, isGift: false },
+            ...(user?.email
+              ? [{ isGift: true, receiverEmail: { equals: user.email, mode: "insensitive" as const } }]
+              : []),
+          ],
+        },
       },
     };
     if (status) {
@@ -96,10 +112,25 @@ export const issuedVouchersService = {
    * Throw 404 nếu không thuộc customer.
    */
   async getIssuedVoucher(customerId: string, issuedVoucherId: number) {
+    const user = await prisma.user.findUnique({
+      where: { userId: customerId },
+      select: { email: true },
+    });
+
     const voucher = await prisma.issuedVoucher.findFirst({
       where: {
         issuedVoucherId,
-        orderItem: { order: { customerId } },
+        orderItem: {
+          order: {
+            paymentStatus: "Paid",
+            OR: [
+              { customerId, isGift: false },
+              ...(user?.email
+                ? [{ isGift: true, receiverEmail: { equals: user.email, mode: "insensitive" as const } }]
+                : []),
+            ],
+          },
+        },
       },
       include: {
         orderItem: {
