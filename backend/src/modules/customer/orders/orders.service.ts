@@ -209,12 +209,22 @@ export const ordersService = {
         include: { orderItems: true },
       });
 
-      // Trừ tồn kho
+      // Trừ tồn kho (Atomic conditional update chống race condition - RB-11, RB-15)
       for (const item of order.orderItems) {
-        await tx.voucher.update({
-          where: { voucherId: item.voucherId },
+        const updateStock = await tx.voucher.updateMany({
+          where: {
+            voucherId: item.voucherId,
+            availableQuantity: { gte: item.quantity },
+          },
           data: { availableQuantity: { decrement: item.quantity } },
         });
+        if (updateStock.count === 0) {
+          throw new AppError(
+            `Voucher "${item.voucher.title}" không đủ tồn kho tại thời điểm thanh toán.`,
+            409,
+            "INSUFFICIENT_STOCK_AT_CHECKOUT",
+          );
+        }
       }
 
       // Phát hành voucher code
