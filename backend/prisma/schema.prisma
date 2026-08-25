@@ -311,6 +311,7 @@ model Order {
   isGift        Boolean       @default(false) @map("is_gift")
   receiverEmail String?       @map("receiver_email") @db.VarChar(100)
   giftMessage   String?       @map("gift_message")
+  expiresAt     DateTime?     @map("expires_at") @db.Timestamptz
   cancelledAt   DateTime?     @map("cancelled_at") @db.Timestamptz
   cancelledBy   String?       @map("cancelled_by") @db.Uuid
   cancelReason  String?       @map("cancel_reason")
@@ -326,6 +327,7 @@ model Order {
   feedbacks  Feedback[]
 
   @@index([paymentStatus])
+  @@index([paymentStatus, expiresAt])
   @@index([createdAt])
   @@map("orders")
 }

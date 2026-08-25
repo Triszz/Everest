@@ -14,6 +14,7 @@ import { notificationsService } from "../notifications/notifications.service";
 import type { CreateOrderInput, CheckoutInput } from "./orders.schemas";
 import { buildPagination } from "../shared";
 import { generateUniqueVoucherCode } from "../../../shared/utils/voucher-code";
+import { PENDING_TTL_MIN } from "./orders.config";
 
 const ORDER_ITEM_SELECT = {
   orderItemId: true,
@@ -69,18 +70,10 @@ export const ordersService = {
       const voucher = vouchers.find((v) => v.voucherId === item.voucherId)!;
 
       if (voucher.approvalStatus !== "Approved") {
-        throw new AppError(
-          `Voucher "${voucher.title}" chưa được duyệt`,
-          400,
-          "VOUCHER_NOT_APPROVED",
-        );
+        throw new AppError(`Voucher "${voucher.title}" chưa được duyệt`, 400, "VOUCHER_NOT_APPROVED");
       }
       if (now < voucher.startDate || now > voucher.endDate) {
-        throw new AppError(
-          `Voucher "${voucher.title}" không còn trong thời gian bán`,
-          400,
-          "VOUCHER_NOT_AVAILABLE",
-        );
+        throw new AppError(`Voucher "${voucher.title}" không còn trong thời gian bán`, 400, "VOUCHER_NOT_AVAILABLE");
       }
       if (voucher.availableQuantity < item.quantity) {
         throw new AppError(
@@ -101,6 +94,7 @@ export const ordersService = {
         receiverEmail: sendAsGift ? receiverEmail : null,
         giftMessage: sendAsGift ? giftMessage : null,
         paymentStatus: "Pending",
+        expiresAt: new Date(Date.now() + PENDING_TTL_MIN * 60 * 1000),
         orderItems: {
           create: items.map((item) => {
             const voucher = vouchers.find((v) => v.voucherId === item.voucherId)!;
@@ -184,6 +178,13 @@ export const ordersService = {
     if (order.paymentStatus === "Cancelled") {
       throw new AppError("Đơn hàng đã bị hủy", 400, "ORDER_CANCELLED");
     }
+    if (order.expiresAt && order.expiresAt < new Date()) {
+      throw new AppError(
+        "Đơn hàng đã hết hạn thanh toán (quá 15 phút). Vui lòng tạo đơn mới.",
+        410,
+        "ORDER_EXPIRED",
+      );
+    }
 
     // RB-15: re-check stock tại thời điểm thanh toán
     for (const item of order.orderItems) {
@@ -204,7 +205,7 @@ export const ordersService = {
     const result = await prisma.$transaction(async (tx) => {
       const updatedOrder = await tx.order.update({
         where: { orderId },
-        data: { paymentStatus: "Paid", paymentMethod },
+        data: { paymentStatus: "Paid", paymentMethod, expiresAt: null },
         include: { orderItems: true },
       });
 
@@ -261,15 +262,11 @@ export const ordersService = {
     // Nếu không → gửi đến customerEmail
     const isGift = order.isGift;
     const recipientEmail = isGift ? order.receiverEmail : order.customer?.email;
-    const recipientName = isGift
-      ? order.customer?.fullName || "Người tặng"
-      : order.customer?.fullName || "Khách hàng";
+    const recipientName = isGift ? order.customer?.fullName || "Người tặng" : order.customer?.fullName || "Khách hàng";
 
     if (recipientEmail) {
       // Map price về từ orderItems (issuedVouchers không chứa price)
-      const priceByVoucher = new Map(
-        order.orderItems.map((oi) => [oi.voucher.title, Number(oi.price)]),
-      );
+      const priceByVoucher = new Map(order.orderItems.map((oi) => [oi.voucher.title, Number(oi.price)]));
 
       emailService.sendOrderConfirmation({
         to: recipientEmail,
@@ -277,20 +274,18 @@ export const ordersService = {
         orderId,
         totalAmount: Number(order.totalAmount),
         paymentMethod: paymentMethod || "unknown",
-        items: result.issuedVouchers.reduce<Array<{
-          title: string;
-          partner: string;
-          quantity: number;
-          price: number;
-          voucherCodes: string[];
-          validFrom: Date;
-          validTo: Date;
-        }>>((acc, iv) => {
-          const existing = acc.find(
-            (a) =>
-              a.title === iv.voucher.title &&
-              a.partner === iv.voucher.partner,
-          );
+        items: result.issuedVouchers.reduce<
+          Array<{
+            title: string;
+            partner: string;
+            quantity: number;
+            price: number;
+            voucherCodes: string[];
+            validFrom: Date;
+            validTo: Date;
+          }>
+        >((acc, iv) => {
+          const existing = acc.find((a) => a.title === iv.voucher.title && a.partner === iv.voucher.partner);
           if (existing) {
             existing.voucherCodes.push(iv.voucherCode);
           } else {
@@ -311,11 +306,7 @@ export const ordersService = {
 
     // Tạo notification cho buyer
     try {
-      await notificationsService.notifyOrderPurchased(
-        customerId,
-        orderId,
-        Number(order.totalAmount),
-      );
+      await notificationsService.notifyOrderPurchased(customerId, orderId, Number(order.totalAmount));
     } catch (err) {
       console.error("[orders.service] Tạo notification cho buyer thất bại:", err);
     }
@@ -444,6 +435,7 @@ export const ordersService = {
         paymentMethod: o.paymentMethod,
         isGift: o.isGift,
         createdAt: o.createdAt,
+        expiresAt: o.expiresAt,
         itemCount: o.orderItems.reduce((sum, i) => sum + i.quantity, 0),
         vouchers: o.orderItems.map((i) => ({
           title: i.voucher.title,
@@ -490,6 +482,7 @@ export const ordersService = {
       paymentMethod: order.paymentMethod,
       isGift: order.isGift,
       createdAt: order.createdAt,
+      expiresAt: order.expiresAt,
       orderItems: order.orderItems.map((item) => ({
         orderItemId: item.orderItemId,
         voucherId: item.voucher.voucherId,
