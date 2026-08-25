@@ -39,7 +39,7 @@ const signRefreshToken = (userId: string) =>
 export const emailOtpController = {
   /**
    * POST /auth/email-otp/send
-   * Body: { email, purpose? }
+   * Body: { email, purpose?, channel? }
    */
   send: asyncHandler(async (req: Request, res: Response) => {
     const input = parseBody(sendOtpSchema, req.body);
@@ -47,6 +47,8 @@ export const emailOtpController = {
       input.email,
       input.purpose,
       req.ip,
+      undefined,
+      input.channel,
     );
     res.json({ success: true, ...result });
   }),
@@ -60,6 +62,7 @@ export const emailOtpController = {
       input.email,
       input.purpose,
       req.ip,
+      input.channel,
     );
     res.json({ success: true, ...result });
   }),

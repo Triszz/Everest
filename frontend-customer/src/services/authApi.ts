@@ -39,7 +39,13 @@ export const authApi = {
    * Đăng ký tài khoản customer mới.
    * Trả về { user } (KHÔNG có token) — phải verify OTP trước.
    */
-  register: async (data: { email: string; password: string; fullName: string; phoneNumber?: string }) => {
+  register: async (data: {
+    email: string;
+    password: string;
+    fullName: string;
+    phoneNumber?: string;
+    otpChannel?: "email" | "sms";
+  }) => {
     const res = await fetch(`${BASE_URL}/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -99,12 +105,16 @@ export const authApi = {
     return handleResponse<{ success: boolean; message?: string }>(res);
   },
 
-  /** Gửi mã OTP (verify email, hoặc dùng cho flow khác). */
-  sendOtp: async (email: string, purpose: OtpPurpose = "REGISTER_VERIFY") => {
+  /** Gửi mã OTP (qua Email hoặc SMS). */
+  sendOtp: async (
+    email: string,
+    purpose: OtpPurpose = "REGISTER_VERIFY",
+    channel: "email" | "sms" = "email"
+  ) => {
     const res = await fetch(`${BASE_URL}/auth/email-otp/send`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, purpose }),
+      body: JSON.stringify({ email, purpose, channel }),
     });
     return handleResponse<{ success: boolean; message?: string; expiresIn?: number; sent?: boolean }>(res);
   },
@@ -122,12 +132,16 @@ export const authApi = {
     return handleResponse<{ success: boolean; data?: AuthResponse; message?: string }>(res);
   },
 
-  /** Gửi lại OTP (có cooldown 60s). */
-  resendOtp: async (email: string, purpose: OtpPurpose = "REGISTER_VERIFY") => {
+  /** Gửi lại OTP (qua Email hoặc SMS, có cooldown 60s). */
+  resendOtp: async (
+    email: string,
+    purpose: OtpPurpose = "REGISTER_VERIFY",
+    channel: "email" | "sms" = "email"
+  ) => {
     const res = await fetch(`${BASE_URL}/auth/email-otp/resend`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, purpose }),
+      body: JSON.stringify({ email, purpose, channel }),
     });
     return handleResponse<{ success: boolean; message?: string; expiresIn?: number }>(res);
   },
