@@ -470,7 +470,7 @@ export function VoucherDetail() {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, fontSize: 13, color: '#475569', marginBottom: 3, fontFamily: 'Inter, sans-serif' }}>
                       <MapPin size={13} color="#94A3B8" style={{ marginTop: 2, flexShrink: 0 }} />
-                      <span>{vb.branch.address}</span>
+                      <span>{vb.branch.address}{vb.branch.city ? ` (${vb.branch.city})` : ''}</span>
                     </div>
                     {vb.branch.phoneNumber && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#0E76A8', fontFamily: 'Inter, sans-serif', fontWeight: 600 }}>

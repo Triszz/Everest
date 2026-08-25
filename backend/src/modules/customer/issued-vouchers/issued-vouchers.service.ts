@@ -163,6 +163,7 @@ export const issuedVouchersService = {
                         branchId: true,
                         branchName: true,
                         address: true,
+                        city: true,
                       },
                     },
                   },
