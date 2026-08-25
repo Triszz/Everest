@@ -198,12 +198,7 @@ export interface MeResponse {
 
 // ── Order / IssuedVoucher ───────────────────────────────────────────
 
-export type IssuedVoucherStatus =
-  | "Unused"
-  | "Used"
-  | "Expired"
-  | "Locked"
-  | "Cancelled";
+export type IssuedVoucherStatus = "Unused" | "Used" | "Expired" | "Locked" | "Cancelled";
 
 export interface IssuedVoucher {
   issuedVoucherId: number;
@@ -249,6 +244,7 @@ export interface OrderDetail {
   giftMessage: string | null;
   createdAt: string;
   updatedAt: string;
+  expiresAt: string | null;
   orderItems: OrderItem[];
 }
 
@@ -258,6 +254,8 @@ export interface OrderSummary {
   paymentMethod: string | null;
   paymentStatus: "Pending" | "Paid" | "Cancelled";
   createdAt: string;
+  /** Null nếu đã thanh toán hoặc đã hủy. */
+  expiresAt: string | null;
   itemCount: number;
 }
 
@@ -275,6 +273,8 @@ export interface CreateOrderResponse {
   paymentStatus: "Pending" | "Paid" | "Cancelled";
   isGift: boolean;
   createdAt: string;
+  /** ISO datetime khi đơn Pending hết hạn (now + 15 phút). */
+  expiresAt: string | null;
   orderItems: OrderItem[];
 }
 

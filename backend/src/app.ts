@@ -27,10 +27,9 @@ import issuedVouchersRouter from "./modules/customer/issued-vouchers/issued-vouc
 import reviewsRouter from "./modules/customer/reviews/reviews.routes";
 import profileRouter from "./modules/customer/profile/profile.routes";
 import notificationsRouter from "./modules/customer/notifications/notifications.routes";
-import feedbackRouter, {
-  feedbackAdminRouter,
-} from "./modules/customer/feedback/feedback.routes";
+import feedbackRouter, { feedbackAdminRouter } from "./modules/customer/feedback/feedback.routes";
 import paymentRouter from "./modules/customer/payment/payment.routes";
+import { startExpirySweeper } from "./modules/customer/orders/orders.expiry";
 
 const app = express();
 
@@ -39,12 +38,7 @@ app.use(helmet());
 
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "http://localhost:5174",
-      "http://localhost:5175",
-      "http://localhost:5176",
-    ],
+    origin: ["http://localhost:5173", "http://localhost:5174", "http://localhost:5175", "http://localhost:5176"],
     credentials: true,
   }),
 );
@@ -122,6 +116,7 @@ app.use(errorHandler);
 const PORT = Number(process.env.PORT) || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
+  startExpirySweeper();
 });
 
 export default app;
