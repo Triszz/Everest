@@ -1,6 +1,7 @@
 import { useUsersManagement } from '../hooks/useUsersManagement'
 import { useToast } from '../components/shared/Toast'
 import type { UserResponse, UserRole, AccountStatus } from '../services/admin.service'
+import { useIsMobile } from '../hooks/useIsMobile'
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -40,6 +41,7 @@ function roleChip(role: UserRole) {
         fontSize: '0.65rem',
         fontWeight: 600,
         textTransform: 'uppercase',
+        whiteSpace: 'nowrap',
       }}
     >
       {cfg.label}
@@ -82,8 +84,87 @@ function formatDate(iso: string) {
   return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(iso))
 }
 
+function UserCard({
+  user,
+  onToggleLock,
+  onChangeRole,
+}: {
+  user: UserResponse
+  onToggleLock: (user: UserResponse) => void
+  onChangeRole: (user: UserResponse, role: UserRole) => void
+}) {
+  return (
+    <div className="admin-card" style={{ padding: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', minWidth: 0 }}>
+          {avatar(user.fullName, user.role)}
+          <div style={{ minWidth: 0 }}>
+            <p className="font-body-sm" style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.875rem' }}>{user.fullName}</p>
+            <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)', fontSize: '0.6rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.email}</p>
+            {user.phoneNumber && (
+              <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)', fontSize: '0.6rem' }}>{user.phoneNumber}</p>
+            )}
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem', flexShrink: 0 }}>
+          {roleChip(user.role)}
+          {statusBadge(user.status) || <span className="badge badge-active">Hoạt động</span>}
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(191, 199, 208, 0.1)', paddingTop: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+        <span className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)', fontSize: '0.65rem' }}>
+          Đăng ký: {formatDate(user.createdAt)}
+        </span>
+        <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          {user.status === 'Banned' ? (
+            <button
+              className="admin-btn admin-btn-success"
+              style={{ padding: '0.25rem 0.5rem', fontSize: '0.7rem', height: '1.75rem' }}
+              onClick={() => onToggleLock(user)}
+              title="Mở khóa"
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>lock_open</span>
+            </button>
+          ) : (
+            <button
+              className="admin-btn admin-btn-danger"
+              style={{ padding: '0.25rem 0.5rem', fontSize: '0.7rem', height: '1.75rem' }}
+              onClick={() => onToggleLock(user)}
+              title="Khóa"
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>block</span>
+            </button>
+          )}
+
+          {user.role === 'Partner_Owner' || user.role === 'Partner_Cashier' ? null : (
+            <select
+              className="admin-input admin-select"
+              style={{ width: 'auto', padding: '0.25rem 1.75rem 0.25rem 0.5rem', fontSize: '0.7rem', height: '1.75rem' }}
+              value={user.role}
+              onChange={(e) => onChangeRole(user, e.target.value as UserRole)}
+            >
+              <option value="Customer">Customer</option>
+              <option value="Admin">Admin</option>
+            </select>
+          )}
+
+          <button
+            className="admin-btn admin-btn-ghost"
+            style={{ padding: '0.25rem 0.5rem', fontSize: '0.7rem', height: '1.75rem' }}
+            onClick={() => window.location.assign(`/orders?userId=${user.userId}`)}
+          >
+            Đơn hàng
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Users() {
   const { showToast } = useToast()
+  const isMobile = useIsMobile()
   const {
     users,
     total,
@@ -130,24 +211,23 @@ export default function Users() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h1 className="font-headline-lg" style={{ fontSize: '2rem', marginBottom: '0.25rem' }}>Quản lý người dùng</h1>
+          <h1 className="font-headline-lg" style={{ fontSize: isMobile ? '1.5rem' : '2rem', marginBottom: '0.25rem' }}>Quản lý người dùng</h1>
           <p className="font-body-sm" style={{ color: 'var(--color-on-surface-variant)' }}>
             Tra cứu, khóa/mở khóa và phân quyền người dùng trên hệ thống.
           </p>
         </div>
-      
       </div>
 
       {/* Filters */}
-      <div className="admin-card" style={{ padding: '1rem', marginBottom: '1rem' }}>
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <div style={{ position: 'relative', flex: 1, minWidth: 250 }}>
+      <div className="admin-card" style={{ padding: isMobile ? '0.75rem' : '1rem', marginBottom: '1rem' }}>
+        <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-row'} gap-2`}>
+          <div style={{ position: 'relative', flex: 1 }}>
             <span className="material-symbols-outlined" style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-on-surface-variant)', fontSize: '18px' }}>
               search
             </span>
             <input
               className="admin-input"
-              style={{ paddingLeft: '2.5rem' }}
+              style={{ paddingLeft: '2.5rem', width: '100%' }}
               placeholder="Tìm kiếm tên, email, SĐT..."
               value={filters.search}
               onChange={(e) => updateFilters({ search: e.target.value })}
@@ -155,7 +235,6 @@ export default function Users() {
           </div>
           <select
             className="admin-input admin-select"
-            style={{ width: 'auto' }}
             value={filters.role}
             onChange={(e) => updateFilters({ role: e.target.value as UserRole | '' })}
           >
@@ -167,7 +246,6 @@ export default function Users() {
           </select>
           <select
             className="admin-input admin-select"
-            style={{ width: 'auto' }}
             value={filters.status}
             onChange={(e) => updateFilters({ status: e.target.value as AccountStatus | '' })}
           >
@@ -178,41 +256,51 @@ export default function Users() {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="admin-card" style={{ overflow: 'hidden' }}>
-        <div style={{ overflowX: 'auto' }}>
-          {error && (
-            <div style={{ padding: '1rem', background: 'var(--color-error-container)', color: 'var(--color-error-danger)', borderRadius: '0.5rem', margin: '1rem' }}>
-              {error}
-            </div>
-          )}
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Người dùng</th>
-                <th>Vai trò</th>
-                <th>Trạng thái</th>
-                <th>Ngày đăng ký</th>
-                <th style={{ textAlign: 'right' }}>Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
+      {/* Content */}
+      {error && (
+        <div style={{ padding: '1rem', background: 'var(--color-error-container)', color: 'var(--color-error-danger)', borderRadius: '0.5rem', marginBottom: '1rem' }}>
+          {error}
+        </div>
+      )}
+
+      {isLoading ? (
+        <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-on-surface-variant)' }}>
+          <span className="material-symbols-outlined" style={{ fontSize: '2rem', animation: 'spin 1s linear infinite' }}>progress_activity</span>
+          <p style={{ marginTop: '0.5rem' }}>Đang tải...</p>
+        </div>
+      ) : (users ?? []).length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-on-surface-variant)', background: 'var(--color-surface-container-lowest)', borderRadius: '0.75rem', border: '1px solid var(--color-outline-variant)' }}>
+          Không tìm thấy người dùng nào.
+        </div>
+      ) : isMobile ? (
+        /* Mobile Cards List */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem', marginBottom: '1.5rem' }}>
+          {(users ?? []).map((user) => (
+            <UserCard
+              key={user.userId}
+              user={user}
+              onToggleLock={handleToggleLock}
+              onChangeRole={handleChangeRole}
+            />
+          ))}
+        </div>
+      ) : (
+        /* Desktop Table */
+        <div className="admin-card" style={{ overflow: 'hidden', marginBottom: '1.5rem' }}>
+          <div style={{ overflowX: 'auto' }}>
+            <table className="admin-table">
+              <thead>
                 <tr>
-                  <td colSpan={6} style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-on-surface-variant)' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '2rem', animation: 'spin 1s linear infinite' }}>progress_activity</span>
-                    <p style={{ marginTop: '0.5rem' }}>Đang tải...</p>
-                  </td>
+                  <th style={{ minWidth: '100px' }}>ID</th>
+                  <th style={{ minWidth: '220px' }}>Người dùng</th>
+                  <th style={{ minWidth: '140px' }}>Vai trò</th>
+                  <th style={{ minWidth: '100px' }}>Trạng thái</th>
+                  <th style={{ minWidth: '120px' }}>Ngày đăng ký</th>
+                  <th style={{ textAlign: 'right', minWidth: '280px' }}>Thao tác</th>
                 </tr>
-              ) : (users ?? []).length === 0 ? (
-                <tr>
-                  <td colSpan={6} style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-on-surface-variant)' }}>
-                    Không tìm thấy người dùng nào.
-                  </td>
-                </tr>
-              ) : (
-                (users ?? []).map((user) => (
+              </thead>
+              <tbody>
+                {(users ?? []).map((user) => (
                   <tr key={user.userId}>
                     <td>
                       <span className="font-label-sm" style={{ color: 'var(--color-outline)', fontSize: '0.7rem' }}>
@@ -237,7 +325,7 @@ export default function Users() {
                       <span className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)' }}>{formatDate(user.createdAt)}</span>
                     </td>
                     <td>
-                      <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'flex-end' }}>
+                      <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                         {user.status === 'Banned' ? (
                           <button
                             className="admin-btn admin-btn-success"
@@ -282,16 +370,18 @@ export default function Users() {
                       </div>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
+      )}
 
-        {/* Pagination */}
-        <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--color-outline-variant)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      {/* Pagination (Common) */}
+      {!isLoading && (users ?? []).length > 0 && (
+        <div className="admin-card" style={{ padding: isMobile ? '0.75rem' : '1rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <p className="font-body-sm" style={{ color: 'var(--color-on-surface-variant)' }}>
-            {isLoading ? '—' : `Hiển thị ${(users ?? []).length} trên tổng số ${(total ?? 0).toLocaleString('vi-VN')} người dùng`}
+            Hiển thị {(users ?? []).length} trên tổng số {(total ?? 0).toLocaleString('vi-VN')} người dùng
           </p>
           <div className="pagination">
             <button
@@ -324,7 +414,7 @@ export default function Users() {
             </button>
           </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
