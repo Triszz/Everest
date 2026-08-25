@@ -96,12 +96,7 @@ export function DanhMucNoiBat() {
         </div>
 
         {/* Grid: 1 large left + right side */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gridTemplateRows: 'auto auto',
-          gap: 16,
-        }}>
+        <div className="responsive-grid-2">
           {/* Large card: First category */}
           {mainCategory && (
             <Link

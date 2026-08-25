@@ -22,10 +22,26 @@ export const issuedVouchersService = {
     const { status, page, pageSize } = query;
     const { skip, pagination } = buildPagination(page, pageSize, 0);
 
+    const user = await prisma.user.findUnique({
+      where: { userId: customerId },
+      select: { email: true },
+    });
+
     // Build where clause — status cần cast đúng enum type
+    // Voucher thuộc về customerId nếu:
+    // - Đơn hàng tự mua (isGift = false AND customerId)
+    // - Hoặc đơn quà tặng (isGift = true AND receiverEmail khớp email của user)
     const where: Prisma.IssuedVoucherWhereInput = {
       orderItem: {
-        order: { customerId, paymentStatus: "Paid" },
+        order: {
+          paymentStatus: "Paid",
+          OR: [
+            { customerId, isGift: false },
+            ...(user?.email
+              ? [{ isGift: true, receiverEmail: { equals: user.email, mode: "insensitive" as const } }]
+              : []),
+          ],
+        },
       },
     };
     if (status) {
@@ -46,6 +62,7 @@ export const issuedVouchersService = {
                   expiryDays: true,
                   approvalStatus: true,
                   displayStatus: true,
+                  isLocked: true,
                   partner: { select: { companyName: true } },
                 },
               },
@@ -66,12 +83,20 @@ export const issuedVouchersService = {
     return {
       vouchers: vouchers.map((iv) => {
         const v = iv.orderItem.voucher;
+        const effectiveStatus =
+          v.isLocked && iv.status !== "Used"
+            ? "Locked"
+            : iv.status;
         const isAvailable =
-          v.approvalStatus === "Approved" && v.displayStatus === "Visible";
+          !v.isLocked &&
+          v.approvalStatus === "Approved" &&
+          v.displayStatus === "Visible" &&
+          effectiveStatus === "Unused";
+
         return {
           issuedVoucherId: iv.issuedVoucherId,
           voucherCode: iv.voucherCode,
-          status: iv.status,
+          status: effectiveStatus,
           validFrom: iv.validFrom,
           validTo: iv.validTo,
           usedAt: iv.usedAt,
@@ -96,10 +121,25 @@ export const issuedVouchersService = {
    * Throw 404 nếu không thuộc customer.
    */
   async getIssuedVoucher(customerId: string, issuedVoucherId: number) {
+    const user = await prisma.user.findUnique({
+      where: { userId: customerId },
+      select: { email: true },
+    });
+
     const voucher = await prisma.issuedVoucher.findFirst({
       where: {
         issuedVoucherId,
-        orderItem: { order: { customerId } },
+        orderItem: {
+          order: {
+            paymentStatus: "Paid",
+            OR: [
+              { customerId, isGift: false },
+              ...(user?.email
+                ? [{ isGift: true, receiverEmail: { equals: user.email, mode: "insensitive" as const } }]
+                : []),
+            ],
+          },
+        },
       },
       include: {
         orderItem: {
@@ -114,6 +154,7 @@ export const issuedVouchersService = {
                 applicationCondition: true,
                 approvalStatus: true,
                 displayStatus: true,
+                isLocked: true,
                 partner: { select: { companyName: true } },
                 voucherBranches: {
                   select: {
@@ -138,13 +179,20 @@ export const issuedVouchersService = {
     }
 
     const v = voucher.orderItem.voucher;
+    const effectiveStatus =
+      v.isLocked && voucher.status !== "Used"
+        ? "Locked"
+        : voucher.status;
     const isAvailable =
-      v.approvalStatus === "Approved" && v.displayStatus === "Visible";
+      !v.isLocked &&
+      v.approvalStatus === "Approved" &&
+      v.displayStatus === "Visible" &&
+      effectiveStatus === "Unused";
 
     return {
       issuedVoucherId: voucher.issuedVoucherId,
       voucherCode: voucher.voucherCode,
-      status: voucher.status,
+      status: effectiveStatus,
       validFrom: voucher.validFrom,
       validTo: voucher.validTo,
       usedAt: voucher.usedAt,

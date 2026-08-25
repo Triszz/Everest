@@ -155,12 +155,12 @@ export async function validateVoucherForRedemption(
     };
   }
 
-  // 9. IssuedVoucher status = Locked?
-  if (issued.status === "Locked") {
+  // 9. IssuedVoucher hoặc Voucher status = Locked?
+  if (voucher.isLocked || issued.status === "Locked") {
     return {
       isValid: false,
       status: RedemptionStatus.LOCKED,
-      message: "Voucher đang bị khóa",
+      message: "Voucher đang bị khóa bởi hệ thống và không thể sử dụng",
     };
   }
 

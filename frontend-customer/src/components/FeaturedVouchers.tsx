@@ -91,11 +91,7 @@ export function FeaturedVouchers() {
         </div>
 
         {/* Cards Grid */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: 20,
-        }}>
+        <div className="responsive-grid-4">
           {vouchers.length === 0 ? (
             <p style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#64748B' }}>
               Hiện không có voucher nào

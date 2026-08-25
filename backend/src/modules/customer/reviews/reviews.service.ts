@@ -35,19 +35,32 @@ export const reviewsService = {
       throw new AppError("Voucher không khả dụng để đánh giá", 400, "VOUCHER_NOT_AVAILABLE");
     }
 
-    // Nếu có issuedVoucherId → verify customer đã mua
+    // Nếu có issuedVoucherId → verify customer sở hữu voucher (tự mua hoặc được tặng)
     if (issuedVoucherId) {
+      const user = await prisma.user.findUnique({
+        where: { userId: customerId },
+        select: { email: true },
+      });
+
       const issued = await prisma.issuedVoucher.findFirst({
         where: {
           issuedVoucherId,
           orderItem: {
-            order: { customerId, paymentStatus: "Paid" },
+            order: {
+              paymentStatus: "Paid",
+              OR: [
+                { customerId, isGift: false },
+                ...(user?.email
+                  ? [{ isGift: true, receiverEmail: { equals: user.email, mode: "insensitive" as const } }]
+                  : []),
+              ],
+            },
             voucherId,
           },
         },
       });
       if (!issued) {
-        throw new AppError("Bạn chưa mua voucher này", 403, "NOT_PURCHASED");
+        throw new AppError("Bạn chưa sở hữu voucher này", 403, "NOT_PURCHASED");
       }
     }
 

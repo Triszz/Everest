@@ -1191,14 +1191,11 @@ export function VouchersPage() {
 
       {/* ── Main layout: sidebar + grid ── */}
       <div
+        className="responsive-sidebar-layout"
         style={{
           maxWidth: 1280,
           margin: "0 auto",
           padding: "24px",
-          display: "grid",
-          gridTemplateColumns: "240px 1fr",
-          gap: 24,
-          alignItems: "start",
         }}
       >
         {/* ── Left sidebar filter ── */}

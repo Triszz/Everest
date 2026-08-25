@@ -208,7 +208,7 @@ export function CartPage() {
             </button>
           </div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 380px", gap: 24, alignItems: "start" }}>
+          <div className="responsive-cart-layout">
             {/* LEFT: Cart items */}
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>

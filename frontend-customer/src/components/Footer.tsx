@@ -57,7 +57,7 @@ export function Footer() {
     <footer style={{ background: '#F8FAFC', borderTop: '1px solid #E2E8F0' }}>
       {/* Main footer content */}
       <div style={{ maxWidth: 1280, margin: '0 auto', padding: '52px 24px 40px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr 1fr 1fr', gap: 48 }}>
+        <div className="responsive-grid-4">
 
           {/* Brand column */}
           <div>

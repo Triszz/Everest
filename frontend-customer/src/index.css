@@ -115,8 +115,97 @@ a, button, select, label, [role="button"], summary, input[type="button"], input[
   to   { opacity: 1; transform: scale(1); }
 }
 
+/* ===== RESPONSIVE UTILITIES ===== */
+.mobile-only {
+  display: none !important;
+}
+
+.desktop-only {
+  display: flex !important;
+}
+
+/* Grid & Layout Utilities */
+.responsive-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+}
+
+.responsive-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.responsive-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+}
+
+.responsive-sidebar-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.responsive-cart-layout {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 24px;
+  align-items: start;
+}
+
+/* Responsive Media Queries */
+@media (max-width: 1024px) {
+  .responsive-grid-4 {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .responsive-grid-3 {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+  .responsive-sidebar-layout {
+    grid-template-columns: 240px 1fr;
+    gap: 16px;
+  }
+  .responsive-cart-layout {
+    grid-template-columns: 1fr 320px;
+    gap: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .mobile-only {
+    display: flex !important;
+  }
+  .desktop-only {
+    display: none !important;
+  }
+  .responsive-grid-4,
+  .responsive-grid-3,
+  .responsive-grid-2 {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .responsive-sidebar-layout,
+  .responsive-cart-layout {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  /* Padding adjust */
+  .responsive-container {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+}
+
 /* ===== SCROLLBAR ===== */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: var(--color-neutral-bg); }
 ::-webkit-scrollbar-thumb { background: var(--color-primary-200); border-radius: 99px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--color-primary); }
+

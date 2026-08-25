@@ -375,8 +375,26 @@ function VoucherModal({ v, onClose }: { v: IssuedVoucher; onClose: () => void })
           </div>
         </div>
 
+        {/* Warning alert if Locked */}
+        {v.status === 'Locked' && (
+          <div style={{ margin: '16px 16px 0', padding: '12px 14px', background: '#FEF3C7', border: '1px solid #FCD34D', borderRadius: 12, display: 'flex', gap: 10, alignItems: 'center' }}>
+            <span style={{ fontSize: 18 }}>🔒</span>
+            <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#B45309', margin: 0, fontWeight: 600, lineHeight: 1.4 }}>
+              Voucher này hiện đang bị tạm khóa bởi Quản trị viên và không thể sử dụng.
+            </p>
+          </div>
+        )}
+
         {/* QR + Code section */}
-        <div style={{ padding: '16px 16px 0', display: 'flex', gap: 14, alignItems: 'center' }}>
+        <div style={{
+          padding: '16px 16px 0',
+          display: 'flex',
+          gap: 14,
+          alignItems: 'center',
+          opacity: v.status === 'Locked' ? 0.4 : 1,
+          pointerEvents: v.status === 'Locked' ? 'none' : 'auto',
+          filter: v.status === 'Locked' ? 'blur(1px)' : 'none',
+        }}>
           {/* QR */}
           <div style={{ flexShrink: 0, textAlign: 'center' }}>
             <QRImage code={v.voucherCode} size={90} style={{ marginBottom: 4 }} />
@@ -398,7 +416,7 @@ function VoucherModal({ v, onClose }: { v: IssuedVoucher; onClose: () => void })
             </div>
             <p style={{ fontSize: 11, color: '#64748B', fontFamily: 'Inter, sans-serif', lineHeight: 1.4 }}>
               Hạn: <strong>{formatDate(v.validTo)}</strong>
-              {!isExpired && v.status !== 'Used' && <span style={{ color: '#10B981', fontWeight: 700 }}> · {left} ngày</span>}
+              {!isExpired && v.status !== 'Used' && v.status !== 'Locked' && <span style={{ color: '#10B981', fontWeight: 700 }}> · {left} ngày</span>}
             </p>
           </div>
         </div>
@@ -741,7 +759,7 @@ export function MyVoucher() {
       />
 
       <div style={{ maxWidth: 1280, margin: '0 auto', padding: '32px 24px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 24, alignItems: 'start' }}>
+        <div className="responsive-cart-layout">
 
           {/* ── LEFT: Voucher grid ── */}
           <div>
