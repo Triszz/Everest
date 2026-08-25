@@ -9,7 +9,10 @@ export function VerifyEmailPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const email = searchParams.get('email') || '';
+  const phone = searchParams.get('phone') || '';
+  const initialChannel = (searchParams.get('channel') as 'email' | 'sms') || 'email';
 
+  const [channel, setChannel] = useState<'email' | 'sms'>(initialChannel);
   const [digits, setDigits] = useState<string[]>(Array(OTP_LENGTH).fill(''));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,6 +36,26 @@ export function VerifyEmailPage() {
   useEffect(() => {
     setResendCooldown(RESEND_COOLDOWN);
   }, []);
+
+  const handleChannelSwitch = async (newChannel: 'email' | 'sms') => {
+    if (newChannel === channel) return;
+    setChannel(newChannel);
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await authApi.sendOtp(email, 'REGISTER_VERIFY', newChannel);
+      if (res.success) {
+        setSuccess(res.message || `Đã chuyển kênh gửi OTP qua ${newChannel === 'sms' ? 'SMS' : 'Email'}.`);
+        setResendCooldown(RESEND_COOLDOWN);
+        setDigits(Array(OTP_LENGTH).fill(''));
+        inputRefs.current[0]?.focus();
+      }
+    } catch (err: any) {
+      setError(err.message || 'Không thể gửi lại OTP.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleChange = (idx: number, val: string) => {
     setError(null);
@@ -118,7 +141,7 @@ export function VerifyEmailPage() {
     if (resendCooldown > 0 || !email) return;
     setError(null);
     try {
-      const res = await authApi.resendOtp(email, 'REGISTER_VERIFY');
+      const res = await authApi.resendOtp(email, 'REGISTER_VERIFY', channel);
       if (res.success) {
         setSuccess(res.message || 'Đã gửi lại mã OTP.');
         setResendCooldown(RESEND_COOLDOWN);
@@ -194,14 +217,82 @@ export function VerifyEmailPage() {
               fontFamily: 'Manrope, sans-serif', fontSize: 28, fontWeight: 800,
               color: '#1E293B', marginBottom: 8,
             }}>
-              Xác thực email
+              Xác thực tài khoản
             </h1>
             <p style={{
               fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#94A3B8', lineHeight: 1.6,
             }}>
-              Nhập mã 6 số đã được gửi đến<br />
-              <strong style={{ color: '#1E293B' }}>{email || '(thiếu email)'}</strong>
+              Nhập mã 6 số được gửi qua {channel === 'sms' ? 'SMS' : 'Email'} tới<br />
+              <strong style={{ color: '#1E293B' }}>{channel === 'sms' && phone ? phone : email}</strong>
             </p>
+          </div>
+
+          {/* Chọn kênh nhận OTP (Email vs SMS) */}
+          <div style={{
+            marginBottom: 20,
+            padding: 16,
+            borderRadius: 12,
+            background: '#F8FAFC',
+            border: '1.5px solid #E2E8F0',
+          }}>
+            <div style={{
+              fontFamily: 'Inter, sans-serif',
+              fontSize: 13,
+              fontWeight: 600,
+              color: '#64748B',
+              marginBottom: 10,
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+            }}>
+              Chọn phương thức nhận mã OTP:
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                type="button"
+                onClick={() => handleChannelSwitch('email')}
+                style={{
+                  flex: 1,
+                  padding: '10px 12px',
+                  borderRadius: 10,
+                  border: channel === 'email' ? '2px solid #0E76A8' : '1px solid #CBD5E1',
+                  background: channel === 'email' ? '#EFF6FF' : '#FFFFFF',
+                  fontWeight: channel === 'email' ? 700 : 500,
+                  color: channel === 'email' ? '#0E76A8' : '#64748B',
+                  fontSize: 13,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  transition: 'all 0.2s',
+                }}
+              >
+                📧 Email
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleChannelSwitch('sms')}
+                style={{
+                  flex: 1,
+                  padding: '10px 12px',
+                  borderRadius: 10,
+                  border: channel === 'sms' ? '2px solid #0E76A8' : '1px solid #CBD5E1',
+                  background: channel === 'sms' ? '#EFF6FF' : '#FFFFFF',
+                  fontWeight: channel === 'sms' ? 700 : 500,
+                  color: channel === 'sms' ? '#0E76A8' : '#64748B',
+                  fontSize: 13,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  transition: 'all 0.2s',
+                }}
+              >
+                📱 Số điện thoại {phone ? `(${phone})` : ''}
+              </button>
+            </div>
           </div>
 
           {error && (

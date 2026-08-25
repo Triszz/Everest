@@ -2,9 +2,12 @@ import { z } from "zod";
 
 const otpPurposeSchema = z.enum(["REGISTER_VERIFY", "RESET_PASSWORD", "TWO_FA_LOGIN"]);
 
+const otpChannelSchema = z.enum(["email", "sms"]).optional().default("email");
+
 export const sendOtpSchema = z.object({
   email: z.email("Email không hợp lệ"),
   purpose: otpPurposeSchema.default("REGISTER_VERIFY"),
+  channel: otpChannelSchema,
 });
 
 export const verifyOtpSchema = z.object({
@@ -18,6 +21,7 @@ export const verifyOtpSchema = z.object({
 export const resendOtpSchema = z.object({
   email: z.email("Email không hợp lệ"),
   purpose: otpPurposeSchema.default("REGISTER_VERIFY"),
+  channel: otpChannelSchema,
 });
 
 export type SendOtpInput = z.infer<typeof sendOtpSchema>;

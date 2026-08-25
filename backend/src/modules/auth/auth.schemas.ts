@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const loginSchema = z.object({
-  email: z.email("Email không hợp lệ"),
+  email: z.string().min(1, "Vui lòng nhập email hoặc số điện thoại"),
   password: z.string().min(6, "Mật khẩu ít nhất 6 ký tự"),
 });
 
@@ -13,6 +13,7 @@ export const registerCustomerSchema = z.object({
     .string()
     .regex(/^[0-9]{10,11}$/, "Số điện thoại không hợp lệ")
     .optional(),
+  otpChannel: z.enum(["email", "sms"]).optional().default("email"),
 });
 
 export const registerPartnerSchema = z.object({

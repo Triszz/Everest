@@ -228,8 +228,13 @@ async function buildPayload(
 
 export const authService = {
   async login(input: LoginInput) {
-    const user = await prisma.user.findUnique({
-      where: { email: input.email },
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: input.email },
+          { phoneNumber: input.email },
+        ],
+      },
       select: {
         userId: true,
         email: true,
@@ -243,7 +248,7 @@ export const authService = {
     });
 
     if (!user || !user.passwordHash) {
-      throw new AppError("Email hoặc mật khẩu không đúng", 401, "UNAUTHORIZED");
+      throw new AppError("Email/Số điện thoại hoặc mật khẩu không đúng", 401, "UNAUTHORIZED");
     }
     if (user.status !== "Active") {
       throw new AppError("Tài khoản đã bị khóa", 403, "FORBIDDEN");
@@ -330,7 +335,13 @@ export const authService = {
 
     // Gửi OTP verify (fail throw nhẹ không chặn register — user vẫn có thể bấm resend)
     try {
-      await emailOtpService.sendOtp(user.email, "REGISTER_VERIFY", undefined, user.userId);
+      await emailOtpService.sendOtp(
+        user.email,
+        "REGISTER_VERIFY",
+        undefined,
+        user.userId,
+        input.otpChannel || "email",
+      );
     } catch (err) {
       console.error("[registerCustomer] Gửi OTP thất bại:", err);
     }

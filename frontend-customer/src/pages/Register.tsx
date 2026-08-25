@@ -11,6 +11,33 @@ export function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showChannelModal, setShowChannelModal] = useState(false);
+  const [selectedChannel, setSelectedChannel] = useState<'email' | 'sms'>('email');
+
+  const doRegister = async (channel: 'email' | 'sms') => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await authApi.register({
+        email,
+        password,
+        fullName,
+        phoneNumber: phone || undefined,
+        otpChannel: channel,
+      });
+
+      if (response.success && response.data?.user) {
+        setShowChannelModal(false);
+        const phoneParam = phone ? `&phone=${encodeURIComponent(phone)}` : '';
+        navigate(`/verify-email?email=${encodeURIComponent(response.data.user.email)}${phoneParam}&channel=${channel}`);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Đăng ký thất bại. Vui lòng thử lại.');
+      setShowChannelModal(false);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,25 +55,11 @@ export function RegisterPage() {
       return;
     }
 
-    setLoading(true);
-
-    try {
-      const response = await authApi.register({
-        email,
-        password,
-        fullName,
-        phoneNumber: phone || undefined,
-      });
-
-      if (response.success && response.data?.user) {
-        // Đăng ký thành công — chuyển sang trang nhập OTP để xác thực email.
-        // KHÔNG lưu token ở đây vì user chưa verify.
-        navigate(`/verify-email?email=${encodeURIComponent(response.data.user.email)}`);
-      }
-    } catch (err: any) {
-      setError(err.message || 'Đăng ký thất bại. Vui lòng thử lại.');
-    } finally {
-      setLoading(false);
+    // Nếu người dùng có nhập Số điện thoại → Hiện modal chọn phương thức nhận OTP trước
+    if (phone.trim()) {
+      setShowChannelModal(true);
+    } else {
+      await doRegister('email');
     }
   };
 
@@ -484,6 +497,165 @@ export function RegisterPage() {
           </p>
         </div>
       </div>
+
+      {/* Modal Lựa chọn Kênh gửi mã OTP */}
+      {showChannelModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(15, 23, 42, 0.6)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: 20,
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: 20,
+            padding: 28,
+            maxWidth: 440,
+            width: '100%',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+            animation: 'scaleUp 0.2s ease-out',
+          }}>
+            <div style={{ textAlign: 'center', marginBottom: 20 }}>
+              <div style={{
+                width: 56,
+                height: 56,
+                borderRadius: 16,
+                background: '#EFF6FF',
+                color: '#0E76A8',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 16px',
+                fontSize: 24,
+              }}>
+                📲
+              </div>
+              <h3 style={{
+                fontFamily: 'Manrope, sans-serif',
+                fontSize: 20,
+                fontWeight: 800,
+                color: '#1E293B',
+                marginBottom: 8,
+              }}>
+                Chọn phương thức nhận OTP
+              </h3>
+              <p style={{
+                fontFamily: 'Inter, sans-serif',
+                fontSize: 14,
+                color: '#64748B',
+                lineHeight: 1.5,
+              }}>
+                Vui lòng chọn kênh bạn muốn hệ thống gửi mã 6 số để kích hoạt tài khoản:
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
+              <button
+                type="button"
+                onClick={() => setSelectedChannel('email')}
+                style={{
+                  padding: '14px 16px',
+                  borderRadius: 12,
+                  border: selectedChannel === 'email' ? '2px solid #0E76A8' : '1.5px solid #E2E8F0',
+                  background: selectedChannel === 'email' ? '#EFF6FF' : '#FFFFFF',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  transition: 'all 0.2s',
+                }}
+              >
+                <span style={{ fontSize: 20 }}>📧</span>
+                <div>
+                  <div style={{
+                    fontFamily: 'Inter, sans-serif',
+                    fontSize: 14,
+                    fontWeight: 700,
+                    color: selectedChannel === 'email' ? '#0E76A8' : '#1E293B',
+                  }}>
+                    Gửi mã qua Email
+                  </div>
+                  <div style={{ fontSize: 13, color: '#64748B' }}>{email}</div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectedChannel('sms')}
+                style={{
+                  padding: '14px 16px',
+                  borderRadius: 12,
+                  border: selectedChannel === 'sms' ? '2px solid #0E76A8' : '1.5px solid #E2E8F0',
+                  background: selectedChannel === 'sms' ? '#EFF6FF' : '#FFFFFF',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  transition: 'all 0.2s',
+                }}
+              >
+                <span style={{ fontSize: 20 }}>📱</span>
+                <div>
+                  <div style={{
+                    fontFamily: 'Inter, sans-serif',
+                    fontSize: 14,
+                    fontWeight: 700,
+                    color: selectedChannel === 'sms' ? '#0E76A8' : '#1E293B',
+                  }}>
+                    Gửi mã qua Số điện thoại (SMS)
+                  </div>
+                  <div style={{ fontSize: 13, color: '#64748B' }}>{phone}</div>
+                </div>
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                type="button"
+                onClick={() => setShowChannelModal(false)}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  borderRadius: 10,
+                  border: '1px solid #CBD5E1',
+                  background: '#F8FAFC',
+                  color: '#475569',
+                  fontWeight: 600,
+                  fontSize: 14,
+                  cursor: 'pointer',
+                }}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => doRegister(selectedChannel)}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  borderRadius: 10,
+                  border: 'none',
+                  background: loading ? '#94A3B8' : '#0E76A8',
+                  color: 'white',
+                  fontWeight: 700,
+                  fontSize: 14,
+                  cursor: loading ? 'wait' : 'pointer',
+                }}
+              >
+                {loading ? 'Đang xử lý...' : 'Xác nhận & Gửi OTP'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

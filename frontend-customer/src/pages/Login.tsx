@@ -227,13 +227,13 @@ export function LoginPage() {
                 fontWeight: 600,
                 color: '#1E293B',
                 marginBottom: 8,
-              }}>Email</label>
+              }}>Email hoặc Số điện thoại</label>
               <input
                 id="login-email"
-                type="email"
+                type="text"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                placeholder="email@example.com"
+                placeholder="Nhập email hoặc số điện thoại của bạn"
                 required
                 style={{
                   width: '100%',

@@ -40,6 +40,7 @@ export const emailOtpService = {
     purpose: PurposeMap,
     ipAddress?: string,
     userId?: string,
+    channel: "email" | "sms" = "email",
   ) {
     const purposePrisma = toPrismaPurpose(purpose);
 
@@ -88,17 +89,31 @@ export const emailOtpService = {
       },
     });
 
-    const sent = await emailService.sendOtp({
-      to: email,
-      code,
-      ttlMinutes: OTP_TTL_MINUTES,
-      purpose,
-    });
+    let sent = true;
+    let message = "Mã xác thực đã được gửi đến email của bạn.";
+
+    if (channel === "sms") {
+      const user = await prisma.user.findFirst({
+        where: { OR: [{ email }, ...(userId ? [{ userId }] : [])] },
+        select: { phoneNumber: true },
+      });
+      const phoneDisplay = user?.phoneNumber || "số điện thoại của bạn";
+      console.log(`[SMS OTP MOCK] Gửi OTP ${code} tới SĐT: ${phoneDisplay}`);
+      message = `Mã OTP xác thực [${code}] đã được gửi qua SMS đến số điện thoại ${phoneDisplay}.`;
+    } else {
+      sent = await emailService.sendOtp({
+        to: email,
+        code,
+        ttlMinutes: OTP_TTL_MINUTES,
+        purpose,
+      });
+      message = sent
+        ? "Mã xác thực đã được gửi đến email của bạn."
+        : "Không thể gửi email lúc này. Vui lòng thử lại sau.";
+    }
 
     return {
-      message: sent
-        ? "Mã xác thực đã được gửi đến email của bạn."
-        : "Không thể gửi email lúc này. Vui lòng thử lại sau.",
+      message,
       expiresIn: OTP_TTL_MINUTES * 60,
       sent,
     };
@@ -185,7 +200,12 @@ export const emailOtpService = {
   /**
    * Resend OTP. Đơn giản là gọi lại sendOtp (đã có rate limit bên trong).
    */
-  async resendOtp(email: string, purpose: PurposeMap, ipAddress?: string) {
-    return this.sendOtp(email, purpose, ipAddress);
+  async resendOtp(
+    email: string,
+    purpose: PurposeMap,
+    ipAddress?: string,
+    channel: "email" | "sms" = "email",
+  ) {
+    return this.sendOtp(email, purpose, ipAddress, undefined, channel);
   },
 };
