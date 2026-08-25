@@ -27,10 +27,11 @@ import type { PaginationMeta } from "./http";
 
 export const orderApi = {
   /** Tạo đơn hàng (trạng thái Pending). */
-  create: async (payload: CreateOrderPayload) => {
+  create: async (payload: CreateOrderPayload, idempotencyKey?: string) => {
     const res = await authFetch(`${BASE_URL}/customer/orders`, {
       method: "POST",
       auth: true,
+      idempotencyKey,
       body: JSON.stringify(payload),
     });
     return handleResponse<{ success: boolean; data: CreateOrderResponse }>(res);
@@ -41,10 +42,11 @@ export const orderApi = {
    * Sau khi thanh toán thành công → backend sinh IssuedVoucher.
    * @param paymentMethod `"atm" | "momo" | "visa"`
    */
-  checkout: async (orderId: number, body: { paymentMethod: string }) => {
+  checkout: async (orderId: number, body: { paymentMethod: string }, idempotencyKey?: string) => {
     const res = await authFetch(`${BASE_URL}/customer/orders/${orderId}/checkout`, {
       method: "POST",
       auth: true,
+      idempotencyKey,
       body: JSON.stringify(body),
     });
     return handleResponse<{ success: boolean; data: CheckoutResponse }>(res);

@@ -55,18 +55,10 @@ app.use(
     limit: MAX_JSON_BODY,
   }),
 );
-// Rate limit cho auth routes
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 1_000_000,
-  message: {
-    success: false,
-    error: {
-      code: "RATE_LIMIT",
-      message: "Quá nhiều yêu cầu, vui lòng thử lại sau 15 phút",
-    },
-  },
-});
+import { generalLimiter } from "./middlewares/rateLimiters";
+
+// ── Rate Limiter ─────────────────────────────────────────────────────────────
+app.use("/api", generalLimiter);
 
 // ── Request Logging ───────────────────────────────────────────────────────────
 app.use(requestLogger);
@@ -74,7 +66,7 @@ app.use(requestLogger);
 // ── Routes ───────────────────────────────────────────────────────────────────
 
 // Auth
-app.use("/api/auth", authLimiter, authRouter);
+app.use("/api/auth", authRouter);
 
 // Partner
 app.use("/api/partner", partnerRouter);

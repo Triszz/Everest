@@ -43,6 +43,7 @@ export interface Voucher {
       branchId: number;
       branchName: string;
       address: string;
+      city?: string | null;
       phoneNumber: string;
     };
   }>;

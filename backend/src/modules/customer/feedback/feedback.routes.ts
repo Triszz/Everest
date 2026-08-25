@@ -12,13 +12,14 @@ import { Router } from "express";
 import { feedbackController } from "./feedback.controller";
 import { authenticate } from "../../../middlewares/authenticate";
 import { roleGuard } from "../../../middlewares/roleGuard";
+import { contentWriteLimiter } from "../../../middlewares/rateLimiters";
 
 // ── Public / Customer router ─────────────────────────────────────────────────
 
 const publicRouter = Router();
 
 /** POST /api/feedback — Gửi phản hồi (guest hoặc customer) */
-publicRouter.post("/", feedbackController.submit);
+publicRouter.post("/", contentWriteLimiter, feedbackController.submit);
 
 // ── Admin router ─────────────────────────────────────────────────────────────
 

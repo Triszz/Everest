@@ -14,6 +14,8 @@ import {
 import { getHistory } from "./redemption.history.controller";
 import { authenticate } from "../../../middlewares/authenticate";
 import { roleGuard } from "../../../middlewares/roleGuard";
+import { idempotency } from "../../../middlewares/idempotency";
+import { redemptionLimiter } from "../../../middlewares/rateLimiters";
 
 const router = Router();
 
@@ -22,10 +24,10 @@ router.use(authenticate);
 router.use(roleGuard("Partner_Owner", "Partner_Cashier"));
 
 // POST /api/partner/redemption/validate
-router.post("/validate", validateVoucher);
+router.post("/validate", redemptionLimiter, validateVoucher);
 
 // POST /api/partner/redemption/confirm
-router.post("/confirm", confirmVoucherHandler);
+router.post("/confirm", redemptionLimiter, idempotency(), confirmVoucherHandler);
 
 // GET /api/partner/redemption/history
 router.get("/history", getHistory);

@@ -73,10 +73,13 @@ export const setTokens = (accessToken: string, refreshToken: string): void => {
   localStorage.setItem(STORAGE_KEY_REFRESH_TOKEN, refreshToken);
 };
 
-/** Xoá toàn bộ token (khi refresh fail hoặc logout). */
+/** Xoá toàn bộ token và thông tin phiên làm việc (khi refresh fail, bị khóa hoặc logout). */
 export const clearTokens = (): void => {
   localStorage.removeItem(STORAGE_KEY_ACCESS_TOKEN);
   localStorage.removeItem(STORAGE_KEY_REFRESH_TOKEN);
+  localStorage.removeItem("everest_user");
+  localStorage.removeItem("user");
+  localStorage.removeItem("current_session_id");
 };
 
 // ── Refresh token coordination ──────────────────────────────────────
@@ -133,12 +136,17 @@ const refreshAccessToken = async (): Promise<string | null> => {
  */
 export const authFetch = async (
   url: string,
-  options: RequestInit & { auth?: boolean } = {}
+  options: RequestInit & { auth?: boolean; idempotencyKey?: string } = {}
 ): Promise<Response> => {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(options.headers as Record<string, string>),
   };
+
+  // Gắn X-Idempotency-Key nếu được truyền vào
+  if (options.idempotencyKey) {
+    headers["X-Idempotency-Key"] = options.idempotencyKey;
+  }
 
   // 1. Gắn Authorization header nếu request yêu cầu auth.
   if (options.auth) {

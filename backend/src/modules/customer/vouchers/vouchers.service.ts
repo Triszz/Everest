@@ -77,7 +77,14 @@ export const vouchersService = {
     }
     if (area) {
       where.voucherBranches = {
-        some: { branch: { address: { contains: area, mode: "insensitive" } } },
+        some: {
+          branch: {
+            OR: [
+              { city: { contains: area, mode: "insensitive" } },
+              { address: { contains: area, mode: "insensitive" } },
+            ],
+          },
+        },
       };
     }
 
@@ -208,6 +215,7 @@ export const vouchersService = {
                 branchId: true,
                 branchName: true,
                 address: true,
+                city: true,
                 phoneNumber: true,
               },
             },

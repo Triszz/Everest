@@ -79,11 +79,24 @@ async function processSuccessfulPayment(
       data: { paymentStatus: "Paid", paymentMethod },
     });
 
+    if (order.paymentStatus === "Paid") return;
+
     for (const item of order.orderItems) {
-      await tx.voucher.update({
-        where: { voucherId: item.voucher.voucherId },
+      const updateStock = await tx.voucher.updateMany({
+        where: {
+          voucherId: item.voucher.voucherId,
+          availableQuantity: { gte: item.quantity },
+        },
         data: { availableQuantity: { decrement: item.quantity } },
       });
+
+      if (updateStock.count === 0) {
+        throw new AppError(
+          `Voucher "${item.voucher.title}" không đủ tồn kho tại thời điểm thanh toán.`,
+          409,
+          "INSUFFICIENT_STOCK_AT_CHECKOUT",
+        );
+      }
 
       const validTo = new Date();
       validTo.setDate(validTo.getDate() + (item.voucher.expiryDays || 30));

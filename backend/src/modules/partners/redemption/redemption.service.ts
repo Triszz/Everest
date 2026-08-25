@@ -481,14 +481,25 @@ export async function confirmVoucher(
         throw { code: RedemptionStatus.NOT_STARTED, message: "Voucher chưa đến ngày bắt đầu" };
       }
 
-      // 4c. Update IssuedVoucher
-      const updated = await tx.issuedVoucher.update({
-        where: { voucherCode },
+      // 4c. Update IssuedVoucher (Atomic conditional update chống race condition - RB-07)
+      const updatedCount = await tx.issuedVoucher.updateMany({
+        where: {
+          voucherCode,
+          status: "Unused",
+        },
         data: {
           status: "Used",
           usedAt,
           usedAtBranchId: confirmBranchId,
         },
+      });
+
+      if (updatedCount.count === 0) {
+        throw { isIdempotent: true, code: RedemptionStatus.ALREADY_USED };
+      }
+
+      const updated = await tx.issuedVoucher.findUnique({
+        where: { voucherCode },
         select: {
           issuedVoucherId: true,
           voucherCode: true,
@@ -496,6 +507,10 @@ export async function confirmVoucher(
           usedAtBranchId: true,
         },
       });
+
+      if (!updated) {
+        throw new AppError("Voucher không tồn tại", 404, "NOT_FOUND");
+      }
 
       return updated;
     });

@@ -18,6 +18,7 @@ import { Router } from "express";
 import { vouchersController } from "./vouchers.controller";
 import { reviewsController } from "../reviews/reviews.controller";
 import { authenticate } from "../../../middlewares/authenticate";
+import { contentWriteLimiter } from "../../../middlewares/rateLimiters";
 
 const router = Router();
 
@@ -34,7 +35,7 @@ router.get("/search/partners", vouchersController.listPartners);
 router.get("/:voucherId/reviews", vouchersController.getVoucherReviews);
 
 /** POST /api/vouchers/:voucherId/reviews — Tạo/cập nhật review (cần auth) */
-router.post("/:voucherId/reviews", authenticate, reviewsController.createReview);
+router.post("/:voucherId/reviews", authenticate, contentWriteLimiter, reviewsController.createReview);
 
 /** GET /api/vouchers/:id — Chi tiết voucher */
 router.get("/:id", vouchersController.getVoucherById);

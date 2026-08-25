@@ -152,6 +152,7 @@ export function Checkout() {
 
     setSubmitting(true);
     try {
+      const idempotencyKey = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `order-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
       // Tạo đơn ở trạng thái Pending, KHÔNG redirect sang VNPAY.
       // Đơn sẽ expire sau 15 phút nếu không thanh toán (xem backend orders.config).
       const createRes = await orderApi.create({
@@ -165,7 +166,7 @@ export function Checkout() {
           receiverEmail: receiverEmail.trim(),
           giftMessage: giftMessage.trim(),
         }),
-      });
+      }, idempotencyKey);
 
       if (!createRes.success || !createRes.data?.orderId) {
         throw new Error(createRes.error?.message || "Không thể tạo đơn hàng.");
@@ -198,6 +199,7 @@ export function Checkout() {
 
     setSubmitting(true);
     try {
+      const idempotencyKey = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `order-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
       // ── Step 1: create order (Pending) ──
       const createRes = await orderApi.create({
         buyerInfo,
@@ -210,7 +212,7 @@ export function Checkout() {
           receiverEmail: receiverEmail.trim(),
           giftMessage: giftMessage.trim(),
         }),
-      });
+      }, idempotencyKey);
 
       if (!createRes.success || !createRes.data?.orderId) {
         throw new Error(createRes.error?.message || "Không thể tạo đơn hàng.");
@@ -219,7 +221,7 @@ export function Checkout() {
       const orderId = createRes.data.orderId;
 
       // ── Step 2: tạo URL thanh toán VNPAY ──
-      const paymentRes = await paymentApi.create(orderId);
+      const paymentRes = await paymentApi.create(orderId, idempotencyKey);
 
       if (!paymentRes.success || !paymentRes.data?.paymentUrl) {
         throw new Error(paymentRes.error?.message || "Không thể tạo liên kết thanh toán.");
