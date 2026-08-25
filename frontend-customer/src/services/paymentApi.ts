@@ -29,10 +29,11 @@ export const paymentApi = {
    * Backend sẽ ký URL bằng hash secret của merchant.
    * Frontend nhận URL → redirect user sang đó (window.location.href).
    */
-  create: async (orderId: number) => {
+  create: async (orderId: number, idempotencyKey?: string) => {
     const res = await authFetch(`${BASE_URL}/customer/payment/create`, {
       method: "POST",
       auth: true,
+      idempotencyKey,
       body: JSON.stringify({ orderId }),
     });
     return handleResponse<{ success: boolean; data: CreatePaymentResponse }>(res);

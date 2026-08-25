@@ -136,12 +136,17 @@ const refreshAccessToken = async (): Promise<string | null> => {
  */
 export const authFetch = async (
   url: string,
-  options: RequestInit & { auth?: boolean } = {}
+  options: RequestInit & { auth?: boolean; idempotencyKey?: string } = {}
 ): Promise<Response> => {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(options.headers as Record<string, string>),
   };
+
+  // Gắn X-Idempotency-Key nếu được truyền vào
+  if (options.idempotencyKey) {
+    headers["X-Idempotency-Key"] = options.idempotencyKey;
+  }
 
   // 1. Gắn Authorization header nếu request yêu cầu auth.
   if (options.auth) {
