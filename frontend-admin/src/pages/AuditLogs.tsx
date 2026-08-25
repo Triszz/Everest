@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useToast } from '../components/shared/Toast';
 import { useAuditLog } from '../hooks/useAuditLog';
+import { useIsMobile } from '../hooks/useIsMobile';
 import {
   AUDIT_ACTIONS,
   AUDIT_ACTOR_TYPE_LABELS,
@@ -48,7 +49,7 @@ const getActionLabel = (action: string): string =>
   AUDIT_ACTIONS.find((a) => a.value === action)?.label ?? action;
 
 const targetIcon = (t: AuditTargetType | null): string => {
-  switch (t) {
+  switch (t as string) {
     case 'USER':
       return 'person';
     case 'PARTNER':
@@ -76,9 +77,114 @@ const targetIcon = (t: AuditTargetType | null): string => {
   }
 };
 
+function AuditLogCard({ log, onOpen }: { log: AuditLog; onOpen: () => void }) {
+  const ac = actionStyle(log.action);
+  const initials = (log.actor?.fullName ?? log.actor?.email ?? 'SY')
+    .split(/[\s@_]/)
+    .map((w) => w[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+  return (
+    <div className="admin-card" style={{ padding: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0 }}>
+          <div
+            style={{
+              width: '1.75rem',
+              height: '1.75rem',
+              borderRadius: '50%',
+              background: log.actorType === 'ADMIN' ? 'rgba(0,92,134,0.15)' : 'rgba(112,120,128,0.1)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '0.6rem',
+              fontWeight: 700,
+              color: log.actorType === 'ADMIN' ? '#005c86' : '#707880',
+              flexShrink: 0,
+            }}
+          >
+            {initials}
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <p className="font-body-sm" style={{ fontWeight: 600, fontSize: '0.75rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {log.actor?.fullName ?? log.actor?.email ?? '—'}
+            </p>
+            <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)', fontSize: '0.6rem' }}>
+              {AUDIT_ACTOR_TYPE_LABELS[log.actorType]}
+            </p>
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem', flexShrink: 0 }}>
+          <span className="font-label-sm" style={{ color: 'var(--color-outline)', fontSize: '0.6rem' }}>
+            {formatDate(log.createdAt)}
+          </span>
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.25rem',
+              padding: '0.125rem 0.375rem',
+              borderRadius: '9999px',
+              background: ac.bg,
+              color: ac.color,
+              fontFamily: '"JetBrains Mono", monospace',
+              fontSize: '0.55rem',
+              fontWeight: 600,
+            }}
+          >
+            {getActionLabel(log.action)}
+          </span>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+        <span className="material-symbols-outlined" style={{ fontSize: '12px', color: 'var(--color-on-surface-variant)' }}>
+          {targetIcon(log.targetType)}
+        </span>
+        <span className="font-body-sm" style={{ fontWeight: 600, fontSize: '0.7rem', color: 'var(--color-on-surface)' }}>
+          {log.targetType ? AUDIT_TARGET_TYPE_LABELS[log.targetType] : '—'}
+        </span>
+        {log.targetId && (
+          <span className="font-label-sm" style={{ color: 'var(--color-outline)', fontSize: '0.6rem' }}>
+            ({log.targetId})
+          </span>
+        )}
+      </div>
+
+      <p className="font-body-sm" style={{ fontSize: '0.7rem', lineHeight: 1.4, color: 'var(--color-on-surface-variant)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+        {log.description}
+      </p>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid rgba(191, 199, 208, 0.1)', paddingTop: '0.5rem' }}>
+        <button
+          className="admin-btn admin-btn-ghost"
+          style={{ padding: '0.25rem 0.5rem', fontSize: '0.65rem', height: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+          onClick={onOpen}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>info</span>
+          Chi tiết
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function AuditLogs() {
   const { showToast } = useToast();
+  const isMobile = useIsMobile();
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
+
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const isTablet = windowWidth >= 640 && windowWidth < 1024;
+  const isLarge = windowWidth >= 1024;
 
   const {
     logs,
@@ -146,84 +252,78 @@ export default function AuditLogs() {
 
   return (
     <div>
+      {/* Header */}
       <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-end',
-          marginBottom: '1.5rem',
+          marginBottom: '1rem',
           flexWrap: 'wrap',
           gap: '1rem',
         }}
       >
         <div>
-          <h1 className="font-headline-lg" style={{ fontSize: '2rem', marginBottom: '0.25rem' }}>
+          <h1 className="font-headline-lg" style={{ fontSize: isMobile ? '1.5rem' : '2rem', marginBottom: '0.25rem' }}>
             Nhật ký hệ thống
           </h1>
           <p className="font-body-sm" style={{ color: 'var(--color-on-surface-variant)' }}>
             Truy vết toàn bộ thao tác admin trên hệ thống.
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <button className="admin-btn admin-btn-ghost" onClick={refresh}>
+        <div style={{ display: 'flex', gap: '0.5rem', width: isMobile ? '100%' : 'auto', flexWrap: 'wrap' }}>
+          <button className="admin-btn admin-btn-ghost" style={{ flex: isMobile ? 1 : 'none' }} onClick={refresh}>
             <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
               refresh
             </span>
-            Làm mới
+            {isMobile ? '' : 'Làm mới'}
           </button>
-          <button className="admin-btn admin-btn-ghost" onClick={handleExportCsv}>
+          <button className="admin-btn admin-btn-ghost" style={{ flex: isMobile ? 1 : 'none' }} onClick={handleExportCsv}>
             <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
               file_download
             </span>
-            Xuất CSV
+            {isMobile ? '' : 'Xuất CSV'}
           </button>
         </div>
       </div>
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: '1rem',
-          marginBottom: '1.5rem',
-        }}
-      >
+      {/* Stats */}
+      <div className={`grid ${isMobile ? 'grid-cols-2' : isTablet ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-4'} gap-3 mb-4`}>
         {[
           { label: 'Tổng nhật ký', value: total, color: '#3B82F6' },
-          { label: 'Hành động duy nhất', value: dbActions.length, color: '#005c86' },
+          { label: 'Hành động', value: dbActions.length, color: '#005c86' },
           { label: 'Số trang', value: totalPages, color: '#10B981' },
-          { label: 'Đang tải', value: loading ? '...' : 'OK', color: loading ? '#F59E0B' : '#10B981' },
+          { label: 'Trạng thái', value: loading ? '...' : 'OK', color: loading ? '#F59E0B' : '#10B981' },
         ].map((s) => (
-          <div key={s.label} className="admin-card" style={{ padding: '1rem', textAlign: 'center' }}>
+          <div key={s.label} className="admin-card" style={{ padding: '0.75rem', textAlign: 'center' }}>
             <p
               className="font-label-sm"
               style={{
                 color: 'var(--color-on-surface-variant)',
-                marginBottom: '0.25rem',
-                fontSize: '0.65rem',
+                marginBottom: '0.125rem',
+                fontSize: isMobile ? '0.55rem' : '0.65rem',
               }}
             >
               {s.label}
             </p>
-            <p className="font-headline-md" style={{ fontSize: '1.5rem', color: s.color }}>
+            <p className="font-headline-md" style={{ fontSize: isMobile ? '1.125rem' : '1.5rem', color: s.color, fontWeight: 700 }}>
               {s.value}
             </p>
           </div>
         ))}
       </div>
 
-      <div className="admin-card" style={{ padding: '1rem', marginBottom: '1rem' }}>
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+      {/* Filters */}
+      <div className="admin-card" style={{ padding: isMobile ? '0.75rem' : '1rem', marginBottom: '1rem' }}>
+        <div className={`grid ${isMobile ? 'grid-cols-1' : isTablet ? 'grid-cols-2' : 'grid-cols-1'} gap-2`}>
           <input
             className="admin-input"
-            style={{ flex: 1, minWidth: 200 }}
             placeholder="ID đối tượng (targetId)"
             value={filters.targetId ?? ''}
             onChange={(e) => updateFilters({ targetId: e.target.value || undefined })}
           />
           <select
             className="admin-input admin-select"
-            style={{ width: 'auto' }}
             value={filters.action ?? ''}
             onChange={(e) => updateFilters({ action: e.target.value || undefined })}
           >
@@ -236,7 +336,6 @@ export default function AuditLogs() {
           </select>
           <select
             className="admin-input admin-select"
-            style={{ width: 'auto' }}
             value={filters.targetType ?? ''}
             onChange={(e) =>
               updateFilters({ targetType: (e.target.value || undefined) as AuditTargetType | undefined })
@@ -250,7 +349,6 @@ export default function AuditLogs() {
           </select>
           <select
             className="admin-input admin-select"
-            style={{ width: 'auto' }}
             value={filters.actorType ?? ''}
             onChange={(e) =>
               updateFilters({ actorType: (e.target.value || undefined) as AuditActorType | undefined })
@@ -262,28 +360,28 @@ export default function AuditLogs() {
               </option>
             ))}
           </select>
-          <input
-            className="admin-input"
-            type="date"
-            style={{ width: 'auto' }}
-            value={filters.fromDate?.slice(0, 10) ?? ''}
-            onChange={(e) =>
-              updateFilters({ fromDate: e.target.value ? `${e.target.value}T00:00:00.000Z` : undefined })
-            }
-          />
-          <span className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)' }}>
-            →
-          </span>
-          <input
-            className="admin-input"
-            type="date"
-            style={{ width: 'auto' }}
-            value={filters.toDate?.slice(0, 10) ?? ''}
-            onChange={(e) =>
-              updateFilters({ toDate: e.target.value ? `${e.target.value}T23:59:59.999Z` : undefined })
-            }
-          />
-          <button className="admin-btn admin-btn-ghost" onClick={resetFilters}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr auto 1fr' : '1fr auto 1fr', gap: '0.5rem', alignItems: 'center' }}>
+            <input
+              className="admin-input"
+              type="date"
+              value={filters.fromDate?.slice(0, 10) ?? ''}
+              onChange={(e) =>
+                updateFilters({ fromDate: e.target.value ? `${e.target.value}T00:00:00.000Z` : undefined })
+              }
+            />
+            <span className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)', flexShrink: 0 }}>
+              →
+            </span>
+            <input
+              className="admin-input"
+              type="date"
+              value={filters.toDate?.slice(0, 10) ?? ''}
+              onChange={(e) =>
+                updateFilters({ toDate: e.target.value ? `${e.target.value}T23:59:59.999Z` : undefined })
+              }
+            />
+          </div>
+          <button className="admin-btn admin-btn-ghost w-full" onClick={resetFilters}>
             <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
               filter_alt_off
             </span>
@@ -307,40 +405,43 @@ export default function AuditLogs() {
         </div>
       )}
 
-      <div className="admin-card" style={{ overflow: 'hidden' }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Thời gian</th>
-                <th>Người thực hiện</th>
-                <th>Hành động</th>
-                <th>Đối tượng</th>
-                <th>Mô tả</th>
-                <th style={{ textAlign: 'right' }}>Chi tiết</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
+      {/* Content */}
+      {loading && logs.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-on-surface-variant)' }}>
+          Đang tải...
+        </div>
+      ) : filteredLogs.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-on-surface-variant)', background: 'var(--color-surface-container-lowest)', borderRadius: '0.75rem', border: '1px solid var(--color-outline-variant)' }}>
+          Không tìm thấy nhật ký nào.
+        </div>
+      ) : isMobile || isTablet ? (
+        /* Mobile/Tablet list */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.5rem' }}>
+          {filteredLogs.map((log) => (
+            <AuditLogCard
+              key={log.logId}
+              log={log}
+              onOpen={() => setSelectedLog(log)}
+            />
+          ))}
+        </div>
+      ) : (
+        /* Desktop Table */
+        <div className="admin-card" style={{ overflow: 'hidden', marginBottom: '1.5rem' }}>
+          <div style={{ overflowX: 'auto' }}>
+            <table className="admin-table">
+              <thead>
                 <tr>
-                  <td
-                    colSpan={6}
-                    style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-on-surface-variant)' }}
-                  >
-                    Đang tải...
-                  </td>
+                  <th style={{ minWidth: '140px' }}>Thời gian</th>
+                  <th style={{ minWidth: '160px' }}>Người thực hiện</th>
+                  <th style={{ minWidth: '120px' }}>Hành động</th>
+                  <th style={{ minWidth: '140px' }}>Đối tượng</th>
+                  <th>Mô tả</th>
+                  <th style={{ textAlign: 'right', minWidth: '80px' }}>Chi tiết</th>
                 </tr>
-              ) : filteredLogs.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={6}
-                    style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-on-surface-variant)' }}
-                  >
-                    Không tìm thấy nhật ký nào.
-                  </td>
-                </tr>
-              ) : (
-                filteredLogs.map((log) => {
+              </thead>
+              <tbody>
+                {filteredLogs.map((log) => {
                   const ac = actionStyle(log.action);
                   const initials = (log.actor?.fullName ?? log.actor?.email ?? 'SY')
                     .split(/[\s@_]/)
@@ -410,6 +511,7 @@ export default function AuditLogs() {
                             fontFamily: '"JetBrains Mono", monospace',
                             fontSize: '0.65rem',
                             fontWeight: 600,
+                            whiteSpace: 'nowrap',
                           }}
                         >
                           {getActionLabel(log.action)}
@@ -455,28 +557,33 @@ export default function AuditLogs() {
                       </td>
                     </tr>
                   );
-                })
-              )}
-            </tbody>
-          </table>
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
+      )}
 
+      {/* Pagination */}
+      {!loading && logs.length > 0 && (
         <div
+          className="admin-card"
           style={{
-            padding: '1rem 1.5rem',
-            borderTop: '1px solid var(--color-outline-variant)',
+            padding: isMobile ? '0.75rem' : '1rem 1.5rem',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '0.75rem',
           }}
         >
-          <p className="font-body-sm" style={{ color: 'var(--color-on-surface-variant)' }}>
+          <p className="font-body-sm" style={{ color: 'var(--color-on-surface-variant)', fontSize: isMobile ? '0.7rem' : undefined }}>
             Trang {page}/{totalPages || 1} · Tổng {total} nhật ký
           </p>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
             <select
               className="admin-input admin-select"
-              style={{ width: 'auto', padding: '0.25rem 0.5rem' }}
+              style={{ width: 'auto', padding: '0.25rem 0.5rem', fontSize: '0.7rem' }}
               value={limit}
               onChange={(e) => setLimit(Number(e.target.value))}
             >
@@ -504,22 +611,22 @@ export default function AuditLogs() {
             </button>
           </div>
         </div>
-      </div>
+      )}
 
       {selectedLog && (
         <>
           <div className="side-panel-overlay" onClick={() => setSelectedLog(null)} />
-          <div className="side-panel" style={{ width: '36rem' }}>
+          <div className="side-panel" style={{ width: isMobile ? '100%' : isTablet ? '32rem' : '36rem' }}>
             <div
               style={{
-                padding: '1.5rem',
+                padding: isMobile ? '1rem' : '1.5rem',
                 borderBottom: '1px solid var(--color-outline-variant)',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
               }}
             >
-              <h3 className="font-headline-md" style={{ fontSize: '1.25rem' }}>
+              <h3 className="font-headline-md" style={{ fontSize: '1.125rem' }}>
                 Chi tiết nhật ký
               </h3>
               <button
@@ -529,15 +636,8 @@ export default function AuditLogs() {
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
-            <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1 }}>
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: '0.75rem',
-                  marginBottom: '1.5rem',
-                }}
-              >
+            <div style={{ padding: isMobile ? '1rem' : '1.5rem', overflowY: 'auto', flex: 1 }}>
+              <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-3 mb-6`}>
                 {[
                   { label: 'Mã nhật ký', value: `#LOG-${selectedLog.logId}` },
                   { label: 'Thời gian', value: formatDate(selectedLog.createdAt) },

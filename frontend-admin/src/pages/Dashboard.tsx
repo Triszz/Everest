@@ -47,6 +47,20 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   console.log(data)
+
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200)
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  const isMobile = windowWidth < 640
+  const isTablet = windowWidth >= 640 && windowWidth < 1024
+  const isLarge = windowWidth >= 1024 && windowWidth < 1280
+  const isDesktop = windowWidth >= 1280
+
   useEffect(() => {
     let mounted = true
     setLoading(true)
@@ -71,7 +85,7 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div style={{ maxWidth: '1400px', padding: '2rem', textAlign: 'center', color: 'var(--color-on-surface-variant)' }}>
+      <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-on-surface-variant)', margin: '0 auto' }}>
         Đang tải dữ liệu dashboard...
       </div>
     )
@@ -79,7 +93,7 @@ export default function Dashboard() {
 
   if (error || !data) {
     return (
-      <div style={{ maxWidth: '1400px', padding: '2rem' }}>
+      <div style={{ padding: '2rem', margin: '0 auto' }}>
         <p className="font-body-sm" style={{ color: 'var(--color-error)' }}>
           Lỗi: {error ?? 'Không có dữ liệu'}
         </p>
@@ -120,21 +134,43 @@ export default function Dashboard() {
     { status: 'Hoàn tiền', count: data.ordersByStatus.refunded, fill: '#7e4b00' },
   ]
 
+  const getKpiGridCols = () => {
+    if (isMobile) return 'grid-cols-1 sm:grid-cols-2'
+    if (isTablet) return 'grid-cols-2 lg:grid-cols-3 xl:grid-cols-5'
+    if (isLarge) return 'grid-cols-2 lg:grid-cols-3 xl:grid-cols-5'
+    return 'grid-cols-2 lg:grid-cols-5'
+  }
+
+  const getChartHeight = () => {
+    if (isMobile) return 200
+    if (isTablet) return 240
+    return 260
+  }
+
+  const getTopListCardHeight = () => {
+    if (isMobile) return 'auto'
+    return 'auto'
+  }
+
   return (
-    <div style={{ maxWidth: '1400px' }}>
+    <div>
       {/* Header */}
       <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-end',
-          marginBottom: '2rem',
+          marginBottom: '1.5rem',
           flexWrap: 'wrap',
           gap: '1rem',
         }}
       >
         <div>
-          <h1 className="font-headline-lg" style={{ fontSize: '2rem', color: 'var(--color-on-surface)', marginBottom: '0.25rem' }}>
+          <h1 className="font-headline-lg" style={{
+            fontSize: isMobile ? '1.5rem' : '2rem',
+            color: 'var(--color-on-surface)',
+            marginBottom: '0.25rem'
+          }}>
             Tổng quan hệ thống
           </h1>
           <p className="font-body-sm" style={{ color: 'var(--color-on-surface-variant)' }}>
@@ -145,20 +181,17 @@ export default function Dashboard() {
 
       {/* KPI Cards */}
       <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '1rem',
-          marginBottom: '2rem',
-        }}
+        className={`grid ${getKpiGridCols()} gap-4 mb-6`}
       >
         {kpis.map((kpi) => (
-          <div key={kpi.label} className="kpi-card">
+          <div key={kpi.label} className="kpi-card" style={{
+            padding: isMobile ? '1rem' : '1.5rem',
+          }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
               <div
                 style={{
-                  width: '2.5rem',
-                  height: '2.5rem',
+                  width: isMobile ? '2rem' : '2.5rem',
+                  height: isMobile ? '2rem' : '2.5rem',
                   borderRadius: '0.5rem',
                   background: `${kpi.color}15`,
                   display: 'flex',
@@ -166,15 +199,25 @@ export default function Dashboard() {
                   justifyContent: 'center',
                 }}
               >
-                <span className="material-symbols-outlined" style={{ color: kpi.color, fontSize: '20px' }}>
+                <span className="material-symbols-outlined" style={{ color: kpi.color, fontSize: isMobile ? '18px' : '20px' }}>
                   {kpi.icon}
                 </span>
               </div>
             </div>
-            <p className="font-label-md" style={{ color: 'var(--color-on-surface-variant)', marginBottom: '0.25rem', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            <p className="font-label-md" style={{
+              color: 'var(--color-on-surface-variant)',
+              marginBottom: '0.25rem',
+              fontSize: isMobile ? '0.65rem' : '0.7rem',
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em'
+            }}>
               {kpi.label}
             </p>
-            <p className="font-headline-md" style={{ fontSize: '1.5rem', color: 'var(--color-on-surface)', fontWeight: 700 }}>
+            <p className="font-headline-md" style={{
+              fontSize: isMobile ? '1.25rem' : '1.5rem',
+              color: 'var(--color-on-surface)',
+              fontWeight: 700
+            }}>
               {kpi.value}
             </p>
           </div>
@@ -182,18 +225,23 @@ export default function Dashboard() {
       </div>
 
       {/* Revenue & Orders Charts */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginBottom: '1.5rem' }}>
+      <div
+        className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6"
+        style={{
+          gridTemplateColumns: isTablet ? '1fr' : undefined,
+        }}
+      >
         {/* Revenue Chart */}
-        <div className="admin-card" style={{ padding: '1.5rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-            <h2 className="font-headline-md" style={{ fontSize: '1.25rem' }}>Doanh thu</h2>
+        <div className="admin-card" style={{ padding: isMobile ? '1rem' : '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <h2 className="font-headline-md" style={{ fontSize: isMobile ? '1rem' : '1.25rem' }}>Doanh thu</h2>
             <span className="badge badge-info">6 tháng</span>
           </div>
-          <ResponsiveContainer width="100%" height={260}>
+          <ResponsiveContainer width="100%" height={getChartHeight()}>
             <BarChart data={revenueChart}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-outline-variant)" />
-              <XAxis dataKey="month" tick={{ fontSize: 12, fill: 'var(--color-on-surface-variant)' }} />
-              <YAxis tick={{ fontSize: 12, fill: 'var(--color-on-surface-variant)' }} tickFormatter={(v) => v.toLocaleString()} />
+              <XAxis dataKey="month" tick={{ fontSize: isMobile ? 10 : 12, fill: 'var(--color-on-surface-variant)' }} />
+              <YAxis tick={{ fontSize: isMobile ? 10 : 12, fill: 'var(--color-on-surface-variant)' }} tickFormatter={(v) => v.toLocaleString()} />
               <Tooltip content={<CustomTooltip />} />
               <Bar dataKey="revenue" name="Doanh thu (đ)" fill="#005c86" radius={[4, 4, 0, 0]} />
             </BarChart>
@@ -201,16 +249,16 @@ export default function Dashboard() {
         </div>
 
         {/* Orders Chart */}
-        <div className="admin-card" style={{ padding: '1.5rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-            <h2 className="font-headline-md" style={{ fontSize: '1.25rem' }}>Đơn hàng</h2>
+        <div className="admin-card" style={{ padding: isMobile ? '1rem' : '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <h2 className="font-headline-md" style={{ fontSize: isMobile ? '1rem' : '1.25rem' }}>Đơn hàng</h2>
             <span className="badge badge-info">6 tháng</span>
           </div>
-          <ResponsiveContainer width="100%" height={260}>
+          <ResponsiveContainer width="100%" height={getChartHeight()}>
             <BarChart data={ordersChart}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-outline-variant)" />
-              <XAxis dataKey="month" tick={{ fontSize: 12, fill: 'var(--color-on-surface-variant)' }} />
-              <YAxis tick={{ fontSize: 12, fill: 'var(--color-on-surface-variant)' }} tickFormatter={(v) => v.toLocaleString()} />
+              <XAxis dataKey="month" tick={{ fontSize: isMobile ? 10 : 12, fill: 'var(--color-on-surface-variant)' }} />
+              <YAxis tick={{ fontSize: isMobile ? 10 : 12, fill: 'var(--color-on-surface-variant)' }} tickFormatter={(v) => v.toLocaleString()} />
               <Tooltip content={<CustomTooltip />} />
               <Bar dataKey="orders" name="Đơn hàng" fill="#10B981" radius={[4, 4, 0, 0]} />
             </BarChart>
@@ -219,13 +267,18 @@ export default function Dashboard() {
       </div>
 
       {/* Orders by Status */}
-      <div className="admin-card" style={{ padding: '1.5rem', marginBottom: '2rem' }}>
-        <h2 className="font-headline-md" style={{ fontSize: '1.25rem', marginBottom: '1.5rem' }}>Đơn hàng theo trạng thái</h2>
-        <ResponsiveContainer width="100%" height={220}>
+      <div className="admin-card" style={{ padding: isMobile ? '1rem' : '1.5rem', marginBottom: isMobile ? '1rem' : '2rem' }}>
+        <h2 className="font-headline-md" style={{ fontSize: isMobile ? '1rem' : '1.25rem', marginBottom: isMobile ? '1rem' : '1.5rem' }}>Đơn hàng theo trạng thái</h2>
+        <ResponsiveContainer width="100%" height={isMobile ? 180 : 220}>
           <BarChart data={statusChart} layout="vertical">
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-outline-variant)" horizontal={false} />
-            <XAxis type="number" tick={{ fontSize: 11, fill: 'var(--color-on-surface-variant)' }} />
-            <YAxis type="category" dataKey="status" tick={{ fontSize: 11, fill: 'var(--color-on-surface-variant)' }} width={90} />
+            <XAxis type="number" tick={{ fontSize: isMobile ? 9 : 11, fill: 'var(--color-on-surface-variant)' }} />
+            <YAxis
+              type="category"
+              dataKey="status"
+              tick={{ fontSize: isMobile ? 9 : 11, fill: 'var(--color-on-surface-variant)' }}
+              width={isMobile ? 70 : 90}
+            />
             <Tooltip content={<CustomTooltip />} />
             <Bar dataKey="count" name="Số đơn" radius={[0, 4, 4, 0]} />
           </BarChart>
@@ -233,138 +286,165 @@ export default function Dashboard() {
       </div>
 
       {/* User Registration Chart */}
-      <div className="admin-card" style={{ padding: '1.5rem', marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-          <h2 className="font-headline-md" style={{ fontSize: '1.25rem' }}>Người dùng đăng ký</h2>
+      <div className="admin-card" style={{ padding: isMobile ? '1rem' : '1.5rem', marginBottom: isMobile ? '1rem' : '1.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <h2 className="font-headline-md" style={{ fontSize: isMobile ? '1rem' : '1.25rem' }}>Người dùng đăng ký</h2>
           <span className="badge badge-info">6 tháng</span>
         </div>
-        <ResponsiveContainer width="100%" height={260}>
+        <ResponsiveContainer width="100%" height={getChartHeight()}>
           <BarChart data={userRegChart}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-outline-variant)" />
-            <XAxis dataKey="month" tick={{ fontSize: 12, fill: 'var(--color-on-surface-variant)' }} />
-            <YAxis tick={{ fontSize: 12, fill: 'var(--color-on-surface-variant)' }} tickFormatter={(v) => v.toLocaleString()} />
+            <XAxis dataKey="month" tick={{ fontSize: isMobile ? 10 : 12, fill: 'var(--color-on-surface-variant)' }} />
+            <YAxis tick={{ fontSize: isMobile ? 10 : 12, fill: 'var(--color-on-surface-variant)' }} tickFormatter={(v) => v.toLocaleString()} />
             <Tooltip content={<CustomTooltip />} />
             <Bar dataKey="users" name="Người dùng mới" fill="#3B82F6" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
 
-      {/* Top Partners */}
-      <div className="admin-card" style={{ padding: '1.5rem', marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h2 className="font-headline-md" style={{ fontSize: '1.25rem' }}>Top 10 đối tác bán nhiều voucher nhất</h2>
-          <a href="/partners" style={{ color: 'var(--color-primary)', fontSize: '0.75rem', textDecoration: 'none' }} className="font-label-sm">
-            Xem tất cả
-          </a>
-        </div>
-        {data.topPartners.length === 0 ? (
-          <p className="font-body-sm" style={{ color: 'var(--color-on-surface-variant)', textAlign: 'center', padding: '2rem 0' }}>
-            Chưa có dữ liệu bán hàng.
-          </p>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {data.topPartners.map((p) => (
-              <div
-                key={p.partnerId}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.75rem',
-                  padding: '0.75rem',
-                  background: 'var(--color-surface-container-low)',
-                  borderRadius: '0.5rem',
-                }}
-              >
+      {/* Top lists grid */}
+      <div
+        className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6"
+        style={{
+          gridTemplateColumns: isTablet ? '1fr' : undefined,
+        }}
+      >
+        {/* Top Partners */}
+        <div className="admin-card" style={{ padding: isMobile ? '1rem' : '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <h2 className="font-headline-md" style={{ fontSize: isMobile ? '0.9rem' : '1.25rem' }}>
+              {isMobile ? 'Top đối tác' : 'Top 10 đối tác bán nhiều voucher nhất'}
+            </h2>
+            <a href="/partners" style={{ color: 'var(--color-primary)', fontSize: '0.75rem', textDecoration: 'none' }} className="font-label-sm">
+              Xem tất cả
+            </a>
+          </div>
+          {data.topPartners.length === 0 ? (
+            <p className="font-body-sm" style={{ color: 'var(--color-on-surface-variant)', textAlign: 'center', padding: '2rem 0' }}>
+              Chưa có dữ liệu bán hàng.
+            </p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '0.375rem' : '0.5rem' }}>
+              {data.topPartners.map((p) => (
                 <div
+                  key={p.partnerId}
                   style={{
-                    width: '1.75rem',
-                    height: '1.75rem',
-                    borderRadius: '50%',
-                    background: p.rank <= 3 ? 'var(--color-primary)' : 'var(--color-outline-variant)',
-                    color: 'white',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '0.7rem',
-                    fontWeight: 700,
-                    flexShrink: 0,
+                    gap: isMobile ? '0.5rem' : '0.75rem',
+                    padding: isMobile ? '0.5rem' : '0.75rem',
+                    background: 'var(--color-surface-container-low)',
+                    borderRadius: '0.5rem',
                   }}
                 >
-                  {p.rank}
+                  <div
+                    style={{
+                      width: isMobile ? '1.5rem' : '1.75rem',
+                      height: isMobile ? '1.5rem' : '1.75rem',
+                      borderRadius: '50%',
+                      background: p.rank <= 3 ? 'var(--color-primary)' : 'var(--color-outline-variant)',
+                      color: 'white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: isMobile ? '0.6rem' : '0.7rem',
+                      fontWeight: 700,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {p.rank}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p className="font-body-sm" style={{
+                      fontWeight: 600,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      fontSize: isMobile ? '0.75rem' : undefined
+                    }}>
+                      {p.partnerName}
+                    </p>
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <p className="font-label-md" style={{ fontWeight: 600, fontSize: isMobile ? '0.7rem' : undefined }}>{formatNumber(p.sold)} voucher</p>
+                  </div>
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p className="font-body-sm" style={{ fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {p.partnerName}
-                  </p>
-                </div>
-                <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <p className="font-label-md" style={{ fontWeight: 600 }}>{formatNumber(p.sold)} voucher</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+              ))}
+            </div>
+          )}
+        </div>
 
-      {/* Top Vouchers */}
-      <div className="admin-card" style={{ padding: '1.5rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h2 className="font-headline-md" style={{ fontSize: '1.25rem' }}>Top 10 voucher bán chạy trong 6 tháng</h2>
-          <a href="/vouchers" style={{ color: 'var(--color-primary)', fontSize: '0.75rem', textDecoration: 'none' }} className="font-label-sm">
-            Xem tất cả
-          </a>
-        </div>
-        {data.topVouchers.length === 0 ? (
-          <p className="font-body-sm" style={{ color: 'var(--color-on-surface-variant)', textAlign: 'center', padding: '2rem 0' }}>
-            Chưa có dữ liệu bán voucher.
-          </p>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {data.topVouchers.map((v) => (
-              <div
-                key={v.voucherId}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.75rem',
-                  padding: '0.75rem',
-                  background: 'var(--color-surface-container-low)',
-                  borderRadius: '0.5rem',
-                  transition: 'background 0.15s',
-                }}
-              >
+        {/* Top Vouchers */}
+        <div className="admin-card" style={{ padding: isMobile ? '1rem' : '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <h2 className="font-headline-md" style={{ fontSize: isMobile ? '0.9rem' : '1.25rem' }}>
+              {isMobile ? 'Top voucher' : 'Top 10 voucher bán chạy trong 6 tháng'}
+            </h2>
+            <a href="/vouchers" style={{ color: 'var(--color-primary)', fontSize: '0.75rem', textDecoration: 'none' }} className="font-label-sm">
+              Xem tất cả
+            </a>
+          </div>
+          {data.topVouchers.length === 0 ? (
+            <p className="font-body-sm" style={{ color: 'var(--color-on-surface-variant)', textAlign: 'center', padding: '2rem 0' }}>
+              Chưa có dữ liệu bán voucher.
+            </p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '0.375rem' : '0.5rem' }}>
+              {data.topVouchers.map((v) => (
                 <div
+                  key={v.voucherId}
                   style={{
-                    width: '1.75rem',
-                    height: '1.75rem',
-                    borderRadius: '50%',
-                    background: v.rank <= 3 ? 'var(--color-primary)' : 'var(--color-outline-variant)',
-                    color: 'white',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '0.7rem',
-                    fontWeight: 700,
-                    flexShrink: 0,
+                    gap: isMobile ? '0.5rem' : '0.75rem',
+                    padding: isMobile ? '0.5rem' : '0.75rem',
+                    background: 'var(--color-surface-container-low)',
+                    borderRadius: '0.5rem',
+                    transition: 'background 0.15s',
                   }}
                 >
-                  {v.rank}
+                  <div
+                    style={{
+                      width: isMobile ? '1.5rem' : '1.75rem',
+                      height: isMobile ? '1.5rem' : '1.75rem',
+                      borderRadius: '50%',
+                      background: v.rank <= 3 ? 'var(--color-primary)' : 'var(--color-outline-variant)',
+                      color: 'white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: isMobile ? '0.6rem' : '0.7rem',
+                      fontWeight: 700,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {v.rank}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p className="font-body-sm" style={{
+                      fontWeight: 600,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      fontSize: isMobile ? '0.75rem' : undefined
+                    }}>
+                      {v.title}
+                    </p>
+                    <p className="font-label-sm" style={{
+                      color: 'var(--color-on-surface-variant)',
+                      fontSize: isMobile ? '0.6rem' : '0.65rem'
+                    }}>
+                      {v.partnerName}
+                    </p>
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <p className="font-label-md" style={{ fontWeight: 600, fontSize: isMobile ? '0.7rem' : undefined }}>{formatNumber(v.sold)} đã bán</p>
+                  </div>
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p className="font-body-sm" style={{ fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {v.title}
-                  </p>
-                  <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)', fontSize: '0.65rem' }}>
-                    {v.partnerName}
-                  </p>
-                </div>
-                <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <p className="font-label-md" style={{ fontWeight: 600 }}>{formatNumber(v.sold)} đã bán</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <style>{`@keyframes pulse {
