@@ -12,22 +12,24 @@ import {
   resetPasswordWithOtpSchema,
 } from "./password.schemas";
 import { ZodError } from "zod";
+import { authSensitiveLimiter } from "../../middlewares/rateLimiters";
 
 const router = Router();
 
 // ── Public ──────────────────────────────────────────────────────
-router.post("/login", authController.login);
-router.post("/register", authController.registerCustomer);
-router.post("/register/partner", authController.registerPartner);
+router.post("/login", authSensitiveLimiter, authController.login);
+router.post("/register", authSensitiveLimiter, authController.registerCustomer);
+router.post("/register/partner", authSensitiveLimiter, authController.registerPartner);
 router.post("/refresh", authController.refresh);
 
 // ── Email OTP ───────────────────────────────────────────────────
 // Mount toàn bộ router OTP (send / resend / verify) tại /email-otp
-router.use("/email-otp", emailOtpRouter);
+router.use("/email-otp", authSensitiveLimiter, emailOtpRouter);
 
 // ── Forgot / Reset Password ───────────────────────────────────────
 router.post(
   "/forgot-password",
+  authSensitiveLimiter,
   asyncHandler(async (req, res) => {
     try {
       forgotPasswordSchema.parse(req.body);

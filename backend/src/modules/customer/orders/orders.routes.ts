@@ -8,6 +8,7 @@ import { Router } from "express";
 import { ordersController } from "./orders.controller";
 import { authenticate } from "../../../middlewares/authenticate";
 import { idempotency } from "../../../middlewares/idempotency";
+import { checkoutLimiter } from "../../../middlewares/rateLimiters";
 
 const router = Router();
 
@@ -20,10 +21,10 @@ router.get("/", ordersController.listOrders);
 router.get("/:orderId", ordersController.getOrder);
 
 /** POST /api/customer/orders — Tạo đơn (Pending) */
-router.post("/", idempotency(), ordersController.createOrder);
+router.post("/", checkoutLimiter, idempotency(), ordersController.createOrder);
 
 /** POST /api/customer/orders/:orderId/checkout — Thanh toán + phát hành voucher */
-router.post("/:orderId/checkout", idempotency(), ordersController.checkoutOrder);
+router.post("/:orderId/checkout", checkoutLimiter, idempotency(), ordersController.checkoutOrder);
 
 /** POST /api/customer/orders/:orderId/cancel — Hủy đơn */
 router.post("/:orderId/cancel", ordersController.cancelOrder);
