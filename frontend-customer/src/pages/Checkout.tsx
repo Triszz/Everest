@@ -68,7 +68,28 @@ export function Checkout() {
     cartApi.getCart()
       .then(res => {
         if (res.success && res.data?.items) {
-          setCartItems(res.data.items);
+          let items = res.data.items;
+
+          // Lọc theo danh sách cartItemId đã chọn từ trang Cart (nếu có)
+          const raw = sessionStorage.getItem('checkoutSelectedIds');
+          if (raw) {
+            try {
+              const ids: number[] = JSON.parse(raw);
+              const idSet = new Set(ids);
+              items = items.filter(it => idSet.has(it.cartItemId));
+              // Xoá flag để back/refresh không bị lọc lại
+              sessionStorage.removeItem('checkoutSelectedIds');
+            } catch {
+              sessionStorage.removeItem('checkoutSelectedIds');
+            }
+          }
+
+          setCartItems(items);
+
+          if (items.length === 0) {
+            // Không có item nào được chọn → quay lại cart
+            navigate('/cart');
+          }
         } else if (res.data?.items?.length === 0) {
           navigate('/cart');
         }
