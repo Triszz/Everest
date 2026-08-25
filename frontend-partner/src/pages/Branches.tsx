@@ -359,7 +359,7 @@ export function BranchesPage() {
                             {branch.branchName}
                           </h3>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, color: COLORS.textSecondary }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, color: COLORS.textSecondary, flexWrap: 'wrap' }}>
                           {branch.address && (
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -367,6 +367,20 @@ export function BranchesPage() {
                                 <circle cx="12" cy="10" r="3" />
                               </svg>
                               {branch.address}
+                            </span>
+                          )}
+                          {branch.city && (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M3 21h18" />
+                                <path d="M5 21V7l8-4v18" />
+                                <path d="M19 21V11l-6-4" />
+                                <line x1="9" y1="9" x2="9" y2="9.01" />
+                                <line x1="9" y1="12" x2="9" y2="12.01" />
+                                <line x1="9" y1="15" x2="9" y2="15.01" />
+                                <line x1="9" y1="18" x2="9" y2="18.01" />
+                              </svg>
+                              {branch.city}
                             </span>
                           )}
                           {branch.phoneNumber && (

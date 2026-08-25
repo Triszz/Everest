@@ -17,6 +17,7 @@ const fmtDate = (iso: string) =>
 interface EditForm {
   branchName: string;
   address: string;
+  city: string;
   phoneNumber: string;
 }
 
@@ -41,6 +42,7 @@ function BranchDetailPanel({
   const [form, setForm] = useState<EditForm>({
     branchName: branch.branchName,
     address: branch.address,
+    city: branch.city ?? '',
     phoneNumber: branch.phoneNumber ?? '',
   });
 
@@ -83,6 +85,12 @@ function BranchDetailPanel({
               <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)', fontSize: '0.65rem', marginBottom: '0.25rem' }}>ĐỊA CHỈ</p>
               <p className="font-body-sm">{branch.address}</p>
             </div>
+            {branch.city && (
+              <div>
+                <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)', fontSize: '0.65rem', marginBottom: '0.25rem' }}>THÀNH PHỐ</p>
+                <p className="font-body-sm">{branch.city}</p>
+              </div>
+            )}
             {branch.phoneNumber && (
               <div>
                 <p className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)', fontSize: '0.65rem', marginBottom: '0.25rem' }}>SĐT</p>
@@ -132,6 +140,15 @@ function BranchDetailPanel({
                     className="admin-input"
                     value={form.address}
                     onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="font-label-sm" style={{ display: 'block', marginBottom: '0.25rem', color: 'var(--color-on-surface-variant)' }}>Thành phố / Tỉnh</label>
+                  <input
+                    className="admin-input"
+                    value={form.city}
+                    onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
+                    placeholder="VD: TP. Hồ Chí Minh"
                   />
                 </div>
                 <div>
@@ -226,7 +243,7 @@ export default function Branches() {
   const [search, setSearch] = useState('');
   const [lockFilter, setLockFilter] = useState<'all' | 'active' | 'locked'>('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [createForm, setCreateForm] = useState<EditForm>({ branchName: '', address: '', phoneNumber: '' });
+  const [createForm, setCreateForm] = useState<EditForm>({ branchName: '', address: '', city: '', phoneNumber: '' });
   const [createError, setCreateError] = useState('');
 
   const activePartnerName = isSinglePartnerMode
@@ -312,19 +329,20 @@ export default function Branches() {
 
   const handleCreate = async () => {
     if (!partnerId) return;
-    if (!createForm.branchName.trim() || !createForm.address.trim()) {
-      setCreateError('Tên và địa chỉ là bắt buộc.');
+    if (!createForm.branchName.trim() || !createForm.address.trim() || !createForm.city.trim()) {
+      setCreateError('Tên, địa chỉ và thành phố là bắt buộc.');
       return;
     }
     try {
       await createBranch(partnerId, {
         branchName: createForm.branchName.trim(),
         address: createForm.address.trim(),
+        city: createForm.city.trim(),
         phoneNumber: createForm.phoneNumber.trim() || undefined,
       });
       showToast('Thêm chi nhánh thành công!', 'success');
       setShowCreateModal(false);
-      setCreateForm({ branchName: '', address: '', phoneNumber: '' });
+      setCreateForm({ branchName: '', address: '', city: '', phoneNumber: '' });
       setCreateError('');
       fetchBranches(1, { search, partnerId });
     } catch (err) {
@@ -539,9 +557,20 @@ export default function Branches() {
                   </label>
                   <input
                     className="admin-input"
-                    placeholder="VD: 469 Nguyễn Hữu Thọ, Q.7, TP.HCM"
+                    placeholder="VD: 469 Nguyễn Hữu Thọ, Q.7"
                     value={createForm.address}
                     onChange={(e) => setCreateForm((f) => ({ ...f, address: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="font-label-sm" style={{ display: 'block', marginBottom: '0.25rem', color: 'var(--color-on-surface-variant)' }}>
+                    Thành phố / Tỉnh <span style={{ color: 'var(--color-error-danger)' }}>*</span>
+                  </label>
+                  <input
+                    className="admin-input"
+                    placeholder="VD: TP. Hồ Chí Minh"
+                    value={createForm.city}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, city: e.target.value }))}
                   />
                 </div>
                 <div>

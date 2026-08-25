@@ -20,21 +20,23 @@ const CHART_COLORS = [
 
 function CustomTooltip({ active, payload, label }: {
   active?: boolean;
-  payload?: Array<{ value: number; name: string }>;
+  payload?: Array<{ value: number; name: string; payload?: { displayTitle?: string } }>;
   label?: string;
 }) {
   if (!active || !payload?.length) return null;
+  // Lấy title đầy đủ từ payload, không dùng label bị cắt.
+  const fullTitle = payload[0]?.payload?.displayTitle ?? label ?? "";
   return (
     <div style={{
       background: "#fff", border: `1px solid ${REPORT_COLORS.border}`,
       borderRadius: 10, padding: "10px 14px",
-      boxShadow: "0 4px 12px rgba(0,0,0,0.1)", maxWidth: 240,
+      boxShadow: "0 4px 12px rgba(0,0,0,0.1)", maxWidth: 280,
     }}>
       <div style={{
-        fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600,
-        color: REPORT_COLORS.textMuted, marginBottom: 6,
+        fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600,
+        color: REPORT_COLORS.text, marginBottom: 6, wordBreak: "break-word",
       }}>
-        {label}
+        {fullTitle}
       </div>
       {payload.map((p, i) => (
         <div key={i} style={{
@@ -81,7 +83,10 @@ export function VoucherPerfChart({ data, loading = false }: VoucherPerfChartProp
 
   const chartData = data.data.map((v) => ({
     ...v,
-    shortTitle: v.title.length > 20 ? v.title.slice(0, 20) + "…" : v.title,
+    // Hiển thị title đầy đủ trên YAxis (Recharts tự cắt nếu quá dài)
+    displayTitle: v.title,
+    // shortTitle chỉ dùng khi cần cắt thủ công (hiện không dùng nữa)
+    shortTitle: v.title,
   }));
 
   return (
@@ -110,9 +115,9 @@ export function VoucherPerfChart({ data, loading = false }: VoucherPerfChartProp
             axisLine={false} tickLine={false}
           />
           <YAxis
-            type="category" dataKey="shortTitle"
+            type="category" dataKey="displayTitle"
             tick={{ fontFamily: "Inter, sans-serif", fontSize: 11, fill: REPORT_COLORS.text }}
-            axisLine={false} tickLine={false} width={120}
+            axisLine={false} tickLine={false} width={160}
           />
           <Tooltip content={<CustomTooltip />} />
           <Bar dataKey="sold" name="sold" radius={[0, 4, 4, 0]}>

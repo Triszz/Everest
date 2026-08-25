@@ -172,6 +172,7 @@ model Branch {
   cashierId   String?  @unique @map("cashier_id") @db.Uuid
   branchName  String   @map("branch_name") @db.VarChar(150)
   address     String   @db.VarChar(255)
+  city        String?  @map("city") @db.VarChar(100)
   phoneNumber String   @map("phone_number") @db.VarChar(15)
   isLocked    Boolean  @default(false) @map("is_locked")
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz

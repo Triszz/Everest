@@ -48,11 +48,13 @@ export async function apiGetRevenueChart(params?: {
   voucherId?: number | null;
   branchId?: number | null;
   granularity?: RevenueGranularity;
+  offset?: number;
 }): Promise<RevenueChartData> {
   const q = params ? filtersToQuery(params) : '';
   const gran = params?.granularity ? `&granularity=${params.granularity}` : '';
+  const offset = params?.offset ? `&offset=${params.offset}` : '';
   const res = await get<RevenueChartData>(
-    `/api/partner/reports/revenue-chart${q}${gran}`,
+    `/api/partner/reports/revenue-chart${q}${gran}${offset}`,
     { auth: true },
   );
   return res.data as RevenueChartData;

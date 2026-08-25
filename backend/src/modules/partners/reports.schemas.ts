@@ -59,8 +59,13 @@ export const reportFiltersSchema = baseFilters.refine(
 export const kpiFiltersSchema = reportFiltersSchema.safeExtend({});
 
 // ── Revenue chart params ───────────────────────────────────────────────────────
+// `offset` shifts the date window back/forward by N units (weeks or months)
+// depending on granularity. Positive = past, negative = future.
+//   e.g. offset=1 with granularity="week" → previous week.
+//        offset=2 with granularity="month" → 2 months ago.
 export const revenueChartFiltersSchema = reportFiltersSchema.safeExtend({
   granularity: revenueGranularitySchema.default("day"),
+  offset: z.coerce.number().int().min(-52).max(520).default(0),
 });
 
 // ── Voucher performance chart ─────────────────────────────────────────────────

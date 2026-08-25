@@ -34,6 +34,13 @@ const BADGE_MAP: Record<ApprovalStatus, { label: string; color: string; bg: stri
   Rejected: { label: 'Từ chối',     color: '#EF4444', bg: '#FEF2F2' },
 };
 
+// Hiển thị / Ẩn dùng tone khác (info xanh dương) để không trùng với
+// badge approval Đã duyệt (xanh lá) — phân biệt rõ cho người dùng.
+const DISPLAY_BADGE: Record<'Visible' | 'Hidden', { label: string; color: string; bg: string }> = {
+  Visible: { label: 'Hiển thị', color: '#0EA5E9', bg: '#E0F2FE' },
+  Hidden:  { label: 'Ẩn',       color: '#64748B', bg: '#F1F5F9' },
+};
+
 const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: '',         label: 'Tất cả trạng thái' },
   { value: 'Draft',    label: 'Nháp' },
@@ -462,6 +469,7 @@ export function VouchersPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {vouchers.map(voucher => {
                 const badge = BADGE_MAP[voucher.approvalStatus];
+                const displayBadge = DISPLAY_BADGE[voucher.displayStatus];
                 const discount = Math.round((1 - Number(voucher.salePrice) / Number(voucher.originalPrice)) * 100);
                 const imageUrl = voucher.imageUrl || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&h=300&fit=crop';
                 const isActionLoading = actionLoading === voucher.voucherId;
@@ -528,11 +536,10 @@ export function VouchersPage() {
                           {voucher.approvalStatus === 'Approved' && (
                             <span style={{
                               fontSize: 11, fontWeight: 600,
-                              color: voucher.displayStatus === 'Visible' ? COLORS.success : COLORS.textMuted,
-                              background: voucher.displayStatus === 'Visible' ? '#ECFDF5' : '#F1F5F9',
+                              color: displayBadge.color, background: displayBadge.bg,
                               padding: '2px 10px', borderRadius: 6,
                               whiteSpace: 'nowrap', flexShrink: 0,
-                            }}>{voucher.displayStatus === 'Visible' ? 'Hiển thị' : 'Ẩn'}</span>
+                            }}>{displayBadge.label}</span>
                           )}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, color: COLORS.textSecondary }}>

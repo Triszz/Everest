@@ -10,6 +10,7 @@ export interface Branch {
   partnerId: number;
   branchName: string;
   address: string;
+  city: string | null;
   phoneNumber: string;
   cashier: BranchCashier | null;
   _count: {
@@ -43,13 +44,15 @@ export interface BranchDetail extends Branch {
 export interface CreateBranchInput {
   branchName: string;
   address: string;
+  city?: string;
   phoneNumber: string;
 }
 
 export interface UpdateBranchInput {
   branchName?: string;
   address?: string;
-  phoneNumber: string;
+  city?: string;
+  phoneNumber?: string;
 }
 
 // ── Cashier ──────────────────────────────────────────────────────────────────

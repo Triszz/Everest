@@ -73,6 +73,18 @@ export function ReportsPage() {
   const [fromDate, setFromDate] = useState<string>();
   const [toDate, setToDate] = useState<string>();
   const [granularity, setGranularity] = useState<RevenueGranularity>("day");
+  // Offset for week/month revenue chart navigation:
+  //   0  = current period (this week / this month)
+  //   1  = previous period (last week / last month)
+  //   -1 = next period (next week / next month — disabled when 0 or positive)
+  // Reset to 0 when switching granularity or date preset/range.
+  const [chartOffset, setChartOffset] = useState(0);
+
+  // Reset chart offset whenever granularity changes, so the chart always
+  // starts fresh (at "this period") rather than carrying over a stale offset.
+  useEffect(() => {
+    setChartOffset(0);
+  }, [granularity]);
 
   // ── Table state ───────────────────────────────────────────────────────────
   const [tablePage, setTablePage] = useState(1);
@@ -109,7 +121,7 @@ export function ReportsPage() {
   const { data: kpis, loading: loadingKPIs, error: errorKPIs } = useReportKPIs(filters, refreshKey);
   const { data: perfChart, loading: loadingPerf, error: errorPerf } = useVoucherPerformance(filters, refreshKey);
   const { data: statusChart, loading: loadingStatus, error: errorStatus } = useStatusDistribution(filters, refreshKey);
-  const { data: revenueChart, loading: loadingRevenue, error: errorRevenue } = useRevenueChart(filters, granularity, refreshKey);
+  const { data: revenueChart, loading: loadingRevenue, error: errorRevenue } = useRevenueChart(filters, granularity, refreshKey, chartOffset);
   const { data: tableData, loading: loadingTable, error: errorTable } = useVoucherTable(
     filters, tablePage, tableSortBy, tableSortOrder, debouncedSearch, refreshKey,
   );
@@ -155,6 +167,7 @@ export function ReportsPage() {
       setToDate(undefined);
     }
     setTablePage(1);
+    setChartOffset(0);
   };
 
   // Custom range Apply: only here do we commit the From/To to the actual
@@ -164,7 +177,16 @@ export function ReportsPage() {
     setFromDate(from);
     setToDate(to);
     setTablePage(1);
+    setChartOffset(0);
   };
+
+  const handleGranularityChange = (g: RevenueGranularity) => {
+    setGranularity(g);
+    setChartOffset(0);
+  };
+
+  const handleChartPrev = () => setChartOffset((o) => o + 1);
+  const handleChartNext = () => setChartOffset((o) => o - 1);
 
   const handleSortChange = (sortBy: VoucherSortBy, sortOrder: "asc" | "desc") => {
     setTableSortBy(sortBy);
@@ -317,7 +339,6 @@ export function ReportsPage() {
             icon={revenueIcon} iconBg="#E8F4FA"
             loading={loadingKPIs} format="currency"
             color={C.primary} subtitle="Tổng doanh thu"
-            style={{ display: 'none' }}
           />
           <KPICard
             title="Tổng voucher" value={kpis?.totalCatalog ?? kpis?.totalIssued ?? 0}
@@ -352,7 +373,14 @@ export function ReportsPage() {
           gap: 16, marginBottom: 16,
         }}>
           {/* Revenue Chart with inline granularity */}
-          <RevenueChart data={revenueChart ?? undefined} loading={loadingRevenue}>
+          <RevenueChart
+            data={revenueChart ?? undefined}
+            loading={loadingRevenue}
+            offset={chartOffset}
+            onPrev={handleChartPrev}
+            onNext={handleChartNext}
+            canGoNext={chartOffset > -12}
+          >
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{
                 fontFamily: "Inter, sans-serif", fontSize: 12,
@@ -364,7 +392,7 @@ export function ReportsPage() {
                 <button
                   key={opt.value}
                   type="button"
-                  onClick={() => setGranularity(opt.value)}
+                  onClick={() => handleGranularityChange(opt.value)}
                   style={{
                     padding: "4px 12px", borderRadius: 6,
                     border: granularity === opt.value

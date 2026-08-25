@@ -74,7 +74,7 @@ export function useBranchManagement() {
   }, []);
 
   const createBranch = useCallback(
-    async (partnerId: number, body: { branchName: string; address: string; phoneNumber?: string }) => {
+    async (partnerId: number, body: { branchName: string; address: string; city: string; phoneNumber?: string }) => {
       setIsSaving(true);
       setError(null);
       try {
@@ -89,7 +89,7 @@ export function useBranchManagement() {
   );
 
   const updateBranch = useCallback(
-    async (partnerId: number, branchId: number, body: { branchName?: string; address?: string; phoneNumber?: string | null }) => {
+    async (partnerId: number, branchId: number, body: { branchName?: string; address?: string; city?: string; phoneNumber?: string | null }) => {
       setIsSaving(true);
       setError(null);
       try {

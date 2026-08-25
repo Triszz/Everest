@@ -88,7 +88,7 @@ export function LoginPage() {
         const user = JSON.parse(savedUser) as { role: PartnerRole };
         navigate(getDefaultRoute(user.role), { replace: true });
       } else {
-        navigate('/dashboard', { replace: true });
+        navigate(getDefaultRoute('Partner_Owner'), { replace: true });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Đăng nhập thất bại');

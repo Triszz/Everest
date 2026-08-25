@@ -106,6 +106,7 @@ export const createBranchSchema = z.object({
     .string()
     .regex(/^[0-9]{10,11}$/)
     .optional(),
+  city: z.string().min(2).max(100).optional(),
 });
 
 export const updateBranchSchema = z.object({
@@ -116,6 +117,7 @@ export const updateBranchSchema = z.object({
     .regex(/^[0-9]{10,11}$/)
     .optional()
     .nullable(),
+  city: z.string().min(2).max(100).optional(),
 });
 
 export const deleteBranchSchema = z.object({

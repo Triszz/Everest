@@ -2,19 +2,29 @@ import { prisma } from "../../config/prisma";
 import type { Prisma } from "../../generated/prisma/client";
 
 // ── Date range helper ──────────────────────────────────────────────────────────
+// All dates are managed in UTC to avoid timezone shifts.
 function buildDateRange(params: {
   datePreset?: string;
   fromDate?: string;
   toDate?: string;
 }): { gte: Date; lte: Date } {
-  const now = new Date();
+  // Use UTC midnight for consistent comparison with DB timestamps stored in UTC.
+  const now = new Date(Date.UTC(
+    new Date().getUTCFullYear(),
+    new Date().getUTCMonth(),
+    new Date().getUTCDate(),
+    new Date().getUTCHours(),
+    new Date().getUTCMinutes(),
+    new Date().getUTCSeconds(),
+    new Date().getUTCMilliseconds(),
+  ));
+
   let gte: Date;
   let lte: Date = new Date(now);
 
   if (params.fromDate && params.toDate) {
     gte = new Date(params.fromDate);
     lte = new Date(params.toDate);
-    // Include the entire end-of-day
     lte.setHours(23, 59, 59, 999);
     return { gte, lte };
   }
@@ -22,35 +32,34 @@ function buildDateRange(params: {
   switch (params.datePreset) {
     case "today":
       gte = new Date(now);
-      gte.setHours(0, 0, 0, 0);
+      gte.setUTCHours(0, 0, 0, 0);
       break;
     case "last7days": {
       gte = new Date(now);
-      gte.setDate(gte.getDate() - 6);
-      gte.setHours(0, 0, 0, 0);
+      gte.setUTCDate(gte.getUTCDate() - 6);
+      gte.setUTCHours(0, 0, 0, 0);
       break;
     }
     case "last30days": {
       gte = new Date(now);
-      gte.setDate(gte.getDate() - 29);
-      gte.setHours(0, 0, 0, 0);
+      gte.setUTCDate(gte.getUTCDate() - 29);
+      gte.setUTCHours(0, 0, 0, 0);
       break;
     }
     case "last90days": {
       gte = new Date(now);
-      gte.setDate(gte.getDate() - 89);
-      gte.setHours(0, 0, 0, 0);
+      gte.setUTCDate(gte.getUTCDate() - 89);
+      gte.setUTCHours(0, 0, 0, 0);
       break;
     }
     case "thisYear": {
-      gte = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+      gte = new Date(Date.UTC(now.getUTCFullYear(), 0, 1, 0, 0, 0, 0));
       break;
     }
     default: {
-      // last30days as default
       gte = new Date(now);
-      gte.setDate(gte.getDate() - 29);
-      gte.setHours(0, 0, 0, 0);
+      gte.setUTCDate(gte.getUTCDate() - 29);
+      gte.setUTCHours(0, 0, 0, 0);
     }
   }
 
@@ -254,17 +263,72 @@ export async function getRevenueChart(
     fromDate?: string;
     toDate?: string;
     granularity: "day" | "week" | "month";
+    offset?: number;
     voucherId?: number | null;
     branchId?: number | null;
   },
 ) {
-  const { snapshotVoucherIds, orderDateCondition } =
+  const { snapshotVoucherIds, orderDateCondition, dateRange } =
     await buildReportFilters(partnerId, params);
+
+  // Window selection for the revenue chart:
+  //   • granularity="day" + preset/custom range → use that range as-is.
+  //   • granularity="week" or "month" + NO custom range → ALWAYS render exactly
+  //     ONE period (this week / last week / next month / ...). The date preset
+  //     is intentionally ignored here because the chart's natural view IS one
+  //     period; otherwise "Tuần này" would still show 4 weeks (last30days
+  //     aggregated by week). `offset` shifts which period to render.
+  //   • granularity="week"/"month" + custom range (fromDate/toDate) → use the
+  //     range the user picked; offset is ignored because shifting would
+  //     contradict the explicit range.
+  let gte: Date;
+  let lte: Date;
+  if (
+    !params.fromDate &&
+    !params.toDate &&
+    (params.granularity === "week" || params.granularity === "month")
+  ) {
+    if (params.granularity === "week") {
+      // Lấy Monday của tuần hiện tại (UTC), rồi shift theo offset.
+      // Convention: offset dương = lùi về quá khứ (offset tuần trước),
+      //              offset âm  = tiến về tương lai (offset tuần sau).
+      // → shiftedMonday = currentMonday − offset × 7.
+      const today = new Date();
+      const day = today.getUTCDay();
+      const diff = day === 0 ? -6 : 1 - day;
+      const monday = new Date(today);
+      monday.setUTCDate(today.getUTCDate() + diff);
+      monday.setUTCHours(0, 0, 0, 0);
+      const shiftedMonday = new Date(monday);
+      shiftedMonday.setUTCDate(monday.getUTCDate() - (params.offset ?? 0) * 7);
+      gte = shiftedMonday;
+      lte = new Date(shiftedMonday);
+      lte.setUTCDate(shiftedMonday.getUTCDate() + 6);
+      lte.setUTCHours(23, 59, 59, 999);
+    } else {
+      // month
+      const today = new Date();
+      const firstOfThisMonth = new Date(
+        Date.UTC(
+          today.getUTCFullYear(),
+          today.getUTCMonth() - (params.offset ?? 0),
+          1, 0, 0, 0, 0,
+        ),
+      );
+      const firstOfNextMonth = new Date(
+        Date.UTC(firstOfThisMonth.getUTCFullYear(), firstOfThisMonth.getUTCMonth() + 1, 1, 0, 0, 0, 0),
+      );
+      gte = firstOfThisMonth;
+      lte = new Date(firstOfNextMonth.getTime() - 1); // last ms of this month
+    }
+  } else {
+    ({ gte, lte } = dateRange);
+  }
 
   const orders = await prisma.order.findMany({
     where: {
       paymentStatus: "Paid",
-      createdAt: orderDateCondition,
+      createdAt: { gte, lte },
       orderItems: {
         some: { voucherId: { in: snapshotVoucherIds } },
       },
@@ -286,19 +350,17 @@ export async function getRevenueChart(
     let key: string;
     switch (params.granularity) {
       case "day":
-        key = d.toISOString().slice(0, 10);
+        key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
         break;
       case "week": {
-        // Lấy ngày đầu tuần (Thứ 2)
-        const day = d.getDay();
-        const diff = (day === 0 ? -6 : 1 - day);
-        const monday = new Date(d);
-        monday.setDate(d.getDate() + diff);
-        key = monday.toISOString().slice(0, 10);
+        // Trả key theo từng NGÀY (như day) — Recharts vẽ 7 điểm cho 7 ngày.
+        // Frontend sẽ format label: chỉ ngày đầu tiên (Mon) hiển thị range
+        // "dd/mm – dd/mm", các ngày còn lại chỉ hiển thị "dd/mm".
+        key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
         break;
       }
       case "month":
-        key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
         break;
     }
     const orderRevenue = order.orderItems.reduce(

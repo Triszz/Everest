@@ -237,7 +237,7 @@ export const partnerService = {
 
   async createBranch(
     partnerId: number,
-    data: { branchName: string; address: string; phoneNumber: string },
+    data: { branchName: string; address: string; phoneNumber: string; city?: string },
   ) {
     return prisma.branch.create({ data: { ...data, partnerId } });
   },
@@ -248,7 +248,8 @@ export const partnerService = {
     data: {
       branchName?: string;
       address?: string;
-      phoneNumber: string;
+      phoneNumber?: string;
+      city?: string;
     },
   ) {
     const branch = await prisma.branch.findFirst({

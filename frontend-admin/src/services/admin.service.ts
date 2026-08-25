@@ -51,6 +51,7 @@ export interface BranchResponse {
   cashierId: string | null;
   branchName: string;
   address: string;
+  city: string | null;
   phoneNumber: string | null;
   isLocked: boolean;
   createdAt: string;
@@ -278,7 +279,7 @@ export const adminBranchesApi = {
 
   create(
     partnerId: number,
-    body: { branchName: string; address: string; phoneNumber?: string },
+    body: { branchName: string; address: string; city: string; phoneNumber?: string },
   ): Promise<BranchResponse> {
     return post<BranchResponse>(
       `/api/admin/partners/${partnerId}/branches`,
@@ -290,7 +291,7 @@ export const adminBranchesApi = {
   update(
     partnerId: number,
     branchId: number,
-    body: { branchName?: string; address?: string; phoneNumber?: string | null },
+    body: { branchName?: string; address?: string; city?: string; phoneNumber?: string | null },
   ): Promise<BranchResponse> {
     return patch<BranchResponse>(
       `/api/admin/partners/${partnerId}/branches/${branchId}`,

@@ -4,11 +4,14 @@ import type { ReportFilters, RevenueChartData, RevenueGranularity } from "../typ
 
 /**
  * Revenue chart hook với hỗ trợ refresh qua `refreshKey`.
+ * `offset` (số nguyên) dùng để dịch chuyển cửa sổ thời gian theo granularity
+ * (week / month): 0 = hiện tại, 1 = trước đó 1 đơn vị, -1 = tiếp theo.
  */
 export function useRevenueChart(
   filters: ReportFilters,
   granularity: RevenueGranularity,
   refreshKey?: number,
+  offset: number = 0,
 ) {
   const [data, setData] = useState<RevenueChartData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -22,7 +25,7 @@ export function useRevenueChart(
     setLoading(true);
     setError(null);
 
-    apiGetRevenueChart({ ...filters, granularity })
+    apiGetRevenueChart({ ...filters, granularity, offset })
       .then((res) => { if (!cancelled) setData(res); })
       .catch((err: unknown) => {
         if (!cancelled) {
@@ -38,6 +41,7 @@ export function useRevenueChart(
     filters.fromDate,
     filters.toDate,
     granularity,
+    offset,
     refreshKey,
   ]);
   /* eslint-enable react-hooks/set-state-in-effect */

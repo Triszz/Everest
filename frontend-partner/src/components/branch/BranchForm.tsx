@@ -12,6 +12,7 @@ import {
   EMPTY_BRANCH_FORM,
   validateBranchForm,
   buildBranchPayload,
+  VIETNAM_CITIES,
 } from './branchForm.helpers';
 
 interface BranchFormProps {
@@ -159,6 +160,30 @@ export function BranchForm({
             ) : (
               <div style={HELP_TEXT}>{formData.branchName.length}/150 ký tự</div>
             )}
+          </div>
+
+          {/* City / Province */}
+          <div id="branch-city">
+            <label style={LABEL_STYLE}>
+              Thành phố / Tỉnh <span style={{ color: COLORS.error }}>*</span>
+            </label>
+            <select
+              value={formData.city}
+              onChange={e => handleChange('city', e.target.value)}
+              style={{
+                ...INPUT_STYLE,
+                cursor: 'pointer',
+                ...(errors.city ? { borderColor: COLORS.error } : {}),
+              }}
+              onFocus={e => (e.currentTarget.style.borderColor = errors.city ? COLORS.error : COLORS.primary)}
+              onBlur={e => (e.currentTarget.style.borderColor = errors.city ? COLORS.error : COLORS.border)}
+            >
+              <option value="">— Chọn thành phố / tỉnh —</option>
+              {VIETNAM_CITIES.map(city => (
+                <option key={city} value={city}>{city}</option>
+              ))}
+            </select>
+            {errors.city && <div style={ERROR_TEXT}>{errors.city}</div>}
           </div>
 
           {/* Address */}

@@ -14,7 +14,6 @@ const FOOTER_LINKS = {
   ],
   "Đối Tác": [
     { label: "Đăng ký đối tác", to: "/register" },
-    { label: "Cổng thông tin Merchant", to: "/dashboard" },
     { label: "Hợp tác doanh nghiệp", to: "/about" },
   ],
 };
@@ -66,6 +65,7 @@ export function Footer() {
         style={{ maxWidth: 1200, margin: "0 auto", padding: "52px 24px 40px" }}
       >
         <div
+          className="footer-grid"
           style={{
             display: "grid",
             gridTemplateColumns: "240px 1fr 1fr 1fr",
@@ -75,7 +75,7 @@ export function Footer() {
           {/* Brand column */}
           <div>
             <Link
-              to="/dashboard"
+              to="/"
               style={{
                 display: "flex",
                 alignItems: "center",
