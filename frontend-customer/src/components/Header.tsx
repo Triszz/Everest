@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { Menu, X } from 'lucide-react';
 import LogoImg from '../assets/images/Logo.png';
 import { cartApi, type User } from '../services';
 import { NotificationBell } from './NotificationBell';
@@ -10,8 +11,13 @@ export function Header() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
+
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [location.pathname]);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
@@ -104,8 +110,8 @@ export function Header() {
             </span>
           </Link>
 
-          {/* Nav */}
-          <nav style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          {/* Nav Desktop */}
+          <nav className="desktop-only" style={{ alignItems: 'center', gap: 4 }}>
             <NavLink to="/" label="Marketplace" isActive={location.pathname === '/'} />
             <NavLink to="/vouchers" label="All Vouchers" isActive={location.pathname === '/vouchers'} />
             <NavLink to="/posts" label="Posts" isActive={location.pathname.startsWith('/posts')} />
@@ -288,8 +294,48 @@ export function Header() {
                 Sign in
               </Link>
             )}
+            {/* Mobile Menu Toggle Button */}
+            <button
+              className="mobile-only"
+              onClick={() => setMobileNavOpen(v => !v)}
+              aria-label="Toggle Navigation"
+              style={{
+                width: 40,
+                height: 40,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '1.5px solid #E2E8F0',
+                borderRadius: 10,
+                background: 'white',
+                cursor: 'pointer',
+                color: '#1E293B',
+              }}
+            >
+              {mobileNavOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
           </div>
         </div>
+
+        {/* Mobile Navigation Drawer */}
+        {mobileNavOpen && (
+          <div
+            className="mobile-only"
+            style={{
+              flexDirection: 'column',
+              background: 'white',
+              borderTop: '1px solid #E2E8F0',
+              padding: '16px 0',
+              gap: 8,
+              animation: 'dropIn 0.2s ease-out',
+            }}
+          >
+            <NavLink to="/" label="Marketplace" isActive={location.pathname === '/'} />
+            <NavLink to="/vouchers" label="All Vouchers" isActive={location.pathname === '/vouchers'} />
+            <NavLink to="/posts" label="Posts" isActive={location.pathname.startsWith('/posts')} />
+            <NavLink to="/my-voucher" label="My Vouchers" isActive={location.pathname === '/my-voucher'} />
+          </div>
+        )}
       </div>
 
       <style>{`

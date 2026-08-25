@@ -93,11 +93,7 @@ export function ProfilePage() {
           )}
         </div>
 
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '280px 1fr',
-          gap: 24,
-        }}>
+        <div className="responsive-sidebar-layout">
           {/* Left Sidebar */}
           <div style={{
             background: 'white',
