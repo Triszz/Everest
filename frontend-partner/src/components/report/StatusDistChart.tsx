@@ -16,7 +16,7 @@ const STATUS_COLORS: Record<string, string> = {
   "Đã duyệt": "#10B981",
   "Từ chối": "#EF4444",
   "Chưa sử dụng": "#3B82F6",
-  "Đã sử dụng": "#10B981",
+  "Đã sử dụng": "#0EA5E9",
   "Hết hạn": "#EF4444",
   "Đã khóa": "#8B5CF6",
 };

@@ -226,6 +226,7 @@ export function ValidatePage() {
       </p>
 
       <div
+        className="validate-split-grid"
         style={{
           display: "grid",
           gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
@@ -867,8 +868,8 @@ function HistoryPanel({
           Chưa có giao dịch xác thực nào
         </div>
       ) : (
-        <div style={{ maxHeight: 640, overflowY: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <div className="validate-history-scroll" style={{ maxHeight: 640, overflowY: "auto", overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 500 }}>
             <thead style={{ position: "sticky", top: 0, background: C.bgCard, zIndex: 1 }}>
               <tr>
                 <HTh>Mã</HTh>

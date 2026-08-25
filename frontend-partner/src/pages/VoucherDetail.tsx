@@ -1,12 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import toast from 'react-hot-toast';
-import {
-  apiGetVoucher,
-  apiToggleVoucherDisplay,
-} from '../services/voucher.service';
+import { apiGetVoucher } from '../services/voucher.service';
 import { ApiException } from '../services/api-client';
-import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import type { VoucherDetail } from '../types/voucher';
 import type { ApprovalStatus, DisplayStatus } from '../types/voucher';
 
@@ -33,7 +28,7 @@ const APPROVAL_BADGE: Record<ApprovalStatus, { label: string; color: string; bg:
 };
 
 const DISPLAY_BADGE: Record<DisplayStatus, { label: string; color: string; bg: string }> = {
-  Visible: { label: 'Hiển thị', color: '#10B981', bg: '#ECFDF5' },
+  Visible: { label: 'Hiển thị', color: '#0EA5E9', bg: '#E0F2FE' },
   Hidden:  { label: 'Ẩn',       color: '#64748B', bg: '#F1F5F9' },
 };
 
@@ -63,8 +58,6 @@ export function VoucherDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
-  const [toggling, setToggling] = useState(false);
-  const [pendingDisplay, setPendingDisplay] = useState<DisplayStatus | null>(null);
 
   useEffect(() => {
     if (invalidId) return;
@@ -88,69 +81,6 @@ export function VoucherDetailPage() {
   }, [voucherId, invalidId]);
 
   const handleBack = () => navigate('/vouchers');
-
-  /**
-   * Bật/tắt hiển thị voucher. Chỉ áp dụng khi approvalStatus === 'Approved'.
-   *
-   * Hành vi độc lập với approvalStatus:
-   *   - approvalStatus (Draft/Pending/Approved/Rejected) do Admin quyết định,
-   *     Partner không thể thay đổi.
-   *   - displayStatus (Visible/Hidden) do Partner tự quyết định SAU khi duyệt.
-   *
-   * Khi Ẩn → xác nhận (hành động ảnh hưởng đến khách hàng đang xem).
-   * Khi Hiện → thực hiện ngay (hành động an toàn, chỉ phục hồi hiển thị).
-   */
-  const handleToggleDisplay = async (next: DisplayStatus) => {
-    if (!voucher || toggling) return;
-    if (voucher.approvalStatus !== 'Approved') {
-      toast.error('Chỉ có thể thay đổi hiển thị sau khi voucher được duyệt');
-      return;
-    }
-    if (voucher.displayStatus === next) return;
-
-    if (next === 'Hidden') {
-      // Yêu cầu xác nhận — ẩn voucher sẽ khiến khách không thấy/mua.
-      setPendingDisplay(next);
-      return;
-    }
-
-    // Visible → thực hiện luôn
-    setToggling(true);
-    try {
-      const data = await apiToggleVoucherDisplay(voucher.voucherId, next);
-      setVoucher({ ...voucher, displayStatus: data.displayStatus });
-      toast.success('Đã bật hiển thị voucher cho khách hàng');
-    } catch (err) {
-      const msg = err instanceof ApiException
-        ? err.message
-        : 'Không thể thay đổi trạng thái hiển thị';
-      toast.error(msg);
-    } finally {
-      setToggling(false);
-    }
-  };
-
-  /**
-   * Xác nhận thực hiện toggle sau khi user confirm trên ConfirmDialog.
-   * Được gọi từ ConfirmDialog.onConfirm.
-   */
-  const handleConfirmToggle = async () => {
-    if (!voucher || !pendingDisplay) return;
-    setToggling(true);
-    try {
-      const data = await apiToggleVoucherDisplay(voucher.voucherId, pendingDisplay);
-      setVoucher({ ...voucher, displayStatus: data.displayStatus });
-      toast.success('Đã ẩn voucher khỏi cửa hàng');
-    } catch (err) {
-      const msg = err instanceof ApiException
-        ? err.message
-        : 'Không thể thay đổi trạng thái hiển thị';
-      toast.error(msg);
-    } finally {
-      setToggling(false);
-      setPendingDisplay(null);
-    }
-  };
 
   return (
     <div style={{ background: COLORS.bgPage, minHeight: '100vh' }}>
@@ -268,26 +198,9 @@ export function VoucherDetailPage() {
             }
           />
         ) : voucher ? (
-          <VoucherDetailView
-            voucher={voucher}
-            onToggleDisplay={handleToggleDisplay}
-            toggling={toggling}
-          />
+          <VoucherDetailView voucher={voucher} />
         ) : null}
       </div>
-
-      {pendingDisplay !== null && voucher && (
-        <ConfirmDialog
-          title="Ẩn voucher này?"
-          description={`Voucher "${voucher.title}" sẽ không còn hiển thị cho khách hàng. Bạn có thể bật lại sau.`}
-          confirmText="Ẩn voucher"
-          cancelText="Hủy"
-          variant="warning"
-          loading={toggling}
-          onConfirm={handleConfirmToggle}
-          onCancel={() => setPendingDisplay(null)}
-        />
-      )}
 
       <style>{`
         @keyframes pulse {
@@ -300,15 +213,7 @@ export function VoucherDetailPage() {
 }
 
 // ── Sub-component: Read-only view ───────────────────────────────────────────
-function VoucherDetailView({
-  voucher,
-  onToggleDisplay,
-  toggling,
-}: {
-  voucher: VoucherDetail;
-  onToggleDisplay: (next: DisplayStatus) => void;
-  toggling: boolean;
-}) {
+function VoucherDetailView({ voucher }: { voucher: VoucherDetail }) {
   const approval = APPROVAL_BADGE[voucher.approvalStatus];
   const display = DISPLAY_BADGE[voucher.displayStatus];
   const total = voucher.totalQuantity;
@@ -316,11 +221,9 @@ function VoucherDetailView({
   const used = voucher.stats.usedCount;
   const remaining = Math.max(0, total - sold);
   const isEditable = voucher.approvalStatus === 'Draft' || voucher.approvalStatus === 'Rejected';
-  // Chỉ cho phép bật/tắt hiển thị khi voucher đã được Admin duyệt.
-  const canToggleDisplay = voucher.approvalStatus === 'Approved';
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 24, alignItems: 'start' }}>
+    <div className="detail-split-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 24, alignItems: 'start' }}>
       {/* LEFT: Main info */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
         {/* Card: Thông tin cơ bản */}
@@ -436,60 +339,14 @@ function VoucherDetailView({
             <Field
               label="Hiển thị"
               value={
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                  <span style={{
-                    fontSize: 12, fontWeight: 700,
-                    color: display.color, background: display.bg,
-                    padding: '4px 12px', borderRadius: 6,
-                    display: 'inline-block',
-                  }}>
-                    {display.label}
-                  </span>
-                  {canToggleDisplay && (
-                    <button
-                      type="button"
-                      onClick={() => onToggleDisplay(
-                        voucher.displayStatus === 'Visible' ? 'Hidden' : 'Visible',
-                      )}
-                      disabled={toggling}
-                      style={{
-                        fontSize: 12, fontWeight: 700,
-                        color: voucher.displayStatus === 'Visible' ? COLORS.error : COLORS.success,
-                        background: 'white',
-                        border: `1px solid ${
-                          voucher.displayStatus === 'Visible' ? COLORS.error : COLORS.success
-                        }`,
-                        padding: '4px 12px', borderRadius: 6,
-                        cursor: toggling ? 'wait' : 'pointer',
-                        opacity: toggling ? 0.6 : 1,
-                        transition: 'all 0.15s',
-                      }}
-                      onMouseEnter={e => {
-                        if (toggling) return;
-                        const next = voucher.displayStatus === 'Visible' ? COLORS.error : COLORS.success;
-                        e.currentTarget.style.background = next;
-                        e.currentTarget.style.color = 'white';
-                      }}
-                      onMouseLeave={e => {
-                        if (toggling) return;
-                        const next = voucher.displayStatus === 'Visible' ? COLORS.error : COLORS.success;
-                        e.currentTarget.style.background = 'white';
-                        e.currentTarget.style.color = next;
-                      }}
-                      title={
-                        voucher.displayStatus === 'Visible'
-                          ? 'Ẩn voucher khỏi cửa hàng'
-                          : 'Bật hiển thị voucher cho khách hàng'
-                      }
-                    >
-                      {toggling
-                        ? 'Đang cập nhật...'
-                        : voucher.displayStatus === 'Visible'
-                          ? 'Ẩn voucher'
-                          : 'Hiện voucher'}
-                    </button>
-                  )}
-                </div>
+                <span style={{
+                  fontSize: 12, fontWeight: 700,
+                  color: display.color, background: display.bg,
+                  padding: '4px 12px', borderRadius: 6,
+                  display: 'inline-block',
+                }}>
+                  {display.label}
+                </span>
               }
             />
             <Field label="Ngày tạo" value={formatDate(voucher.createdAt)} />
@@ -497,29 +354,27 @@ function VoucherDetailView({
           </div>
         </Card>
 
-        {/* Hint: Giải thích tại sao chưa bật/tắt hiển thị được */}
-        {!canToggleDisplay && (
-          <div style={{
-            padding: '12px 16px',
-            background: '#FEF3C7',
-            border: `1px solid ${COLORS.warning}`,
-            borderRadius: 8,
-            fontSize: 13,
-            color: '#92400E',
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: 8,
-          }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0, marginTop: 2 }}>
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
-            <span>
-              Bạn có thể bật/tắt hiển thị voucher sau khi Admin duyệt. Hiện tại voucher đang ở trạng thái <strong>{approval.label}</strong>.
-            </span>
-          </div>
-        )}
+        {/* Hint: giải thích displayStatus do Admin kiểm soát */}
+        <div style={{
+          padding: '12px 16px',
+          background: '#EFF6FF',
+          border: '1px solid #BFDBFE',
+          borderRadius: 8,
+          fontSize: 13,
+          color: '#1E40AF',
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 8,
+        }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0, marginTop: 2 }}>
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <span>
+            Trạng thái hiển thị voucher được Admin kiểm soát. Sau khi voucher được duyệt, voucher sẽ mặc định hiển thị trên cửa hàng.
+          </span>
+        </div>
       </div>
 
       {/* RIGHT: Sidebar — Image + Stats + Edit CTA */}

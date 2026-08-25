@@ -109,3 +109,40 @@ a, button, select, label, [role="button"], summary, input[type="button"], input[
 ::-webkit-scrollbar-track { background: var(--color-neutral-bg); }
 ::-webkit-scrollbar-thumb { background: var(--color-primary-200); border-radius: 99px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--color-primary); }
+
+/* ===== RESPONSIVE OVERRIDES ===== */
+
+/* Tablet (768px - 1024px): reduce padding */
+@media (max-width: 1024px) {
+  .partner-page-content {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+}
+
+/* Mobile (< 768px): single column for hardcoded 2-column grids */
+@media (max-width: 767px) {
+  /* Validate page: 2-col split → 1-col stack */
+  .validate-split-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* BranchDetail + VoucherDetail: left-info + right-sidebar → 1-col stack */
+  .detail-split-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Footer: 4-col → 1-col */
+  .footer-grid {
+    grid-template-columns: 1fr !important;
+    gap: 32px !important;
+  }
+
+  /* Tables: horizontal scroll for small screens */
+  .partner-table-scroll,
+  .validate-history-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    display: block;
+  }
+}

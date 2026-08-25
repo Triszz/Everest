@@ -22,6 +22,7 @@ export const createBranchSchema = z.object({
   phoneNumber: z
     .string()
     .regex(/^[0-9]{10,11}$/, "Số điện thoại không hợp lệ"),
+  city: z.string().min(2).max(100).optional(),
 });
 
 export const updateBranchSchema = z.object({
@@ -29,7 +30,9 @@ export const updateBranchSchema = z.object({
   address: z.string().min(5).max(255).optional(),
   phoneNumber: z
     .string()
-    .regex(/^[0-9]{10,11}$/, "Số điện thoại không hợp lệ"),
+    .regex(/^[0-9]{10,11}$/, "Số điện thoại không hợp lệ")
+    .optional(),
+  city: z.string().min(2).max(100).optional(),
 });
 
 export const assignCashierSchema = z.object({

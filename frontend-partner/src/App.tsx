@@ -18,7 +18,6 @@ import { BranchDetailPage } from './pages/BranchDetail';
 import { BranchEditPage } from './pages/BranchEdit';
 import { SettingsPage } from './pages/Settings';
 import { ReportsPage } from './pages/Reports';
-import { DashboardPage } from './pages/Dashboard';
 import { ValidatePage } from './pages/Validate';
 
 // ── Main app layout (with header/footer) ────────────────────────────────────
@@ -72,9 +71,9 @@ function AppRoutes() {
       } />
 
       {/* ── Private routes (require auth + role check) ── */}
-      <Route path="/dashboard" element={
+      <Route path="/reports" element={
         <PrivateRoute allowedRoles={['Partner_Owner']}>
-          <AppLayout><DashboardPage /></AppLayout>
+          <AppLayout><ReportsPage /></AppLayout>
         </PrivateRoute>
       } />
       <Route path="/vouchers" element={
@@ -120,11 +119,6 @@ function AppRoutes() {
       <Route path="/branches/:id/edit" element={
         <PrivateRoute allowedRoles={['Partner_Owner']}>
           <AppLayout><BranchEditPage /></AppLayout>
-        </PrivateRoute>
-      } />
-      <Route path="/reports" element={
-        <PrivateRoute allowedRoles={['Partner_Owner']}>
-          <AppLayout><ReportsPage /></AppLayout>
         </PrivateRoute>
       } />
       <Route path="/settings" element={

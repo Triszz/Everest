@@ -26,7 +26,6 @@ export function Header() {
   // `set-state-in-effect` rule.
 
   const isActive = (path: string) => {
-    if (path === '/dashboard') return location.pathname === '/dashboard' || location.pathname === '/';
     return location.pathname.startsWith(path);
   };
 

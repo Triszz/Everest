@@ -293,6 +293,7 @@ function BranchDetailView({
 }) {
   return (
     <div
+      className="detail-split-grid"
       style={{
         display: "grid",
         gridTemplateColumns: "1fr 380px",
@@ -310,6 +311,7 @@ function BranchDetailView({
         >
           <Field label="Tên chi nhánh" value={branch.branchName} />
           <Field label="Địa chỉ" value={branch.address} multiline />
+          <Field label="Tỉnh/Thành phố" value={branch.city} />
           <Field label="Số điện thoại" value={branch.phoneNumber} />
           <Field label="Ngày tạo" value={formatDate(branch.createdAt)} />
         </InfoCard>
@@ -944,6 +946,7 @@ function EmptyState({
 function DetailSkeleton() {
   return (
     <div
+      className="detail-split-grid"
       style={{
         display: "grid",
         gridTemplateColumns: "1fr 380px",

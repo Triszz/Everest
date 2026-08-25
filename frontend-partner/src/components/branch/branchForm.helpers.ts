@@ -57,6 +57,7 @@ export const BRANCH_HELP_TEXT: React.CSSProperties = {
 export interface BranchFormData {
   branchName: string;
   address: string;
+  city: string;
   phoneNumber: string;
 }
 
@@ -65,8 +66,72 @@ export type BranchFormErrors = Partial<Record<keyof BranchFormData | 'general', 
 export const EMPTY_BRANCH_FORM: BranchFormData = {
   branchName: '',
   address: '',
+  city: '',
   phoneNumber: '',
 };
+
+// ── VIETNAM PROVINCES / CITIES ──────────────────────────────────────────────────
+// Danh sách 63 tỉnh/thành phố Việt Nam (tính đến 2023), sắp xếp theo vùng.
+export const VIETNAM_CITIES = [
+  // Miền Bắc
+  "Hà Nội",
+  "Hải Phòng",
+  "Hải Dương",
+  "Hưng Yên",
+  "Bắc Ninh",
+  "Quảng Ninh",
+  "Thái Nguyên",
+  "Lạng Sơn",
+  "Bắc Giang",
+  "Phú Thọ",
+  "Vĩnh Phúc",
+  "Tuyên Quang",
+  "Yên Bái",
+  "Thái Bình",
+  "Nam Định",
+  "Ninh Bình",
+  "Hà Nam",
+  // Miền Trung
+  "Thanh Hóa",
+  "Nghệ An",
+  "Hà Tĩnh",
+  "Quảng Bình",
+  "Quảng Trị",
+  "Thừa Thiên Huế",
+  "Đà Nẵng",
+  "Quảng Nam",
+  "Quảng Ngãi",
+  "Bình Định",
+  "Phú Yên",
+  "Khánh Hòa",
+  "Ninh Thuận",
+  "Bình Thuận",
+  // Tây Nguyên
+  "Kon Tum",
+  "Gia Lai",
+  "Đắk Lắk",
+  "Đắk Nông",
+  "Lâm Đồng",
+  // Miền Nam
+  "Bình Phước",
+  "Tây Ninh",
+  "Bình Dương",
+  "Đồng Nai",
+  "Bà Rịa - Vũng Tàu",
+  "TP. Hồ Chí Minh",
+  "Long An",
+  "Tiền Giang",
+  "Bến Tre",
+  "Trà Vinh",
+  "Vĩnh Long",
+  "Đồng Tháp",
+  "An Giang",
+  "Kiên Giang",
+  "Hậu Giang",
+  "Sóc Trăng",
+  "Bạc Liêu",
+  "Cà Mau",
+] as const;
 
 // ── Validation (matching backend schemas exactly) ─────────────────────────────
 const PHONE_REGEX = /^[0-9]{10,11}$/;
@@ -80,6 +145,10 @@ export function validateBranchForm(data: BranchFormData): BranchFormErrors {
     errors.branchName = 'Tên chi nhánh phải có ít nhất 2 ký tự';
   } else if (data.branchName.trim().length > 150) {
     errors.branchName = 'Tên chi nhánh không được quá 150 ký tự';
+  }
+
+  if (!data.city.trim()) {
+    errors.city = 'Vui lòng chọn thành phố / tỉnh';
   }
 
   if (!data.address.trim()) {
@@ -106,6 +175,7 @@ export function buildBranchPayload(
   return {
     branchName: data.branchName.trim(),
     address: data.address.trim(),
+    city: data.city.trim(),
     phoneNumber: data.phoneNumber.trim(),
   };
 }
