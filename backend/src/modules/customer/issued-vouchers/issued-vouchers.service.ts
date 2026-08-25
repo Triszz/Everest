@@ -62,6 +62,7 @@ export const issuedVouchersService = {
                   expiryDays: true,
                   approvalStatus: true,
                   displayStatus: true,
+                  isLocked: true,
                   partner: { select: { companyName: true } },
                 },
               },
@@ -82,12 +83,20 @@ export const issuedVouchersService = {
     return {
       vouchers: vouchers.map((iv) => {
         const v = iv.orderItem.voucher;
+        const effectiveStatus =
+          v.isLocked && iv.status !== "Used"
+            ? "Locked"
+            : iv.status;
         const isAvailable =
-          v.approvalStatus === "Approved" && v.displayStatus === "Visible";
+          !v.isLocked &&
+          v.approvalStatus === "Approved" &&
+          v.displayStatus === "Visible" &&
+          effectiveStatus === "Unused";
+
         return {
           issuedVoucherId: iv.issuedVoucherId,
           voucherCode: iv.voucherCode,
-          status: iv.status,
+          status: effectiveStatus,
           validFrom: iv.validFrom,
           validTo: iv.validTo,
           usedAt: iv.usedAt,
@@ -145,6 +154,7 @@ export const issuedVouchersService = {
                 applicationCondition: true,
                 approvalStatus: true,
                 displayStatus: true,
+                isLocked: true,
                 partner: { select: { companyName: true } },
                 voucherBranches: {
                   select: {
@@ -169,13 +179,20 @@ export const issuedVouchersService = {
     }
 
     const v = voucher.orderItem.voucher;
+    const effectiveStatus =
+      v.isLocked && voucher.status !== "Used"
+        ? "Locked"
+        : voucher.status;
     const isAvailable =
-      v.approvalStatus === "Approved" && v.displayStatus === "Visible";
+      !v.isLocked &&
+      v.approvalStatus === "Approved" &&
+      v.displayStatus === "Visible" &&
+      effectiveStatus === "Unused";
 
     return {
       issuedVoucherId: voucher.issuedVoucherId,
       voucherCode: voucher.voucherCode,
-      status: voucher.status,
+      status: effectiveStatus,
       validFrom: voucher.validFrom,
       validTo: voucher.validTo,
       usedAt: voucher.usedAt,
