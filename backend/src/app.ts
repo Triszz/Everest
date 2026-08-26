@@ -36,18 +36,24 @@ const app = express();
 // ── Security ──────────────────────────────────────────────────────────────────
 app.use(helmet());
 
-const CORS_ORIGINS = (
-  [
-    process.env.ADMIN_URL,
-    process.env.PARTNER_URL,
-    process.env.STAFF_URL,
-    process.env.USER_URL,
-  ].filter((v): v is string => Boolean(v))
-);
+// const CORS_ORIGINS = (
+//   [
+//     process.env.ADMIN_URL,
+//     process.env.PARTNER_URL,
+//     process.env.STAFF_URL,
+//     process.env.USER_URL,
+//   ].filter((v): v is string => Boolean(v))
+// );
 
+// app.use(
+//   cors({
+//     origin: CORS_ORIGINS,
+//     credentials: true,
+//   }),
+// );
 app.use(
   cors({
-    origin: CORS_ORIGINS,
+    origin: true,
     credentials: true,
   }),
 );

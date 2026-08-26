@@ -1,7 +1,7 @@
 import type { ApiSuccess, ApiError } from '../types/auth';
 
 // ── Config ──────────────────────────────────────────────────────────────────
-const API_BASE = 'http://localhost:3000';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 // ── Storage keys (centralized for admin) ────────────────────────────────────
 export const STORAGE_KEY_ACCESS_TOKEN = 'everest_admin_token';
