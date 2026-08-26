@@ -492,7 +492,7 @@ export function SettingsPage() {
   if (loading) {
     return (
       <div style={{ background: C.bgPage, minHeight: '100vh' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '48px 24px' }}>
+        <div className="partner-container" style={{ paddingTop: 48, paddingBottom: 48 }}>
           {[1, 2, 3].map(i => (
             <div key={i} style={{
               height: 200, borderRadius: 16, background: 'white',
@@ -508,7 +508,7 @@ export function SettingsPage() {
   if (fetchError) {
     return (
       <div style={{ background: C.bgPage, minHeight: '100vh' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '48px 24px', textAlign: 'center' }}>
+        <div className="partner-container" style={{ paddingTop: 48, paddingBottom: 48, textAlign: 'center' }}>
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: 10,
             padding: '12px 20px', background: '#FEF2F2', border: '1px solid #FECACA',
@@ -543,7 +543,7 @@ export function SettingsPage() {
         borderBottom: `1px solid ${C.border}`,
         padding: '24px 0',
       }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px' }}>
+        <div className="partner-container">
           <div>
             <h1 style={{
               fontFamily: 'Manrope, sans-serif',
@@ -566,7 +566,7 @@ export function SettingsPage() {
       </div>
 
       {/* ── Content ──────────────────────────────────────────────── */}
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 24px 48px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div className="partner-container" style={{ paddingTop: 24, paddingBottom: 48, display: 'flex', flexDirection: 'column', gap: 20 }}>
 
         {/* Card 1: Thông tin tài khoản */}
         <Card

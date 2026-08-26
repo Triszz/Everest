@@ -224,7 +224,7 @@ export function VouchersPage() {
     <div style={{ background: COLORS.bgPage, minHeight: '100vh' }}>
       {/* ── Page Header ─────────────────────────────────── */}
       <div style={{ background: 'white', borderBottom: `1px solid ${COLORS.border}`, padding: '24px 0' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px' }}>
+        <div className="partner-container">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
             <div>
               <h1 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 28, fontWeight: 800, color: COLORS.text, marginBottom: 4 }}>
@@ -262,12 +262,27 @@ export function VouchersPage() {
           </div>
 
           {/* ── Toolbar ──────────────────────────────────── */}
-          <div style={{ display: 'flex', gap: 12, marginTop: 20, flexWrap: 'wrap' }}>
+          <div className="partner-toolbar" style={{ marginTop: 20 }}>
             {/* Search */}
-            <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
+            <div style={{
+              flex: '1 1 200px',
+              minWidth: 0,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '0 12px 0 14px',
+              border: `1.5px solid ${COLORS.border}`,
+              borderRadius: 10,
+              background: COLORS.bgPage,
+              transition: 'border-color 0.2s',
+            }}
+            className="toolbar-search"
+            onMouseEnter={e => (e.currentTarget.style.borderColor = COLORS.primary)}
+            onMouseLeave={e => (e.currentTarget.style.borderColor = COLORS.border)}
+            >
               <svg
                 width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={COLORS.textMuted} strokeWidth="2"
-                style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }}
+                style={{ flexShrink: 0 }}
               >
                 <circle cx="11" cy="11" r="8" />
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -278,18 +293,15 @@ export function VouchersPage() {
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 style={{
-                  width: '100%',
-                  padding: '10px 16px 10px 40px',
-                  border: `1.5px solid ${COLORS.border}`,
-                  borderRadius: 10,
+                  flex: 1,
+                  minWidth: 0,
+                  padding: '10px 0',
+                  border: 'none',
+                  background: 'transparent',
                   fontSize: 14,
                   fontFamily: 'Inter, sans-serif',
                   outline: 'none',
-                  background: COLORS.bgPage,
-                  transition: 'border-color 0.2s',
                 }}
-                onFocus={e => (e.currentTarget.style.borderColor = COLORS.primary)}
-                onBlur={e => (e.currentTarget.style.borderColor = COLORS.border)}
               />
             </div>
 
@@ -297,6 +309,7 @@ export function VouchersPage() {
             <select
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value)}
+              className="toolbar-select"
               style={{
                 padding: '10px 16px',
                 border: `1.5px solid ${COLORS.border}`,
@@ -307,7 +320,8 @@ export function VouchersPage() {
                 cursor: 'pointer',
                 background: 'white',
                 color: COLORS.text,
-                minWidth: 170,
+                minWidth: 0,
+                flex: '1 1 160px',
               }}
             >
               {STATUS_OPTIONS.map(opt => (
@@ -319,6 +333,7 @@ export function VouchersPage() {
             <button
               onClick={handleRefresh}
               disabled={loading}
+              className="toolbar-button"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -333,6 +348,7 @@ export function VouchersPage() {
                 color: COLORS.textSecondary,
                 cursor: loading ? 'not-allowed' : 'pointer',
                 transition: 'all 0.2s',
+                flex: '0 0 auto',
               }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = COLORS.primary; e.currentTarget.style.color = COLORS.primary; }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = COLORS.border; e.currentTarget.style.color = COLORS.textSecondary; }}
@@ -349,7 +365,7 @@ export function VouchersPage() {
       </div>
 
       {/* ── Content ──────────────────────────────────────── */}
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 24px 48px' }}>
+      <div className="partner-container" style={{ paddingTop: 24, paddingBottom: 48 }}>
         {loading ? (
           /* Loading skeleton */
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -499,11 +515,10 @@ export function VouchersPage() {
                     }}
                   >
                     {/* Image */}
-                    <div style={{ position: 'relative', flexShrink: 0 }}>
-                      <img
+                    <div className="voucher-card-image" style={{ position: 'relative', flexShrink: 0, width: 120, height: 88 }}>                      <img
                         src={imageUrl}
                         alt={voucher.title}
-                        style={{ width: 120, height: 88, borderRadius: 12, objectFit: 'cover' }}
+                        style={{ width: '100%', height: '100%', borderRadius: 12, objectFit: 'cover' }}
                       />
                       {discount > 0 && (
                         <span style={{
@@ -518,8 +533,8 @@ export function VouchersPage() {
                     {/* Info */}
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minWidth: 0 }}>
                       <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                          <h3 style={{
+                        <div className="voucher-card-info-title" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                          <h3 className="voucher-card-title" style={{
                             fontFamily: 'Manrope, sans-serif',
                             fontSize: 15, fontWeight: 700, color: COLORS.text,
                             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
@@ -542,7 +557,7 @@ export function VouchersPage() {
                             }}>{displayBadge.label}</span>
                           )}
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, color: COLORS.textSecondary }}>
+                        <div className="voucher-card-meta" style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, color: COLORS.textSecondary }}>
                           {voucher.category && (
                             <span style={{
                               display: 'inline-flex', alignItems: 'center', gap: 4,
@@ -559,19 +574,40 @@ export function VouchersPage() {
                         </div>
                       </div>
 
-                      {/* Bottom: Price + Actions */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                          <span style={{ fontSize: 12, color: COLORS.textMuted, textDecoration: 'line-through' }}>
-                            {formatPrice(voucher.originalPrice)}
-                          </span>
-                          <span style={{ fontSize: 17, fontWeight: 800, color: COLORS.primary }}>
-                            {formatPrice(voucher.salePrice)}
-                          </span>
+                      {/* Bottom: Price (left) + Actions (right) on desktop.
+                          Mobile: stacked — price above, full-width actions below. */}
+                      <div
+                        className="voucher-card-bottom"
+                        style={{
+                          marginTop: 8,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: 12,
+                          flexWrap: 'nowrap',
+                        }}
+                      >
+                        <div className="voucher-card-price-row">
+                          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                            <span style={{ fontSize: 12, color: COLORS.textMuted, textDecoration: 'line-through' }}>
+                              {formatPrice(voucher.originalPrice)}
+                            </span>
+                            <span className="voucher-card-price" style={{ fontSize: 17, fontWeight: 800, color: COLORS.primary }}>
+                              {formatPrice(voucher.salePrice)}
+                            </span>
+                          </div>
                         </div>
 
-                        {/* Action buttons */}
-                        <div style={{ display: 'flex', gap: 8 }}>
+                        {/* Action buttons — right of price on desktop, own row on mobile */}
+                        <div
+                          className="voucher-card-actions"
+                          style={{
+                            display: 'flex',
+                            flexWrap: 'nowrap',
+                            gap: 6,
+                            flexShrink: 0,
+                          }}
+                        >
                           {/* View */}
                           <Link
                             to={`/vouchers/${voucher.voucherId}`}

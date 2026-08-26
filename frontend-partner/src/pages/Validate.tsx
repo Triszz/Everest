@@ -202,7 +202,7 @@ export function ValidatePage() {
 
   // ── Render ─────────────────────────────────────────────────────────────
   return (
-    <div style={{ maxWidth: 1280, margin: "0 auto", padding: "32px 24px" }}>
+    <div className="partner-container" style={{ paddingTop: 32, paddingBottom: 48 }}>
       <h1
         style={{
           fontFamily: "Manrope, sans-serif",
