@@ -404,63 +404,31 @@ export default function Content() {
                 <thead>
                   <tr>
                     <th style={{ minWidth: isMobile ? '60px' : '80px' }}>ID</th>
-                    <th style={{ minWidth: isMobile ? '120px' : '160px' }}>Tên danh mục</th>
-                    <th style={{ minWidth: isMobile ? '120px' : '200px' }}>Mô tả</th>
-                    <th style={{ minWidth: isMobile ? '80px' : '100px' }}>Số voucher</th>
-                    <th style={{ textAlign: 'right', minWidth: '100px' }}>Thao tác</th>
+                    <th style={{ minWidth: isMobile ? '120px' : '160px' }}>Ten danh muc</th>
+                    <th style={{ minWidth: isMobile ? '120px' : '200px' }}>Mo ta</th>
+                    <th style={{ minWidth: isMobile ? '80px' : '100px' }}>So voucher</th>
+                    <th style={{ textAlign: 'right', minWidth: '100px' }}>Thao tac</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {isLoading ? (
-                    <tr><td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-outline)' }}>Đang tải...</td></tr>
-                  ) : error ? (
-                    <tr><td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-error)' }}>{error}</td></tr>
-                  ) : categories.length === 0 ? (
-                    <tr><td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-outline)' }}>Chưa có danh mục nào.</td></tr>
-                  ) : (
-                    categories.map((cat, index) => (
-                      <tr key={cat.categoryId}>
-                        <td><span className="font-label-sm" style={{ color: 'var(--color-outline)' }}>{(page - 1) * limit + index + 1}</span></td>
-                        <td>
-                          <p className="font-body-sm" style={{ fontWeight: 600 }}>{cat.categoryName}</p>
-                        </td>
-                        <td><span className="font-body-sm" style={{ color: 'var(--color-on-surface-variant)' }}>{cat.description || '—'}</span></td>
-                        <td><span className="font-body-sm">{cat.voucherCount ?? 0}</span></td>
-                        <td>
-                          <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'flex-end' }}>
-                            <button
-                              className="admin-btn admin-btn-ghost"
-                              style={{ padding: '0.25rem', fontSize: '0.7rem' }}
-                              onClick={() => openCategoryModal(cat)}
-                              title="Sửa"
-                            >
-                              <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>edit</span>
-                            </button>
-                            {(cat.voucherCount ?? 0) === 0 && (
-                              <button
-                                className="admin-btn admin-btn-danger"
-                                style={{ padding: '0.25rem', fontSize: '0.7rem' }}
-                                onClick={() => handleDeleteCategory(cat)}
-                                title="Xóa"
-                              >
-                                <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>delete</span>
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )
-                }
-              </tbody>
-            </table>
+                  {categories.map((cat, index) => (
+                    <tr key={cat.categoryId}>
+                      <td><span className="font-label-sm" style={{ color: 'var(--color-outline)' }}>{(page - 1) * limit + index + 1}</span></td>
+                      <td><p className="font-body-sm" style={{ fontWeight: 600 }}>{cat.categoryName}</p></td>
+                      <td><span className="font-body-sm" style={{ color: 'var(--color-on-surface-variant)' }}>{cat.description || '-'}</span></td>
+                      <td><span className="font-body-sm">{cat.voucherCount ?? 0}</span></td>
+                      <td>
+                        <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'flex-end' }}>
+                          <button className="admin-btn admin-btn-ghost" style={{ padding: '0.25rem', fontSize: '0.7rem' }} onClick={() => openCategoryModal(cat)} title="Sua"><span className="material-symbols-outlined" style={{ fontSize: '16px' }}>edit</span></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
           <div ref={categoryLoadMoreRef} style={{ minHeight: '1px' }} aria-hidden="true" />
-          {isLoading && categories.length > 0 && (
-            <p className="font-body-sm" style={{ padding: '0.75rem', textAlign: 'center', color: 'var(--color-on-surface-variant)' }}>
-              Đang tải thêm danh mục...
-            </p>
-          )}
         </div>
       )}
 
