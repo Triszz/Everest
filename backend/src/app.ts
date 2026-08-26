@@ -36,9 +36,18 @@ const app = express();
 // ── Security ──────────────────────────────────────────────────────────────────
 app.use(helmet());
 
+const CORS_ORIGINS = (
+  [
+    process.env.ADMIN_URL,
+    process.env.PARTNER_URL,
+    process.env.STAFF_URL,
+    process.env.USER_URL,
+  ].filter((v): v is string => Boolean(v))
+);
+
 app.use(
   cors({
-    origin: ["http://localhost:5173", "http://localhost:5174", "http://localhost:5175", "http://localhost:5176"],
+    origin: CORS_ORIGINS,
     credentials: true,
   }),
 );
