@@ -57,7 +57,7 @@ export interface BranchResponse {
   createdAt: string;
   updatedAt?: string;
   cashier?: { userId: string; fullName: string; email: string; status: string } | null;
-  partner?: { partnerId: number; companyName: string } | null;
+  partner?: { partnerId: number; companyName: string; status?: string } | null;
 }
 
 export interface BranchDetailResponse extends BranchResponse {
@@ -730,6 +730,7 @@ export const adminPostsApi = {
       title?: string;
       content?: string;
       imageUrl?: string | null;
+      status?: PostStatus;
     },
   ): Promise<PostResponse> {
     return patch<PostResponse>(`/api/admin/posts/${postId}`, body, {

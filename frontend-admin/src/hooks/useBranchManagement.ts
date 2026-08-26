@@ -98,7 +98,8 @@ export function useBranchManagement() {
           prev.map((b) => (b.branchId === branchId ? { ...b, ...updated } : b)),
         );
         if (selectedBranch?.branchId === branchId) {
-          setSelectedBranch((prev) => (prev ? { ...prev, ...updated } : prev));
+          const { partner: _partner, ...updatedFields } = updated;
+          setSelectedBranch((prev) => prev ? { ...prev, ...updatedFields } : prev);
         }
         return updated;
       } finally {
