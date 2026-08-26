@@ -1,6 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import type { CorsOptions } from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { errorHandler } from "./middlewares/errorHandler";
@@ -45,9 +46,24 @@ const CORS_ORIGINS = (
   ].filter((v): v is string => Boolean(v))
 );
 
+// Nếu không có URL nào được cấu hình (dev thường gặp khi mới deploy
+// hoặc quên set .env) → fallback cho phép tất cả localhost origins
+// để không chặn dev. Production BẮT BUỘC set đủ biến môi trường.
+const corsOriginConfig: CorsOptions['origin'] =
+  CORS_ORIGINS.length > 0
+    ? (origin, cb) => {
+        // Cho phép request không có Origin (curl, Postman) hoặc origin hợp lệ
+        if (!origin || CORS_ORIGINS.includes(origin)) {
+          cb(null, true);
+          return;
+        }
+        cb(new Error(`CORS: origin "${origin}" not allowed`));
+      }
+    : true; // không whitelist → cors lib nhận mọi origin
+
 app.use(
   cors({
-    origin: CORS_ORIGINS,
+    origin: corsOriginConfig,
     credentials: true,
   }),
 );

@@ -86,7 +86,7 @@ export function VoucherDetailPage() {
     <div style={{ background: COLORS.bgPage, minHeight: '100vh' }}>
       {/* ── Page Header ──────────────────────────────── */}
       <div style={{ background: 'white', borderBottom: `1px solid ${COLORS.border}`, padding: '24px 0' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px' }}>
+        <div className="partner-container" style={{ paddingTop: 0, paddingBottom: 0 }}>
           {/* Breadcrumb */}
           <div style={{ marginBottom: 12, fontSize: 13, color: COLORS.textSecondary }}>
             <Link to="/vouchers" style={{ color: COLORS.primary, textDecoration: 'none', fontWeight: 600 }}>
@@ -144,7 +144,7 @@ export function VoucherDetailPage() {
       </div>
 
       {/* ── Content ───────────────────────────────────── */}
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 24px 48px' }}>
+      <div className="partner-container" style={{ paddingTop: 24, paddingBottom: 48 }}>
         {loading ? (
           <DetailSkeleton />
         ) : invalidId || notFound ? (

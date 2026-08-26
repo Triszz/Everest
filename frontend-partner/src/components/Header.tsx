@@ -47,7 +47,7 @@ export function Header() {
         boxShadow: scrolled ? '0 2px 16px rgba(14,118,168,0.08)' : 'none',
       }}
     >
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px' }}>
+      <div className="partner-container">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 64 }}>
 
           {/* Logo */}
@@ -83,7 +83,7 @@ export function Header() {
 
           {/* Desktop Nav — only show when logged in and has nav items */}
           {navItems.length > 0 && (
-            <nav style={{ display: 'flex', alignItems: 'center', gap: 8 }} className="hidden lg:flex">
+            <nav className="header-desktop-nav" style={{ alignItems: 'center', gap: 8 }}>
               {navItems.map(item => (
                 <NavLink
                   key={item.to}
@@ -130,9 +130,8 @@ export function Header() {
 
                 {/* User name (desktop only) */}
                 <span
-                  className="hidden lg:inline"
+                  className="header-desktop-only"
                   style={{
-                    display: 'none',
                     fontFamily: 'Inter, sans-serif',
                     fontSize: 13,
                     fontWeight: 600,
@@ -162,7 +161,7 @@ export function Header() {
                     cursor: 'pointer',
                     transition: 'all 0.2s',
                   }}
-                  className="hidden lg:inline-block"
+                  className="header-desktop-only"
                   onMouseEnter={e => {
                     e.currentTarget.style.borderColor = '#EF4444';
                     e.currentTarget.style.color = '#EF4444';
@@ -203,9 +202,8 @@ export function Header() {
               id="header-mobile-toggle"
               aria-label="Toggle menu"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden"
+              className="header-mobile-toggle"
               style={{
-                display: 'none',
                 width: 40,
                 height: 40,
                 alignItems: 'center',
@@ -237,9 +235,8 @@ export function Header() {
       {/* Mobile Menu */}
       {mobileMenuOpen && (
         <div
-          className="lg:hidden"
+          className="header-mobile-menu"
           style={{
-            display: 'block',
             borderTop: '1px solid #E2E8F0',
             background: 'white',
             padding: '12px 24px 16px',

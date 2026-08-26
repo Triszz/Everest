@@ -222,118 +222,108 @@ export function ReportsPage() {
   };
 
   return (
-    <div style={{ background: C.bgPage, minHeight: "100vh" }}>
+    <div className="partner-page" style={{ background: C.bgPage, minHeight: "100vh" }}>
       {/* ── Page Header (matching Vouchers/Branches) ─────────────────────── */}
       <div style={{
         background: "white",
         borderBottom: `1px solid ${C.border}`,
         padding: "24px 0",
       }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px" }}>
-          <div style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            flexWrap: "wrap", gap: 16,
-          }}>
-            <div>
-              <h1 style={{
-                fontFamily: "Manrope, sans-serif",
-                fontSize: 28, fontWeight: 800,
-                color: C.text, marginBottom: 4,
-              }}>
-                Báo cáo & Thống kê
-              </h1>
-              <p style={{
-                fontFamily: "Inter, sans-serif",
-                fontSize: 14, color: C.textSecondary,
-              }}>
-                Theo dõi hiệu quả kinh doanh voucher của bạn
-              </p>
-            </div>
+        <div className="partner-container partner-flex-between" style={{ flexWrap: "wrap", gap: 16 }}>
+          <div>
+            <h1 style={{
+              fontFamily: "Manrope, sans-serif",
+              fontSize: 28, fontWeight: 800,
+              color: C.text, marginBottom: 4,
+            }}>
+              Báo cáo & Thống kê
+            </h1>
+            <p style={{
+              fontFamily: "Inter, sans-serif",
+              fontSize: 14, color: C.textSecondary,
+            }}>
+              Theo dõi hiệu quả kinh doanh voucher của bạn
+            </p>
+          </div>
 
-            {/* Refresh button với loading/error UX */}
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              {/* Error toast: hiển thị khi refresh thất bại */}
-              {refreshError && (
-                <span style={{
-                  fontFamily: "Inter, sans-serif", fontSize: 12, color: "#EF4444",
-                  fontWeight: 500,
-                }}>
-                  {refreshError}
-                </span>
-              )}
-              <button
-                onClick={handleRefresh}
-                disabled={isRefreshing}
-                title={isRefreshing ? "Đang làm mới..." : "Làm mới dữ liệu"}
+          {/* Refresh button với loading/error UX */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {/* Error toast: hiển thị khi refresh thất bại */}
+            {refreshError && (
+              <span style={{
+                fontFamily: "Inter, sans-serif", fontSize: 12, color: "#EF4444",
+                fontWeight: 500,
+              }}>
+                {refreshError}
+              </span>
+            )}
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              title={isRefreshing ? "Đang làm mới..." : "Làm mới dữ liệu"}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "10px 16px",
+                border: `1.5px solid ${isRefreshing ? C.primary : C.border}`,
+                borderRadius: 10,
+                background: isRefreshing ? "#E8F4FA" : "white",
+                fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600,
+                color: isRefreshing ? C.primary : C.textSecondary,
+                cursor: isRefreshing ? "not-allowed" : "pointer",
+                transition: "all 0.2s",
+                opacity: isRefreshing ? 0.8 : 1,
+              }}
+              onMouseEnter={e => {
+                if (!isRefreshing) {
+                  const b = e.currentTarget;
+                  b.style.borderColor = C.primary;
+                  b.style.color = C.primary;
+                }
+              }}
+              onMouseLeave={e => {
+                if (!isRefreshing) {
+                  const b = e.currentTarget;
+                  b.style.borderColor = C.border;
+                  b.style.color = C.textSecondary;
+                }
+              }}
+            >
+              {/* Spinning icon khi loading */}
+              <svg
+                width="16" height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
                 style={{
-                  display: "inline-flex", alignItems: "center", gap: 6,
-                  padding: "10px 16px",
-                  border: `1.5px solid ${isRefreshing ? C.primary : C.border}`,
-                  borderRadius: 10,
-                  background: isRefreshing ? "#E8F4FA" : "white",
-                  fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600,
-                  color: isRefreshing ? C.primary : C.textSecondary,
-                  cursor: isRefreshing ? "not-allowed" : "pointer",
-                  transition: "all 0.2s",
-                  opacity: isRefreshing ? 0.8 : 1,
-                }}
-                onMouseEnter={e => {
-                  if (!isRefreshing) {
-                    const b = e.currentTarget;
-                    b.style.borderColor = C.primary;
-                    b.style.color = C.primary;
-                  }
-                }}
-                onMouseLeave={e => {
-                  if (!isRefreshing) {
-                    const b = e.currentTarget;
-                    b.style.borderColor = C.border;
-                    b.style.color = C.textSecondary;
-                  }
+                  animation: isRefreshing ? "spin 1s linear infinite" : "none",
                 }}
               >
-                {/* Spinning icon khi loading */}
-                <svg
-                  width="16" height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  style={{
-                    animation: isRefreshing ? "spin 1s linear infinite" : "none",
-                  }}
-                >
-                  <polyline points="23 4 23 10 17 10" />
-                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-                </svg>
-                {isRefreshing ? "Đang làm mới" : "Làm mới"}
-              </button>
-            </div>
+                <polyline points="23 4 23 10 17 10" />
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+              </svg>
+              {isRefreshing ? "Đang làm mới" : "Làm mới"}
+            </button>
           </div>
+        </div>
 
-          {/* ── Toolbar: Date filter ──────────────────────────────────── */}
-          <div style={{ marginTop: 20 }}>
-            <DateFilter
-              value={datePreset}
-              fromDate={fromDate}
-              toDate={toDate}
-              onChange={handleDatePresetChange}
-              onApply={handleCustomApply}
-            />
-          </div>
+        {/* ── Toolbar: Date filter ──────────────────────────────────── */}
+        <div style={{ marginTop: 20 }} className="partner-container">
+          <DateFilter
+            value={datePreset}
+            fromDate={fromDate}
+            toDate={toDate}
+            onChange={handleDatePresetChange}
+            onApply={handleCustomApply}
+          />
         </div>
       </div>
 
       {/* ── Content ────────────────────────────────────────────────────── */}
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "24px 24px 48px" }}>
+      <div className="partner-container" style={{ paddingTop: 24, paddingBottom: 48 }}>
 
         {/* KPI Cards */}
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: 12,
-          marginBottom: 24,
-        }}>
+        <div className="partner-grid-5" style={{ marginBottom: 24 }}>
           <KPICard
             title="Doanh thu" value={kpis?.revenue ?? 0}
             icon={revenueIcon} iconBg="#E8F4FA"
@@ -381,7 +371,7 @@ export function ReportsPage() {
             onNext={handleChartNext}
             canGoNext={chartOffset > -12}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
               <span style={{
                 fontFamily: "Inter, sans-serif", fontSize: 12,
                 color: C.textMuted,

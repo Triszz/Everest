@@ -121,7 +121,7 @@ export function BranchesPage() {
     <div style={{ background: COLORS.bgPage, minHeight: '100vh' }}>
       {/* ── Page Header ─────────────────────────────────── */}
       <div style={{ background: 'white', borderBottom: `1px solid ${COLORS.border}`, padding: '24px 0' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px' }}>
+        <div className="partner-container">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
             <div>
               <h1 style={{ fontFamily: 'Manrope, sans-serif', fontSize: 28, fontWeight: 800, color: COLORS.text, marginBottom: 4 }}>
@@ -156,12 +156,27 @@ export function BranchesPage() {
           </div>
 
           {/* ── Toolbar ──────────────────────────────────── */}
-          <div style={{ display: 'flex', gap: 12, marginTop: 20, flexWrap: 'wrap' }}>
+          <div className="partner-toolbar" style={{ marginTop: 20 }}>
             {/* Search */}
-            <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
+            <div style={{
+              flex: '1 1 200px',
+              minWidth: 0,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '0 12px 0 14px',
+              border: `1.5px solid ${COLORS.border}`,
+              borderRadius: 10,
+              background: COLORS.bgPage,
+              transition: 'border-color 0.2s',
+            }}
+            className="toolbar-search"
+            onMouseEnter={e => (e.currentTarget.style.borderColor = COLORS.primary)}
+            onMouseLeave={e => (e.currentTarget.style.borderColor = COLORS.border)}
+            >
               <svg
                 width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={COLORS.textMuted} strokeWidth="2"
-                style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }}
+                style={{ flexShrink: 0 }}
               >
                 <circle cx="11" cy="11" r="8" />
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -172,17 +187,15 @@ export function BranchesPage() {
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 style={{
-                  width: '100%', padding: '10px 16px 10px 40px',
-                  border: `1.5px solid ${COLORS.border}`,
-                  borderRadius: 10,
+                  flex: 1,
+                  minWidth: 0,
+                  padding: '10px 0',
+                  border: 'none',
+                  background: 'transparent',
                   fontSize: 14,
                   fontFamily: 'Inter, sans-serif',
                   outline: 'none',
-                  background: COLORS.bgPage,
-                  transition: 'border-color 0.2s',
                 }}
-                onFocus={e => (e.currentTarget.style.borderColor = COLORS.primary)}
-                onBlur={e => (e.currentTarget.style.borderColor = COLORS.border)}
               />
             </div>
 
@@ -190,6 +203,7 @@ export function BranchesPage() {
             <button
               onClick={handleRefresh}
               disabled={loading}
+              className="toolbar-button"
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 6,
                 padding: '10px 16px',
@@ -202,6 +216,7 @@ export function BranchesPage() {
                 color: COLORS.textSecondary,
                 cursor: loading ? 'not-allowed' : 'pointer',
                 transition: 'all 0.2s',
+                flex: '0 0 auto',
               }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = COLORS.primary; e.currentTarget.style.color = COLORS.primary; }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = COLORS.border; e.currentTarget.style.color = COLORS.textSecondary; }}
@@ -218,7 +233,7 @@ export function BranchesPage() {
       </div>
 
       {/* ── Content ──────────────────────────────────────── */}
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 24px 48px' }}>
+      <div className="partner-container" style={{ paddingTop: 24, paddingBottom: 48 }}>
         {loading ? (
           /* Loading skeleton */
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -350,7 +365,7 @@ export function BranchesPage() {
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minWidth: 0 }}>
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                          <h3 style={{
+                          <h3 className="branch-card-title" style={{
                             fontFamily: 'Manrope, sans-serif',
                             fontSize: 15, fontWeight: 700, color: COLORS.text,
                             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
@@ -359,7 +374,7 @@ export function BranchesPage() {
                             {branch.branchName}
                           </h3>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, color: COLORS.textSecondary, flexWrap: 'wrap' }}>
+                        <div className="branch-card-meta" style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, color: COLORS.textSecondary, flexWrap: 'wrap' }}>
                           {branch.address && (
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -413,7 +428,7 @@ export function BranchesPage() {
                       </div>
 
                       {/* Bottom: Actions */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
+                      <div className="branch-card-actions" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
                         <div style={{ fontSize: 13, color: COLORS.textMuted }}>
                           {branch._count.voucherBranches} voucher áp dụng
                         </div>
