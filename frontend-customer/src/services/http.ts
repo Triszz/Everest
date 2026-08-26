@@ -18,7 +18,7 @@
 
 // ── Base URL ────────────────────────────────────────────────────────
 // Lấy từ biến môi trường VITE_API_URL, mặc định trỏ về backend local.
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
+const BASE_URL = (import.meta.env.VITE_API_URL || "http://localhost:3000") + "/api";
 
 // ── Shared types ────────────────────────────────────────────────────
 
