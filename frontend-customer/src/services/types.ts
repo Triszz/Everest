@@ -194,7 +194,7 @@ export interface AuthResponse {
 }
 
 export interface MeResponse {
-  user: User;
+  user: { userId: string; email: string; fullName: string; role: string; emailVerified: boolean; status?: "Active" | "Inactive" | "Banned" };
 }
 
 // ── Order / IssuedVoucher ───────────────────────────────────────────

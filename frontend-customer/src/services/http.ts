@@ -188,20 +188,38 @@ export const authFetch = async (
 };
 
 /**
- * Parse response JSON. Ném `Error` nếu !res.ok với message từ backend.
+ * Parse response JSON. Ném `ApiResponseError` nếu:
+ *   1. HTTP status không ok (4xx/5xx), hoặc
+ *   2. HTTP 200 nhưng backend trả { success: false }
+ *
+ * Return type luôn bao gồm optional `error` field để pages có thể truy cập
+ * error message mà không cần TypeScript strict mode complain.
  *
  * @example
  *   const json = await handleResponse<MyData>(res);
  */
-export const handleResponse = async <T>(res: Response): Promise<T> => {
+export const handleResponse = async <T>(res: Response): Promise<T & { error?: { message: string; code?: string } }> => {
   const json = await res.json();
+
+  // HTTP error → lấy message từ body.error.message hoặc body.message hoặc status text
   if (!res.ok) {
-    const err = json as ApiError;
-    const message = err.error?.message || "API Error";
-    const code = err.error?.code || "API_ERROR";
+    const err = json as Partial<ApiError> & { message?: string };
+    const message = err.error?.message ?? err.message ?? res.statusText;
+    const code = err.error?.code ?? `HTTP_${res.status}`;
     throw new ApiResponseError(message, code);
   }
-  return json as T;
+
+  // HTTP 200 nhưng business logic fail (VD: validation error, permission denied)
+  // Backend trả về shape: { success: false, error: { message, code } }
+  // Hoặc shape cũ: { success: false, message: "..." }
+  const ok = json as { success?: unknown; error?: { message: string; code?: string }; message?: string };
+  if (ok.success === false) {
+    const message = ok.error?.message ?? ok.message ?? "Yêu cầu không thành công";
+    const code = ok.error?.code ?? "API_FAIL";
+    throw new ApiResponseError(message, code);
+  }
+
+  return json as T & { error?: { message: string; code?: string } };
 };
 
 /**
@@ -212,7 +230,7 @@ export const handleResponse = async <T>(res: Response): Promise<T> => {
  *   buildQuery({ page: 1, ids: [1,2,3] })
  *   // → "page=1&ids=1%2C2%2C3"
  */
-export const buildQuery = (params?: Record<string, unknown>): string => {
+export const buildQuery = (params?: Record<string, unknown> | null): string => {
   if (!params) return "";
   const qs = new URLSearchParams();
   Object.entries(params).forEach(([k, v]) => {

@@ -72,11 +72,9 @@ export function NotificationBell({ isLoggedIn }: NotificationBellProps) {
     if (!isLoggedIn) return;
     try {
       const res = await notificationApi.getUnreadCount();
-      if (res.success && res.data) {
-        setUnreadCount(res.data.count);
-      }
+      setUnreadCount(res.count);
     } catch {
-      // ignore
+      // ignore — polling không hiển thị lỗi cho user
     }
   }, [isLoggedIn]);
 
@@ -93,9 +91,7 @@ export function NotificationBell({ isLoggedIn }: NotificationBellProps) {
       setLoading(true);
       try {
         const res = await notificationApi.list(1, 5);
-        if (res.success) {
-          setNotifications(res.notifications);
-        }
+        setNotifications(res.notifications);
       } catch {
         // ignore
       } finally {

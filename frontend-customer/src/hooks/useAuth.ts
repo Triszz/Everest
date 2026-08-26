@@ -48,7 +48,8 @@ export function useAuth() {
     setLoading(true);
     try {
       const res = await authApi.me();
-      persist(res.data.user);
+      const u = res.data.user;
+      persist({ ...u, status: (u.status ?? "Active") as User["status"] } as User);
     } catch {
       persist(null);
       clearTokens();
@@ -70,8 +71,12 @@ export function useAuth() {
 
   const register = async (data: { email: string; password: string; fullName: string; phoneNumber?: string }) => {
     const res = await authApi.register(data);
-    setTokens(res.data.accessToken, res.data.refreshToken);
-    persist(res.data.user);
+    // Backend có thể trả token (auto-login) hoặc không (cần verify OTP trước).
+    const resData = res.data as Record<string, unknown>;
+    if (typeof resData.accessToken === "string" && typeof resData.refreshToken === "string") {
+      setTokens(resData.accessToken, resData.refreshToken);
+    }
+    persist({ ...res.data.user, status: "Active" } as User);
     return res.data;
   };
 
