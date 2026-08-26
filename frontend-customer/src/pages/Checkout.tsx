@@ -677,7 +677,7 @@ export function Checkout() {
               }}
             >
               {cartItems.map((item) => (
-                <div key={item.voucherId} style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                <div key={item.voucher.voucherId} style={{ display: "flex", gap: 12, alignItems: "center" }}>
                   <img
                     src={
                       item.voucher?.imageUrl ||

@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams, Link, useNavigate } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { Lock, Eye, EyeOff, Loader2, CheckCircle2 } from 'lucide-react';
-import { authApi } from '../services';
-
 // ── Reset Password Page ──────────────────────────────────────────────────────────
 // Dùng khi user nhấn link trong email quên mật khẩu.
 // Flow: Nhận token từ URL → nhập mật khẩu mới → submit → success
@@ -10,7 +8,6 @@ import { authApi } from '../services';
 
 export function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const token = searchParams.get('token') || '';
 
   const [password, setPassword] = useState('');

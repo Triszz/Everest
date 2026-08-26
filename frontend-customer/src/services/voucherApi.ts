@@ -35,7 +35,7 @@ export const voucherApi = {
    * @param params {@link VoucherQuery}
    */
   list: async (params?: VoucherQuery) => {
-    const res = await authFetch(`${BASE_URL}/vouchers${buildQuery(params)}`, {
+    const res = await authFetch(`${BASE_URL}/vouchers${buildQuery(params as Record<string, unknown>)}`, {
       auth: true,
     });
     const json = await handleResponse<{
@@ -92,7 +92,7 @@ export const categoryApi = {
   /** Voucher theo danh mục, có sort + phân trang. */
   getVouchers: async (id: number, params?: CategoryVoucherQuery) => {
     const res = await authFetch(
-      `${BASE_URL}/categories/${id}/vouchers${buildQuery(params)}`,
+      `${BASE_URL}/categories/${id}/vouchers${buildQuery(params as Record<string, unknown>)}`,
       { auth: true }
     );
     return handleResponse<{

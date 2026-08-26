@@ -30,9 +30,7 @@ export function NotificationsPage() {
       try {
         const res = await authFetch('/api/customer/notifications/preferences');
         const data = await handleResponse<NotificationPrefs>(res);
-        if (data.success) {
-          setPrefs(data.data || {});
-        }
+        setPrefs(data);
       } catch {
         // ignore
       } finally {
@@ -55,13 +53,11 @@ export function NotificationsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(prefs),
       });
-      const data = await handleResponse(res);
-      if (data.success) {
-        setMessage('Đã lưu cài đặt thông báo!');
-        setTimeout(() => setMessage(''), 3000);
-      }
-    } catch (err: any) {
-      setMessage(err.message || 'Lỗi khi lưu cài đặt');
+      await handleResponse<{ success: boolean }>(res);
+      setMessage('Đã lưu cài đặt thông báo!');
+      setTimeout(() => setMessage(''), 3000);
+    } catch (err: unknown) {
+      setMessage((err as Error).message || 'Lỗi khi lưu cài đặt');
     } finally {
       setSaving(false);
     }

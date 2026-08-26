@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { UtensilsCrossed, Wifi, ShoppingBag, Car, Loader2, CheckCircle2, MapPin, CalendarRange, Clock, Phone } from 'lucide-react';
 import { voucherApi, cartApi, reviewApi } from '../services';
 import type { Voucher, Review } from '../services';
-import { formatPrice, formatDate, formatDateTime } from '../utils';
+import { formatPrice, formatDate } from '../utils';
 import Loading from './Loading';
 import { Breadcrumb } from './Breadcrumb';
 
@@ -138,26 +138,22 @@ export function VoucherDetail() {
 
     setSubmittingReview(true);
     try {
-      const res = await reviewApi.create(voucher.voucherId, {
+      await reviewApi.create(voucher.voucherId, {
         rating: reviewRating,
         comment: reviewComment,
       });
-      if (res.success) {
-        setReviewSuccess(true);
-        setReviewComment('');
-        setReviewRating(5);
-        setShowReviewForm(false);
-        // Reload reviews to show the newly created one
-        const reviewsRes = await voucherApi.getReviews(voucher.voucherId);
-        if (reviewsRes.success && reviewsRes.data) {
-          setReviews(reviewsRes.data);
-        }
-        setTimeout(() => setReviewSuccess(false), 3000);
-      } else {
-        throw new Error(res.error?.message || 'Gửi đánh giá thất bại.');
+      // handleResponse đã throw khi success === false
+      setReviewSuccess(true);
+      setReviewComment('');
+      setReviewRating(5);
+      setShowReviewForm(false);
+      const reviewsRes = await voucherApi.getReviews(voucher.voucherId);
+      if (reviewsRes.success && reviewsRes.data) {
+        setReviews(reviewsRes.data);
       }
-    } catch (err: any) {
-      alert(err.message || 'Đã xảy ra lỗi. Vui lòng thử lại.');
+      setTimeout(() => setReviewSuccess(false), 3000);
+    } catch (err: unknown) {
+      alert((err as Error).message || 'Đã xảy ra lỗi. Vui lòng thử lại.');
     } finally {
       setSubmittingReview(false);
     }

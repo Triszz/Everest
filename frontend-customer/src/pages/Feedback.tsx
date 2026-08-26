@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { MessageSquareWarning, Loader2, CheckCircle2, Send, ChevronRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Loader2, CheckCircle2, Send } from 'lucide-react';
 import { feedbackApi } from '../services';
 import { Breadcrumb } from '../components/Breadcrumb';
 
@@ -60,7 +60,6 @@ function formatCharCount(current: number, max: number) {
 }
 
 export function FeedbackPage() {
-  const navigate = useNavigate();
   const [form, setForm] = useState<FormData>({
     type: 'general',
     subject: '',

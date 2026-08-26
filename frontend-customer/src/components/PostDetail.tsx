@@ -7,7 +7,7 @@
  */
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Calendar as CalendarIcon, User as UserIcon, Eye, BookOpen, ChevronRight } from 'lucide-react';
+import { Calendar as CalendarIcon, Eye, BookOpen, ChevronRight } from 'lucide-react';
 import { postApi } from '../services';
 import type { Post } from '../services';
 import { formatDate } from '../utils';

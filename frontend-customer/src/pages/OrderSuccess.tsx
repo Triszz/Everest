@@ -4,7 +4,7 @@ import { orderApi } from '../services';
 import type { OrderDetail } from '../services';
 import { formatPrice } from '../utils';
 import { QRImage } from '../utils/QRImage';
-import { Copy, Check, ShoppingBag, Home, Ticket, Loader2 } from 'lucide-react';
+import { Copy, Check, ShoppingBag, Home, Ticket } from 'lucide-react';
 import Loading from '../components/Loading';
 import { Breadcrumb } from '../components/Breadcrumb';
 
@@ -180,7 +180,7 @@ export function OrderSuccessPage() {
 
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
 
   const fetchOrder = useCallback(async () => {
     if (!orderId) {

@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { orderApi, reviewApi } from '../services';
 import type { IssuedVoucher } from '../services';
 import { formatDate, ISSUED_STATUS_LABELS } from '../utils';
@@ -25,6 +25,7 @@ const MOCK_VOUCHERS: IssuedVoucher[] = [
     usedAt: null,
     usedAtBranchId: null,
     voucher: {
+      voucherId: 1,
       title: 'Voucher Ưu Đãi Giảm 30% Tại Highlands Coffee',
       imageUrl: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&h=300&fit=crop',
       expiryDays: 30,
@@ -40,6 +41,7 @@ const MOCK_VOUCHERS: IssuedVoucher[] = [
     usedAt: null,
     usedAtBranchId: null,
     voucher: {
+      voucherId: 2,
       title: 'Free Ship Cho Đơn Từ 99K Tại Phúc Long',
       imageUrl: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400&h=300&fit=crop',
       expiryDays: 15,
@@ -55,6 +57,7 @@ const MOCK_VOUCHERS: IssuedVoucher[] = [
     usedAt: null,
     usedAtBranchId: null,
     voucher: {
+      voucherId: 3,
       title: 'Giảm 50K Cho Đơn Từ 200K Tại PapaJohns',
       imageUrl: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400&h=300&fit=crop',
       expiryDays: 45,
@@ -70,6 +73,7 @@ const MOCK_VOUCHERS: IssuedVoucher[] = [
     usedAt: d(-2),
     usedAtBranchId: 5,
     voucher: {
+      voucherId: 4,
       title: 'Voucher 2 Ly Smoothie Miễn Phí Tại Brun',
       imageUrl: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&h=300&fit=crop',
       expiryDays: 30,
@@ -85,6 +89,7 @@ const MOCK_VOUCHERS: IssuedVoucher[] = [
     usedAt: d(-5),
     usedAtBranchId: 8,
     voucher: {
+      voucherId: 5,
       title: 'Buy 1 Get 1 Free Tại Starbucks',
       imageUrl: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&h=300&fit=crop',
       expiryDays: 30,
@@ -100,6 +105,7 @@ const MOCK_VOUCHERS: IssuedVoucher[] = [
     usedAt: null,
     usedAtBranchId: null,
     voucher: {
+      voucherId: 6,
       title: 'Giảm 20% Cho Đơn Từ 50K Tại Gong Cha',
       imageUrl: 'https://images.unsplash.com/photo-1558857563-b371033873b8?w=400&h=300&fit=crop',
       expiryDays: 30,
@@ -115,6 +121,7 @@ const MOCK_VOUCHERS: IssuedVoucher[] = [
     usedAt: null,
     usedAtBranchId: null,
     voucher: {
+      voucherId: 7,
       title: 'Giảm 15% Toàn Menu Tại Lotteria',
       imageUrl: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&h=300&fit=crop',
       expiryDays: 30,
@@ -702,7 +709,6 @@ function ReviewSection({ voucherId, issuedVoucherId, hasReviewed }: ReviewSectio
 // ── Main Page ────────────────────────────────────────────────────────────────
 
 export function MyVoucher() {
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>('all');
   const [vouchers, setVouchers] = useState<IssuedVoucher[]>([]);
   const [loading, setLoading] = useState(false);

@@ -108,17 +108,11 @@ export function FeaturedVouchers() {
   );
 }
 
-function VoucherCard({ voucher, onAddToCart }: { voucher: Voucher; onAddToCart?: () => void }) {
+function VoucherCard({ voucher }: { voucher: Voucher; onAddToCart?: () => void }) {
   const discount = voucher.originalPrice
     ? Math.round((1 - Number(voucher.salePrice) / Number(voucher.originalPrice)) * 100)
     : 0;
   const imageUrl = voucher.imageUrl || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&h=300&fit=crop';
-
-  const handleAddToCart = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (onAddToCart) onAddToCart();
-  };
 
   return (
     <Link
