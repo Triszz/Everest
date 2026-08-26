@@ -22,7 +22,7 @@ const getEnvVar = (key: string, fallback: string): string => {
 // API Configuration
 export const ENV = {
   API: {
-    BASE_URL: getEnvVar("EXPO_PUBLIC_API_URL", "http://192.168.1.13:3000/api"),
+    BASE_URL: getEnvVar("VITE_API_URL", "http://192.168.1.13:3000/api"),
     TIMEOUT: 15000, // ms
     RETRY_ATTEMPTS: 2,
   },
