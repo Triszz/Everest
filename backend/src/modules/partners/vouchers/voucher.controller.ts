@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
 import { ZodError } from 'zod';
 import { voucherService } from './voucher.service';
-import { asyncHandler } from '../../middlewares/asyncHandler';
-import { AppError } from '../../middlewares/errorHandler';
+import { asyncHandler } from '../../../middlewares/asyncHandler';
+import { AppError } from '../../../middlewares/errorHandler';
 import { createVoucherSchema, updateVoucherSchema, voucherQuerySchema, toggleVoucherDisplaySchema } from './voucher.schemas';
 
 const requirePartnerId = (req: Request) => {
