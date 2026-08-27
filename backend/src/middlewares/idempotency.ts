@@ -26,13 +26,16 @@ setInterval(() => {
  */
 export const idempotency = (ttlMs = DEFAULT_TTL_MS) => {
   return (req: Request, res: Response, next: NextFunction) => {
-    const key = (req.headers["x-idempotency-key"] ||
+    const rawKey = (req.headers["x-idempotency-key"] ||
       req.headers["idempotency-key"]) as string | undefined;
 
     // Nếu client không truyền Idempotency Key -> cho qua bình thường
-    if (!key) {
+    if (!rawKey) {
       return next();
     }
+
+    // Ghép method + path + rawKey để tránh va chạm key giữa các API khác nhau
+    const key = `${req.method}:${req.baseUrl}${req.path}:${rawKey}`;
 
     const now = Date.now();
     const record = store.get(key);
