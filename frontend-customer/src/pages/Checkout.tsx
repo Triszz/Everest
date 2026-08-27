@@ -221,7 +221,8 @@ export function Checkout() {
       const orderId = createRes.data.orderId;
 
       // ── Step 2: tạo URL thanh toán VNPAY ──
-      const paymentRes = await paymentApi.create(orderId, idempotencyKey);
+      const paymentIdempotencyKey = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `pay-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      const paymentRes = await paymentApi.create(orderId, paymentIdempotencyKey);
 
       if (!paymentRes.success || !paymentRes.data?.paymentUrl) {
         throw new Error(paymentRes.error?.message || "Không thể tạo liên kết thanh toán.");
