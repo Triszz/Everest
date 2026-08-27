@@ -4,7 +4,7 @@ import { reportsController } from "./reports.controller";
 import { getDashboardStats } from "./dashboard/dashboard.controller";
 import { authenticate } from "../../middlewares/authenticate";
 import { roleGuard } from "../../middlewares/roleGuard";
-import voucherRouter from "../vouchers/voucher.routes";
+import voucherRouter from "./vouchers/voucher.routes";
 import redemptionRouter from "./redemption/redemption.routes";
 
 const router = Router();
