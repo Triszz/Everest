@@ -39,6 +39,9 @@ export function PaymentReturn() {
         // Truyền raw query string gốc từ URL để tránh double-encode vnp_SecureHash
         const result = await paymentApi.handleReturn(params, window.location.search);
         setPaymentInfo(result);
+        if (result.isSuccess) {
+          window.dispatchEvent(new Event('notification_updated'));
+        }
       } catch (err: any) {
         setPaymentInfo({
           isSuccess: false,

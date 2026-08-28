@@ -124,6 +124,19 @@ export const ordersService = {
       },
     });
 
+    // Tạo notification cho customer khi tạo đơn hàng mới
+    try {
+      await notificationsService.createNotification(
+        customerId,
+        "ORDER_PURCHASED",
+        "Đơn hàng mới đã được tạo",
+        `Đơn hàng #${order.orderId} đã được khởi tạo thành công. Tổng tiền: ${totalAmount.toLocaleString("vi-VN")}₫`,
+        { orderId: order.orderId, totalAmount },
+      );
+    } catch (err) {
+      console.error("[orders.service] Tạo notification đơn hàng mới thất bại:", err);
+    }
+
     return {
       orderId: order.orderId,
       totalAmount: Number(order.totalAmount),

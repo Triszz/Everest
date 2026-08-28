@@ -25,7 +25,9 @@ export const notificationApi = {
   /** GET /api/customer/notifications/unread-count — Số chưa đọc */
   async getUnreadCount() {
     const res = await authFetch(`${BASE}/unread-count`, { auth: true });
-    return handleResponse<{ count: number }>(res);
+    const json = await handleResponse<{ count?: number; data?: { count: number } }>(res);
+    const count = json?.data?.count ?? json?.count ?? 0;
+    return { count };
   },
 
   /** PATCH /api/customer/notifications/:id/read — Đánh dấu 1 cái đã đọc */

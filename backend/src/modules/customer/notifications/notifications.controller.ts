@@ -58,7 +58,7 @@ export const notificationsController = {
    */
   unreadCount: asyncHandler(async (req: Request, res: Response) => {
     const count = await notificationsService.getUnreadCount(getCustomerId(req));
-    res.json({ success: true, data: { count } });
+    res.json({ success: true, count, data: { count } });
   }),
 
   /**
