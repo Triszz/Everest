@@ -106,16 +106,11 @@ export function VoucherDetail() {
     try {
       setAddingToCart(true);
       const res = await cartApi.addToCart(voucher.voucherId, qty);
-      // Ghi nhớ cartItemId vừa được thêm để trang /cart mặc định chỉ tick chọn
-      // sản phẩm này (không tính các sản phẩm khác trong giỏ).
-      // Backend trả về `data.item` (xem cartApi.addToCart). Fallback: nếu không có
-      // thì cartItemId sẽ được Cart page tự resolve bằng (voucherId) khi load.
+      // Ghi nhớ cả voucherId và cartItemId vừa bấm "Mua ngay"
+      sessionStorage.setItem('buyNowVoucherId', String(voucher.voucherId));
       const newItemId = res?.data?.item?.cartItemId;
       if (newItemId) {
         sessionStorage.setItem('buyNowItemId', String(newItemId));
-      } else {
-        // Không có cartItemId thì ghi nhớ voucherId để Cart dò lại khi render
-        sessionStorage.setItem('buyNowVoucherId', String(voucher.voucherId));
       }
       navigate('/cart');
     } catch (err: any) {

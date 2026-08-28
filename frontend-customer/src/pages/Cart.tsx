@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Trash2, ShoppingBag } from "lucide-react";
 import { cartApi } from "../services";
@@ -21,8 +21,8 @@ export function CartPage() {
    * thì mặc định chỉ tick đúng item đó.
    */
   const [selectedIds, setSelectedIds] = useState<Record<number, boolean>>({});
-  /** Đánh dấu đã áp dụng buyNowFlag để tránh bị ghi đè khi fetchCart() chạy lại. */
-  const [buyNowApplied, setBuyNowApplied] = useState(false);
+  /** Dùng useRef thay vì useState để tránh kích hoạt re-render lặp lại làm trôi selection sau 1 giây. */
+  const hasInitializedSelection = useRef(false);
 
   const fetchCart = useCallback(async () => {
     try {
@@ -32,37 +32,34 @@ export function CartPage() {
       if (response.success && response.data) {
         setCart(response.data);
 
-        // Lần đầu load, áp dụng "Mua ngay" nếu có flag, nếu không thì mặc định chọn tất cả items
-        if (!buyNowApplied) {
-          const buyNowItemIdStr = sessionStorage.getItem("buyNowItemId");
-          const buyNowVoucherIdStr = sessionStorage.getItem("buyNowVoucherId");
-          let chosenId: number | null = null;
-          if (buyNowItemIdStr) {
-            chosenId = Number(buyNowItemIdStr);
-          } else if (buyNowVoucherIdStr) {
-            // Fallback: tìm cartItem theo voucherId
-            const vid = Number(buyNowVoucherIdStr);
-            const match = response.data.items.find((i) => i.voucher.voucherId === vid);
-            if (match) chosenId = match.cartItemId;
-          }
+        // Xử lý tick chọn sản phẩm "Mua ngay" nếu có cờ trong sessionStorage
+        const buyNowItemIdStr = sessionStorage.getItem("buyNowItemId");
+        const buyNowVoucherIdStr = sessionStorage.getItem("buyNowVoucherId");
+        const chosenCartItemId = buyNowItemIdStr ? Number(buyNowItemIdStr) : null;
+        const chosenVoucherId = buyNowVoucherIdStr ? Number(buyNowVoucherIdStr) : null;
 
+        if (chosenCartItemId != null || chosenVoucherId != null) {
+          // Khi có cờ "Mua ngay": Chỉ tick duy nhất 1 sản phẩm khớp Mua ngay, các sản phẩm khác = false
           const next: Record<number, boolean> = {};
-          if (chosenId != null) {
-            // Chỉ tick item vừa "Mua ngay", KHÔNG tick các item khác
-            response.data.items.forEach((it) => {
-              next[it.cartItemId] = it.cartItemId === chosenId;
-            });
-          } else {
-            // Mặc định chọn tất cả các item trong giỏ hàng khi vào /cart
-            response.data.items.forEach((it) => {
-              next[it.cartItemId] = true;
-            });
-          }
+          response.data.items.forEach((it) => {
+            const isMatch =
+              (chosenCartItemId != null && Number(it.cartItemId) === chosenCartItemId) ||
+              (chosenVoucherId != null && Number(it.voucher.voucherId) === chosenVoucherId);
+            next[it.cartItemId] = isMatch;
+          });
           setSelectedIds(next);
-          setBuyNowApplied(true);
-          // Xoá flag ngay để lần sau vào /cart thì không bị áp dụng lại
+          hasInitializedSelection.current = true;
+          // Xoá cờ tạm ngay sau khi đã gán thành công vào React state
           sessionStorage.removeItem("buyNowItemId");
           sessionStorage.removeItem("buyNowVoucherId");
+        } else if (!hasInitializedSelection.current) {
+          // Khi vào giỏ hàng bình thường / Thêm vào giỏ -> Mặc định KHÔNG tự tick chọn sản phẩm nào (tất cả = false)
+          const next: Record<number, boolean> = {};
+          response.data.items.forEach((it) => {
+            next[it.cartItemId] = false;
+          });
+          setSelectedIds(next);
+          hasInitializedSelection.current = true;
         }
       }
     } catch (err: any) {
@@ -70,7 +67,7 @@ export function CartPage() {
     } finally {
       setLoading(false);
     }
-  }, [buyNowApplied]);
+  }, []);
 
   useEffect(() => {
     fetchCart();
@@ -113,7 +110,7 @@ export function CartPage() {
       setLoading(true);
       await cartApi.clearCart();
       setSelectedIds({});
-      setBuyNowApplied(false);
+      hasInitializedSelection.current = false;
       await fetchCart();
     } catch (err: any) {
       alert(err.message || "Xoá thất bại");
