@@ -448,9 +448,423 @@ Kết quả truy vấn trực tiếp từ hệ quản trị CSDL Live PostgreSQL
 
 ---
 
-# PHẦN 5: GIẢI PHÁP KIẾN TRÚC & KỸ THUẬT NÂNG CAO
+# PHẦN 5: ĐẶC TẢ USE CASE & SƠ ĐỒ HOẠT ĐỘNG (USE CASE SPECIFICATIONS & ACTIVITY DIAGRAMS)
 
-## 5.1. Giảm thiểu Race Condition & Overselling (Atomic Conditional Updates)
+## 5.1. Sơ đồ Use Case Diagram Tổng Thể (Overall Use Case Diagram)
+
+```mermaid
+flowchart LR
+    subgraph Actors["Các Bên Liên Quan (Actors)"]
+        direction TB
+        CUS["Khách hàng<br/>(Customer)"]
+        PAR["Chủ đối tác<br/>(Partner_Owner)"]
+        CAS["Thu ngân chi nhánh<br/>(Partner_Cashier)"]
+        ADM["Quản trị viên<br/>(Admin)"]
+    end
+
+    subgraph SystemBoundary["Hệ thống Thương mại Điện tử Everest (System Boundary)"]
+        UC01("(UC-01: Đăng ký & Phê duyệt Doanh nghiệp Đối tác)")
+        UC02("(UC-02: Tạo & Kiểm duyệt Chương trình Voucher)")
+        UC03("(UC-03: Mua Voucher & Thanh toán VNPAY Sandbox)")
+        UC04("(UC-04: Quét/Nhập mã & Gạch Voucher tại Chi nhánh)")
+        UC05("(UC-05: Quản lý Người dùng & Khóa tài khoản Tức thì)")
+        UC06("(UC-06: Tìm kiếm & Lọc Voucher Khuyến mãi)")
+        UC07("(UC-07: Quản lý Nội dung Tiếp thị & Truyền thông CMS)")
+    end
+
+    CUS --> UC03
+    CUS --> UC06
+
+    PAR --> UC01
+    PAR --> UC02
+
+    CAS --> UC04
+
+    ADM --> UC01
+    ADM --> UC02
+    ADM --> UC05
+    ADM --> UC07
+
+    style Actors fill:#f1f5f9,stroke:#475569
+    style SystemBoundary fill:#f8fafc,stroke:#0284c7,stroke-width:2px
+    style UC01 fill:#fef3c7,stroke:#b45309
+    style UC02 fill:#fef3c7,stroke:#b45309
+    style UC03 fill:#dcfce7,stroke:#15803d
+    style UC04 fill:#e0f2fe,stroke:#0369a1
+    style UC05 fill:#fce7f3,stroke:#be185d
+    style UC06 fill:#dcfce7,stroke:#15803d
+    style UC07 fill:#fce7f3,stroke:#be185d
+```
+
+---
+
+## 5.2. Bảng Tổng hợp 7 Use Cases Nghiệp vụ Cốt lõi của Hệ thống Everest
+
+| Mã UC | Tên Use Case Nghiệp vụ | Các Bên Liên Quan (Actor) | Mức độ Ưu tiên | Tiền điều kiện (Pre-conditions) | Kết quả Đầu ra Mong đợi (Post-conditions / Output) |
+|:---:|---|---|:---:|---|---|
+| **UC-01** | Đăng ký & Phê duyệt Doanh nghiệp Đối tác | `Partner_Owner`, `Admin` | **Cao** | MST chưa trùng lặp, thông tin doanh nghiệp đầy đủ | Hồ sơ Partner đổi trạng thái `Approved` / `Rejected`, tạo tài khoản Partner Portal. |
+| **UC-02** | Tạo & Kiểm duyệt Chương trình Voucher | `Partner_Owner`, `Admin` | **Cao** | Đối tác đã được duyệt (`Partner.status = Approved`) | Voucher chuyển từ `Draft` $\rightarrow$ `Pending` $\rightarrow$ `Approved` & `Visible` mở bán public. |
+| **UC-03** | Mua Voucher & Thanh toán VNPAY Sandbox | `Customer`, VNPAY Sandbox | **Cao** | Voucher `Visible`, tồn kho `availableQuantity > 0` | Đơn hàng `Paid`, trừ tồn kho, phát hành mã E-Voucher kèm mã QR Code. |
+| **UC-04** | Quét/Nhập mã & Gạch Voucher tại Chi nhánh | `Partner_Cashier`, `Customer` | **Cao** | Mã `IssuedVoucher` còn hạn, trạng thái `Unused` | Mã voucher chuyển sang `Used`, ghi nhận `usedAt` và `usedAtBranchId` tại chi nhánh. |
+| **UC-05** | Quản lý Người dùng & Khóa tài khoản Tức thì | `Admin`, Người dùng vi phạm | **Trung bình** | Admin có quyền Quản trị (`role = Admin`) | `users.status = Banned`, thu hồi toàn bộ `user_sessions`, cưỡng chế logout tức thì. |
+| **UC-06** | Tìm kiếm & Lọc Voucher Khuyến mãi | `Customer` | **Cao** | Hệ thống có voucher ở trạng thái `Approved` & `Visible` | Hiển thị danh sách Voucher thỏa mãn chính xác từ khóa và bộ lọc đã chọn. |
+| **UC-07** | Quản lý Nội dung Tiếp thị & Truyền thông CMS | `Admin` | **Thấp** | Admin có quyền Quản trị (`role = Admin`) | Cập nhật Banners, Popups, Posts & Policies thời gian thực trên Customer App. |
+
+---
+
+## 5.3. UC-01: Đăng ký & Phê duyệt Doanh nghiệp Đối tác (Partner Onboarding & Approval)
+* **Mã Use Case:** `UC-01`
+* **Actor chính:** Doanh nghiệp Đối tác (`Partner_Owner`), Ban Quản trị (`Admin`).
+* **Mô tả:** Doanh nghiệp gửi thông tin đăng ký (Tên công ty, Mã số thuế, Người đại diện, Email, SĐT). Hệ thống tạo tài khoản Partner_Owner và khởi tạo hồ sơ Partner ở trạng thái `Pending`. Admin kiểm tra và duyệt (`Approved`) hoặc từ chối (`Rejected`).
+* **Tiền điều kiện:** Đối tác chưa từng có tài khoản trên hệ thống. Mã số thuế chưa từng được sử dụng.
+* **Hậu điều kiện:**
+  - Nếu thành công: Hồ sơ Partner đổi trạng thái `Approved`, tài khoản `Partner_Owner` đăng nhập được vào Partner Portal để tạo voucher và quản lý chi nhánh.
+  - Nếu thất bại: Hồ sơ đổi `Rejected` kèm lý do từ chối, gửi email/thông báo cho đối tác.
+* **Luồng sự kiện chính (Basic Flow):**
+  1. Đối tác truy cập form đăng ký đối tác, điền `companyName`, `taxCode`, `representativeName`, `representativeEmail`, `representativePhone`.
+  2. Hệ thống kiểm tra trùng lặp `taxCode` trong CSDL.
+  3. Hệ thống khởi tạo `Partner` với `status = Pending` và `User` với `role = Partner_Owner`.
+  4. Hệ thống gửi OTP xác thực email đối tác. Đối tác nhập đúng OTP $\rightarrow$ `emailVerified = true`.
+  5. Admin truy cập màn hình `/admin/partners/pending`, xem xét giấy tờ pháp lý.
+  6. Admin nhấn **"Phê duyệt"** $\rightarrow$ Hệ thống cập nhật `Partner.status = Approved`, tạo `AdminAuditLog` và gửi thông báo cho Partner.
+* **Luồng rẽ nhánh & Ngoại lệ (Alternative / Exception Flows):**
+  - **2a. Mã số thuế đã tồn tại trong CSDL:** Hệ thống phát hiện `taxCode` trùng lặp $\rightarrow$ Trả về lỗi HTTP 409 Conflict *"Mã số thuế này đã được đăng ký"*, dừng tiến trình.
+  - **6a. Admin Từ chối hồ sơ đối tác:** Admin kiểm tra giấy phép phát hiện thông tin không hợp lệ $\rightarrow$ Nhập lý do từ chối $\rightarrow$ Hệ thống cập nhật `Partner.status = Rejected`, ghi `AdminAuditLog` và gửi thông báo từ chối cho Đối tác.
+
+```mermaid
+flowchart LR
+    subgraph Partner["Doanh nghiệp Đối tác"]
+        P1([Bắt đầu]) --> P2["Điền thông tin đăng ký<br/>(Tên Cty, MST, Email, SĐT)"] --> P3["Gửi hồ sơ"]
+    end
+
+    subgraph System["Hệ thống Everest"]
+        S1{"Mã số thuế<br/>đã tồn tại?"} -- Có --> SE1["Báo MST bị trùng"]
+        S1 -- Chưa --> S2["Gửi OTP xác thực"] --> S3{"Xác thực OTP?"}
+        S3 -- Sai --> SE2["Yêu cầu nhập lại"]
+        S3 -- Đúng --> S4["Chuyển hồ sơ chờ Admin duyệt"]
+    end
+
+    subgraph Admin["Ban Quản trị (Admin)"]
+        A1["Kiểm tra giấy phép & MST"] --> A2{"Duyệt?"}
+        A2 -- Từ chối --> A3["Đổi trạng thái Từ chối"]
+        A2 -- Đồng ý --> A4["Đổi trạng thái Đã duyệt"]
+        A3 --> A5["Gửi thông báo"]
+        A4 --> A5
+    end
+
+    P3 --> S1
+    S4 --> A1
+    A5 --> END1([Kết thúc])
+
+    style Partner fill:#dbeafe,stroke:#1e40af
+    style System fill:#fef3c7,stroke:#92400e
+    style Admin fill:#fce7f3,stroke:#9d174d
+```
+
+---
+
+## 5.4. UC-02: Tạo & Kiểm duyệt Chương trình Voucher (Voucher Lifecycle)
+* **Mã Use Case:** `UC-02`
+* **Actor chính:** Chủ đối tác (`Partner_Owner`), Ban Quản trị (`Admin`).
+* **Mô tả:** Đối tác khởi tạo chương trình voucher (Giá gốc, Giá bán, Ngày bắt đầu/kết thúc, Chi nhánh áp dụng). Voucher tạo mới ở dạng `Draft`, khi bấm gửi duyệt chuyển sang `Pending`. Admin duyệt voucher chuyển sang `Approved` & `Visible` để mở bán công khai.
+* **Tiền điều kiện:** Doanh nghiệp Đối tác đã được Admin phê duyệt (`Partner.status = Approved`).
+* **Hậu điều kiện:** Voucher chuyển sang `Approved` và `Visible`, xuất hiện trên trang chủ Khách hàng để mua sắm.
+* **Luồng sự kiện chính (Basic Flow):**
+  1. Đối tác truy cập `/partner/vouchers/create`, nhập tiêu đề, tải ảnh, nhập `originalPrice`, `salePrice`, `totalQuantity`, chọn danh sách chi nhánh áp dụng.
+  2. Backend kiểm tra điều kiện nghiệp vụ: `salePrice < originalPrice` (RB-02), `endDate > startDate` (RB-03), phải có ít nhất 1 chi nhánh (Branch) được gán.
+  3. Hệ thống lưu bản ghi `Voucher` với `approvalStatus = Draft`.
+  4. Đối tác bấm **"Gửi phê duyệt"** $\rightarrow$ Cập nhật `approvalStatus = Pending`.
+  5. Admin vào danh sách `/admin/vouchers/pending`, duyệt nội dung khuyến mãi.
+  6. Admin bấm **"Phê duyệt"** $\rightarrow$ Hệ thống cập nhật `approvalStatus = Approved`, `displayStatus = Visible`, ghi nhận `AdminAuditLog`.
+* **Luồng rẽ nhánh & Ngoại lệ (Alternative / Exception Flows):**
+  - **2a. Giá bán không hợp lệ (`RB-02`):** `salePrice >= originalPrice` $\rightarrow$ Trả về mã lỗi HTTP 400 Bad Request *"Giá bán khuyến mãi phải nhỏ hơn giá gốc"*.
+  - **2b. Thời hạn không hợp lệ (`RB-03`):** `endDate <= startDate` $\rightarrow$ Trả về mã lỗi HTTP 400 Bad Request *"Thời hạn áp dụng không hợp lệ"*.
+  - **6a. Admin Từ chối duyệt voucher:** Admin không đồng ý nội dung khuyến mãi $\rightarrow$ Cập nhật `approvalStatus = Rejected` kèm lý do từ chối $\rightarrow$ Voucher chuyển trạng thái Từ chối để Đối tác chỉnh sửa lại.
+
+```mermaid
+flowchart LR
+    subgraph Partner["Doanh nghiệp Đối tác"]
+        P1([Bắt đầu]) --> P2["Nhập thông tin Voucher"] --> P3{"Thao tác?"}
+        P3 -- Lưu nháp --> P4["Lưu dạng Nháp"]
+        P3 -- Gửi duyệt --> P5["Gửi yêu cầu phê duyệt"]
+    end
+
+    subgraph System["Hệ thống Everest"]
+        S1{"Thông tin hợp lệ?"} -- Sai --> SE1["Báo lỗi thông tin"]
+        S1 -- Đúng --> S2["Chuyển trạng thái Chờ duyệt"]
+    end
+
+    subgraph Admin["Ban Quản trị (Admin)"]
+        A1["Kiểm duyệt nội dung"] --> A2{"Phê duyệt?"}
+        A2 -- Từ chối --> A3["Từ chối kèm lý do"]
+        A2 -- Đồng ý --> A4["Phê duyệt & Cho hiển thị"]
+    end
+
+    P5 --> S1
+    S2 --> A1
+    A3 --> END1([Đối tác sửa lại])
+    A4 --> END2([Mở bán công khai])
+
+    style Partner fill:#dbeafe,stroke:#1e40af
+    style System fill:#fef3c7,stroke:#92400e
+    style Admin fill:#fce7f3,stroke:#9d174d
+```
+
+---
+
+## 5.5. UC-03: Khách hàng Mua Voucher & Thanh toán VNPAY (Purchase & Payment)
+* **Mã Use Case:** `UC-03`
+* **Actor chính:** Khách hàng (`Customer`), Cổng thanh toán VNPAY Sandbox.
+* **Mô tả:** Khách hàng tìm kiếm, chọn voucher, thêm vào giỏ hàng, thực hiện đặt hàng kèm mã `Idempotency-Key` và hoàn tất thanh toán trực tuyến qua cổng VNPAY. Sau khi thanh toán thành công, hệ thống tự động sinh các mã E-Voucher điện tử kèm mã QR Code.
+* **Tiền điều kiện:** Voucher đang ở trạng thái `Approved` và `Visible`, tồn kho `availableQuantity > 0`.
+* **Hậu điều kiện:** Đơn hàng chuyển `Paid`, tồn kho `availableQuantity` tự động trừ đi số lượng tương ứng, mã `IssuedVoucher` trạng thái `Unused` được sinh ra.
+* **Luồng sự kiện chính (Basic Flow):**
+  1. Khách hàng xem danh sách voucher, lọc theo khu vực (`City`) hoặc danh mục.
+  2. Chọn voucher và bấm "Thêm vào giỏ hàng" (`POST /api/cart/items`).
+  3. Vào trang Checkout, nhập thông tin người mua (hoặc chọn mua tặng bạn bè).
+  4. Bấm "Thanh toán qua VNPAY" kèm header `X-Idempotency-Key` $\rightarrow$ Backend khởi tạo đơn `Order (paymentStatus = Pending)` và tạo URL thanh toán VNPAY Sandbox (`POST /api/customer/payment/create`).
+  5. Trình duyệt chuyển hướng sang cổng VNPAY Sandbox. Khách hàng nhập thông tin thẻ test NCB và mã OTP `123456`.
+  6. VNPAY xử lý thành công và gửi Callback/IPN về Backend.
+  7. Backend thực thi Transaction: Cập nhật `Order.paymentStatus = Paid`, trừ tồn kho `availableQuantity`, sinh ra các mã `IssuedVoucher` (dạng QR / nanoid duy nhất) và gửi email xác nhận cho Khách hàng.
+* **Luồng rẽ nhánh & Ngoại lệ (Alternative / Exception Flows):**
+  - **2a. Hết tồn kho trong giao dịch đồng thời (`RB-15` - Overselling Protection):** Khi 2 khách hàng cùng đặt mua số lượng tồn cuối cùng $\rightarrow$ Hệ thống dùng Transaction lock DB, 1 khách đặt thành công, khách còn lại nhận thông báo lỗi HTTP 409 Conflict *"Voucher đã hết hàng"*.
+  - **5a. Thanh toán VNPAY Thất bại hoặc Hủy giữa chừng:** Khách hàng nhập sai OTP hoặc bấm Hủy thanh toán tại cổng VNPAY $\rightarrow$ VNPAY trả `vnp_ResponseCode != 00` $\rightarrow$ Backend giữ đơn hàng ở trạng thái `paymentStatus = Pending`, không trừ tồn kho và không phát hành mã E-Voucher.
+  - **4a. Gửi Request thanh toán đúp (Idempotency Control):** Khách hàng nhấp liên tiếp 2 lần nút Thanh toán $\rightarrow$ Backend Middleware kiểm tra `Idempotency-Key` trùng lặp, trả về URL đã khởi tạo trước đó thay vì tạo 2 đơn hàng trùng.
+
+```mermaid
+flowchart LR
+    subgraph Customer["Khách hàng"]
+        C1([Bắt đầu]) --> C2["Chọn Voucher & Giỏ hàng"] --> C3["Điền thông tin"] --> C4["Chọn thanh toán VNPAY"]
+    end
+
+    subgraph System["Hệ thống Everest"]
+        S1{"Còn tồn kho?"} -- Hết --> SE1["Báo hết hàng"]
+        S1 -- Còn --> S2["Tạo đơn Chờ thanh toán & URL VNPAY"]
+    end
+
+    subgraph VNPAY["Cổng VNPAY Sandbox"]
+        V1["Nhập thẻ & OTP"] --> V2{"Thanh toán?"}
+        V2 -- Thất bại --> VE1["Báo thanh toán thất bại"]
+        V2 -- Thành công --> V3["Trả kết quả cho Hệ thống"]
+    end
+
+    subgraph Complete["Hoàn tất Đơn hàng"]
+        P1["Đã thanh toán"] --> P2["Trừ tồn kho"] --> P3["Tạo E-Voucher QR Code"] --> P4["Gửi Email xác nhận"]
+    end
+
+    C4 --> S1
+    S2 --> V1
+    V3 --> P1
+    P4 --> C5([Nhận mã Voucher])
+
+    style Customer fill:#dbeafe,stroke:#1e40af
+    style System fill:#fef3c7,stroke:#92400e
+    style VNPAY fill:#f3e8ff,stroke:#6b21a8
+    style Complete fill:#dcfce7,stroke:#15803d
+```
+
+---
+
+## 5.6. UC-04: Quét/Nhập mã & Gạch Voucher tại Chi nhánh (Voucher Redemption at Branch)
+* **Mã Use Case:** `UC-04`
+* **Actor chính:** Thu ngân chi nhánh (`Partner_Cashier`), Khách hàng (`Customer`).
+* **Mô tả:** Khách hàng xuất trình mã QR Code hoặc mã chuỗi voucher tại cửa hàng. Thu ngân đăng nhập ứng dụng Staff, thực hiện tra cứu tính hợp lệ (`Validate`) và bấm xác nhận gạch mã (`Confirm`). Hệ thống chuyển trạng thái voucher sang `Used`.
+* **Tiền điều kiện:** Mã `IssuedVoucher` tồn tại, ở trạng thái `Unused`, trong thời hạn sử dụng (`validFrom <= now <= validTo`), chi nhánh thu ngân thuộc thương hiệu phát hành voucher.
+* **Hậu điều kiện:** Mã voucher đổi trạng thái `Used`, ghi nhận `usedAt` và `usedAtBranchId`.
+* **Luồng sự kiện chính (Basic Flow):**
+  1. Khách hàng đưa mã QR Code hoặc mã chuỗi (Ví dụ: `HL-FREEZE-2026-8888`) cho Thu ngân tại quầy.
+  2. Thu ngân mở ứng dụng Staff (`/scan` hoặc nhập mã), gửi request kiểm tra `POST /api/partner/redemption/validate`.
+  3. Backend kiểm tra điều kiện (RB-07, RB-08, RB-09):
+     - Voucher code có tồn tại không?
+     - `status == Unused`?
+     - Hạn dùng `validTo >= now`?
+     - Chi nhánh thu ngân có thuộc Partner phát hành voucher này không?
+  4. Màn hình Staff hiển thị màu xanh: "Mã hợp lệ" kèm tên voucher, thông tin khách hàng và hạn dùng.
+  5. Thu ngân bấm **"Xác nhận gạch mã"** (`POST /api/partner/redemption/confirm`).
+  6. Backend thực thi Atomic Update:
+     ```ts
+     UPDATE issued_vouchers SET status = 'Used', used_at = NOW(), used_at_branch_id = branchId WHERE voucher_code = code AND status = 'Unused';
+     ```
+  7. Hệ thống báo gạch mã thành công và ghi nhận vào Lịch sử sử dụng của chi nhánh.
+* **Luồng rẽ nhánh & Ngoại lệ (Alternative / Exception Flows):**
+  - **3a. Chi nhánh không thuộc Partner phát hành (`RB-09`):** Thu ngân chi nhánh thương hiệu A quét mã của thương hiệu B $\rightarrow$ Backend chặn trả lỗi HTTP 403 Forbidden *"Mã này không thuộc quyền gạch mã của chi nhánh bạn"*.
+  - **3b. Mã voucher đã được sử dụng trước đó (`RB-07`):** Quét mã đã có `status = Used` $\rightarrow$ Backend chặn trả lỗi HTTP 409 Conflict *"Mã voucher này đã được gạch mã trước đó"*.
+  - **3c. Mã voucher hết hạn sử dụng (`RB-08`):** Hạn dùng `validTo < NOW()` $\rightarrow$ Backend chặn trả lỗi HTTP 400 Bad Request *"Mã voucher đã hết hạn sử dụng"*.
+
+```mermaid
+flowchart LR
+    subgraph Cashier["Thu ngân Chi nhánh"]
+        K1([Bắt đầu]) --> K2["Quét mã QR / Nhập mã"] --> K3["Yêu cầu kiểm tra"]
+    end
+
+    subgraph System["Hệ thống Everest"]
+        S1{"Mã hợp lệ?"} -- Sai --> SE1["Báo lỗi (Hết hạn / Sai nhánh / Đã dùng)"]
+        S1 -- Đúng --> S2["Hiển thị thông tin mã hợp lệ"]
+    end
+
+    subgraph Confirm["Gạch mã Sử dụng"]
+        K4["Bấm Xác nhận gạch mã"] --> C1["Đổi trạng thái Đã sử dụng"] --> C2["Lưu lịch sử & Thông báo"]
+    end
+
+    K3 --> S1
+    S2 --> K4
+    C2 --> K5([Hoàn tất gạch mã])
+
+    style Cashier fill:#dbeafe,stroke:#1e40af
+    style System fill:#fef3c7,stroke:#92400e
+    style Confirm fill:#dcfce7,stroke:#15803d
+```
+
+---
+
+## 5.7. UC-05: Quản lý Người dùng & Khóa tài khoản Tức thì (User Management & Instant Lock)
+* **Mã Use Case:** `UC-05`
+* **Actor chính:** Ban Quản trị (`Admin`), Người dùng vi phạm.
+* **Mô tả:** Admin phát hiện tài khoản vi phạm quy định, thực hiện đổi trạng thái tài khoản sang `Banned`. Hệ thống ngay lập tức thu hồi tất cả các phiên đăng nhập (`UserSession.revokedAt = NOW()`), khiến người dùng bị đăng xuất ngay lập tức ở tất cả thiết bị.
+* **Tiền điều kiện:** Admin đã đăng nhập hệ thống (`role = Admin`).
+* **Hậu điều kiện:** Tài khoản đổi `status = Banned`, toàn bộ Token/Session bị vô hiệu hóa, người dùng không thể thực hiện các request API tiếp theo.
+* **Luồng sự kiện chính (Basic Flow):**
+  1. Admin truy cập danh sách người dùng `/admin/users`.
+  2. Tìm kiếm theo Email hoặc Số điện thoại của tài khoản vi phạm.
+  3. Admin bấm nút **"Khóa tài khoản"** (`PATCH /api/admin/users/:userId/status` với `status = Banned`).
+  4. Backend thực thi Transaction:
+     - Cập nhật `users.status = Banned`.
+     - Cập nhật tất cả `user_sessions` của user này: `revokedAt = NOW()`.
+     - Ghi nhận `AdminAuditLog` cho hành động khóa tài khoản.
+  5. Lần gọi API tiếp theo từ thiết bị của người dùng vi phạm: Middleware `authenticate` kiểm tra `User.status == Banned` hoặc `Session.revokedAt != null` $\rightarrow$ Trả về HTTP 401 Unauthorized và xóa Token ở Client.
+* **Luồng rẽ nhánh & Ngoại lệ (Alternative / Exception Flows):**
+  - **5a. Cưỡng chế Đăng xuất Tức thì (Instant Session Revocation):** Ngay khi Admin bấm Khóa tài khoản, toàn bộ Session Token đang kích hoạt trên thiết bị di động/laptop của người dùng bị thu hồi tức thì $\rightarrow$ Mọi thao tác gửi request tiếp theo bị chặn đứng ngay lập tức tại Middleware `authenticate`.
+
+```mermaid
+flowchart LR
+    subgraph Admin["Ban Quản trị (Admin)"]
+        A1([Bắt đầu]) --> A2["Tra cứu tài khoản vi phạm"] --> A3["Thực hiện Khóa tài khoản"]
+    end
+
+    subgraph System["Hệ thống Everest"]
+        S1["Đổi trạng thái Banned"] --> S2["Thu hồi tất cả phiên đăng nhập"] --> S3["Ghi nhật ký kiểm toán"]
+    end
+
+    subgraph User["Người dùng bị khóa"]
+        U1["Gửi thao tác tiếp theo"] --> U2{"Quyền truy cập?"} -- Bị khóa --> U3["Từ chối & Logout tức thì"]
+    end
+
+    A3 --> S1
+    S2 --> U1
+    U3 --> U4([Tài khoản bị vô hiệu hóa])
+
+    style Admin fill:#fce7f3,stroke:#9d174d
+    style System fill:#fef3c7,stroke:#92400e
+    style User fill:#fee2e2,stroke:#dc2626
+```
+
+---
+
+## 5.8. UC-06: Tìm kiếm & Lọc Voucher Khuyến mãi (Search & Filter Vouchers)
+* **Mã Use Case:** `UC-06`
+* **Actor chính:** Khách hàng (`Customer`).
+* **Mô tả:** Khách hàng tra cứu các chương trình khuyến mãi theo từ khóa tìm kiếm (Search) hoặc áp dụng bộ lọc theo danh mục sản phẩm và khu vực địa lý (Filter) để tìm thấy voucher phù hợp với nhu cầu.
+* **Tiền điều kiện:** Hệ thống có các voucher khuyến mãi ở trạng thái `Approved` và `Visible`.
+* **Hậu điều kiện:** Hiển thị danh sách các voucher thỏa mãn chính xác từ khóa tìm kiếm và các tiêu chí lọc đã chọn.
+* **Luồng sự kiện chính (Basic Flow):**
+  1. Khách hàng truy cập ứng dụng Web App tại trang chủ hoặc trang danh mục sản phẩm.
+  2. Khách hàng nhập từ khóa vào ô tìm kiếm (Search) hoặc chọn tiêu chí lọc (Filter) theo danh mục/thành phố.
+  3. Hệ thống thực thi truy vấn tìm kiếm & lọc dữ liệu real-time.
+  4. Hệ thống trả về danh sách các voucher khớp điều kiện kèm thông tin hình ảnh, giá gốc, giá bán khuyến mãi và phần trăm giảm giá.
+  5. Khách hàng chọn voucher phù hợp để xem chi tiết và mua hàng.
+* **Luồng rẽ nhánh & Ngoại lệ (Alternative / Exception Flows):**
+  - **3a. Không tìm thấy kết quả thỏa mãn:** Từ khóa hoặc tiêu chí lọc không khớp với bất kỳ voucher nào $\rightarrow$ Hệ thống hiển thị thông báo *"Không tìm thấy voucher phù hợp"* và gợi ý danh sách voucher HOT nổi bật.
+
+```mermaid
+flowchart LR
+    subgraph Customer["Khách hàng (Customer)"]
+        C1([Bắt đầu]) --> C2["Nhập từ khóa tìm kiếm (Search)<br/>hoặc Chọn bộ lọc (Filter)"] --> C3["Gửi yêu cầu Tra cứu"]
+    end
+
+    subgraph System["Hệ thống Everest"]
+        S1{"Có voucher<br/>thỏa mãn?"} -- Không --> SE1["Hiển thị màn hình Trống<br/>Gợi ý Voucher HOT nổi bật"]
+        S1 -- Có --> S2["Trả về danh sách kết quả khớp bộ lọc<br/>(Hình ảnh, Giá gốc, Giá bán, % Giảm)"]
+    end
+
+    subgraph Result["Xem Kết quả"]
+        R1["Khách hàng xem danh sách kết quả"] --> R2["Nhấp chọn Voucher mong muốn"] --> R3["Chuyển tới Trang chi tiết Voucher"]
+    end
+
+    C3 --> S1
+    S2 --> R1
+    R3 --> END1([Kết thúc luồng Tìm kiếm & Lọc])
+
+    style Customer fill:#dbeafe,stroke:#1e40af
+    style System fill:#fef3c7,stroke:#92400e
+    style Result fill:#dcfce7,stroke:#15803d
+```
+
+---
+
+## 5.9. UC-07: Quản lý Nội dung Tiếp thị & Truyền thông CMS (Banners, Popups, Bài viết & Chính sách)
+* **Mã Use Case:** `UC-07`
+* **Actor chính:** Ban Quản trị (`Admin`).
+* **Mô tả:** Admin quản lý toàn bộ nội dung tiếp thị hiển thị trên giao diện Khách hàng bao gồm Banner slider quảng cáo trang chủ, Popup khuyến mãi bật lên khi vào web, Bài viết tin tức kinh nghiệm mua sắm (`Post`) và Điều khoản chính sách bảo mật (`Policy`).
+* **Tiền điều kiện:** Admin đã đăng nhập tài khoản có quyền Quản trị (`role = Admin`).
+* **Hậu điều kiện:** Dữ liệu nội dung truyền thông được cập nhật thời gian thực lên giao diện Customer Web App.
+* **Luồng sự kiện chính (Basic Flow):**
+  1. Admin truy cập phân hệ CMS tại Admin Portal (`/admin/banners`, `/admin/popups`, `/admin/posts`, `/admin/policies`).
+  2. Admin thêm/sửa/xóa hoặc bật/tắt trạng thái hiển thị (`Visible` / `Hidden`).
+  3. Backend lưu thay đổi vào các bảng `banners`, `popups`, `posts`, `policies` và ghi `AdminAuditLog`.
+  4. Khách hàng truy cập trang chủ, hệ thống tự động tải các Banner, Popup và Bài viết ở trạng thái `Visible`.
+* **Luồng rẽ nhánh & Ngoại lệ (Alternative / Exception Flows):**
+  - **2a. Tắt hiển thị chiến dịch tiếp thị cũ:** Admin chuyển trạng thái Banner/Popup sang `Hidden` $\rightarrow$ Ngay lập tức nội dung quảng cáo đó bị gỡ bỏ khỏi giao diện Khách hàng mà không ảnh hưởng tới các luồng đặt hàng khác.
+
+```mermaid
+flowchart LR
+    subgraph Admin["Ban Quản trị (Admin)"]
+        A1([Bắt đầu]) --> A2["Truy cập Admin CMS"] --> A3["Tạo/Sửa Banners, Popups, Bài viết"] --> A4["Cấu hình Hiển thị / Ẩn"]
+    end
+
+    subgraph System["Hệ thống Everest"]
+        S1["Lưu nội dung vào hệ thống"] --> S2["Ghi nhật ký kiểm toán"]
+    end
+
+    subgraph CustomerApp["Trang chủ Khách hàng"]
+        C1["Khách hàng truy cập ứng dụng"] --> C2["Tải & Hiển thị tiếp thị mới nhất"]
+    end
+
+    A4 --> S1
+    S1 --> C1
+    C2 --> END1([Kết thúc cập nhật])
+
+    style Admin fill:#fce7f3,stroke:#9d174d
+    style System fill:#fef3c7,stroke:#92400e
+    style CustomerApp fill:#dbeafe,stroke:#1e40af
+```
+
+---
+
+# PHẦN 6: KẾ HOẠCH & BỘ TEST CASES KIỂM THỬ NGHỆP VỤ (TEST PLAN & TEST CASES)
+
+Hệ thống được kiểm thử tự động và thủ công nhằm đảm bảo tuân thủ 100% các quy tắc nghiệp vụ (**Business Rules `RB-01` đến `RB-15`**) trong tài liệu BRD.
+
+## 6.1. Bảng Bộ Test Cases Kiểm thử Nghiệp vụ Chi tiết
+
+| Mã Test Case | Phân hệ / Tính năng | Mô tả kịch bản kiểm thử | Dữ liệu đầu vào & Tiền điều kiện | Các bước thực thi chính | Kết quả mong đợi (Expected Output) | Trạng thái (Pass/Fail) |
+|:---:|---|---|---|---|---|:---:|
+| **TC-AUTH-01** | Xác thực & OTP Đa kênh | Đăng ký tài khoản chọn nhận OTP qua SMS | Điền Form đăng ký với SĐT `0909999888` | 1. Nhấn "Đăng ký & nhận OTP"<br/>2. Chọn 📱 "SMS OTP" tại Modal Overlay<br/>3. Nhập mã OTP 6 số | Gửi OTP qua SMS mô phỏng, xác thực `emailVerified = true`, tạo tài khoản thành công. | **PASS** |
+| **TC-AUTH-02** | Khóa User & Instant Logout | Admin khóa tài khoản và thu hồi Session | Tài khoản Customer đang đăng nhập | 1. Admin bấm Ban User tại `/admin/users`<br/>2. Customer gửi request API tiếp theo | Backend trả về HTTP 401 Unauthorized, Token bị thu hồi, Client xóa token và redirect `/login`. | **PASS** |
+| **TC-PAR-01** | Đăng ký & Phê duyệt Đối tác | Đăng ký doanh nghiệp và Admin phê duyệt | MST `0312345678`, Giấy phép kinh doanh | 1. Partner gửi form đăng ký<br/>2. Admin kiểm tra hồ sơ tại `/admin/partners/pending`<br/>3. Admin bấm "Phê duyệt" | `Partner.status` chuyển từ `Pending` $\rightarrow$ `Approved`. Partner có thể đăng nhập Partner Portal. | **PASS** |
+| **TC-VOU-01** | Ràng buộc Giá Voucher (`RB-02`) | Tạo voucher giá bán cao hơn giá gốc | `originalPrice = 100k`, `salePrice = 150k` | Partner nhập thông tin voucher và bấm "Lưu nháp" / "Gửi duyệt" | Backend chặn trả về lỗi HTTP 400: *"Giá bán khuyến mãi phải nhỏ hơn giá gốc"*. | **PASS** |
+| **TC-VOU-02** | Ràng buộc Thời hạn Voucher (`RB-03`) | Tạo voucher với ngày kết thúc bé hơn ngày bắt đầu | `startDate = 2026-09-10`, `endDate = 2026-09-01` | Partner chọn khoảng thời hạn và bấm submit | Backend chặn trả về lỗi HTTP 400: *"Thời hạn áp dụng voucher không hợp lệ"*. | **PASS** |
+| **TC-VOU-03** | Duyệt hiển thị Voucher (`RB-01`) | Admin duyệt voucher mở bán public | Voucher ở trạng thái `Pending` | Admin bấm "Phê duyệt" tại `/admin/vouchers/pending` | `approvalStatus = Approved` & `displayStatus = Visible`. Voucher xuất hiện công khai trên trang chủ Customer. | **PASS** |
+| **TC-ORD-01** | Chống trùng Đơn hàng (`Idempotency`) | Bấm đúp nút Đặt hàng liên tục | Giỏ hàng có 1 voucher, gửi header `X-Idempotency-Key` | Khách hàng nhấp đúp nút "Thanh toán" trong vòng 100ms | Request 1 tạo đơn thành công; Request 2 nhận lỗi HTTP 409 `IDEMPOTENCY_CONCURRENT` hoặc replayed result. | **PASS** |
+| **TC-ORD-02** | Chống Bán vượt Tồn kho (`RB-15`) | 2 Khách mua cùng lúc 1 voucher còn tồn kho `qty = 1` | `availableQuantity = 1`, 2 User cùng bấm thanh toán VNPAY | 2 User cùng bấm nút Thanh toán VNPAY tại cùng thời điểm | 1 User thanh toán thành công (`qty` về 0), User còn lại nhận lỗi HTTP 409 `INSUFFICIENT_STOCK`. | **PASS** |
+| **TC-RED-01** | Phân quyền Chi nhánh Gạch mã (`RB-09`) | Thu ngân thương hiệu A gạch mã voucher thương hiệu B | Thu ngân CGV tra cứu mã `HL-FREEZE-2026-8888` của Highlands | Thu ngân CGV nhập mã và bấm "Kiểm tra" (`Validate`) | Backend chặn trả lỗi HTTP 403: *"Mã voucher không thuộc quyền xử lý của chi nhánh này"*. | **PASS** |
+| **TC-RED-02** | Chống Gạch lặp Mã đã dùng (`RB-07`) | Gạch mã voucher đã ở trạng thái `Used` | Mã voucher `HL-FREEZE-2026-8888` đã `status = Used` | Thu ngân bấm "Xác nhận gạch mã" lần 2 | Backend chặn trả lỗi HTTP 409: *"Mã voucher đã được sử dụng trước đó"*. | **PASS** |
+| **TC-SEC-01** | Bảo vệ Tần suất API (`Rate Limiting`) | Gửi liên tục 15 request đăng nhập trong 1 phút | API Endpoint `/api/auth/login` | Chạy vòng lặp gửi 15 request đăng nhập liên tiếp | 10 request đầu xử lý bình thường, từ request 11 nhận HTTP 429 `Too Many Requests`. | **PASS** |
+
+---
+
+# PHẦN 7: GIẢI PHÁP KIẾN TRÚC & KỸ THUẬT NÂNG CAO
+
+## 7.1. Giảm thiểu Race Condition & Overselling (Atomic Conditional Updates)
 Thay vì sử dụng Distributed Locks phức tạp gây chậm hệ thống, Everest áp dụng **Atomic Conditional Database Updates** tại tầng PostgreSQL Transaction:
 * **Chống bán vượt tồn kho (`orders.service.ts` & `payment.service.ts`):**
   ```ts
@@ -471,7 +885,7 @@ Thay vì sử dụng Distributed Locks phức tạp gây chậm hệ thống, Ev
 
 ---
 
-## 5.2. Cơ chế Idempotency Key Middleware
+## 7.2. Cơ chế Idempotency Key Middleware
 * **Định vị:** `backend/src/middlewares/idempotency.ts`
 * **Nguyên lý:** Đọc header `X-Idempotency-Key` từ Client.
   * Nếu key ở trạng thái `IN_PROGRESS` $\rightarrow$ Trả về lỗi HTTP 409 `IDEMPOTENCY_CONCURRENT` (chặn bấm đúp liên tục).
@@ -479,7 +893,7 @@ Thay vì sử dụng Distributed Locks phức tạp gây chậm hệ thống, Ev
 
 ---
 
-## 5.3. Hệ thống Rate Limiting phân loại 5 tầng API
+## 7.3. Hệ thống Rate Limiting phân loại 5 tầng API
 * **Định vị:** `backend/src/middlewares/rateLimiters.ts`
 1. `authSensitiveLimiter`: **10 requests / 15 phút** (Chống Brute-force Login/OTP).
 2. `redemptionLimiter`: **30 requests / 1 phút** (Chống bot rà quét mã voucher).
@@ -489,14 +903,14 @@ Thay vì sử dụng Distributed Locks phức tạp gây chậm hệ thống, Ev
 
 ---
 
-# PHẦN 6: HƯỚNG DẪN CÀI ĐẶT HỆ THỐNG (INSTALLATION GUIDE)
+# PHẦN 8: HƯỚNG DẪN CÀI ĐẶT HỆ THỐNG (INSTALLATION GUIDE)
 
-## 6.1. Yêu cầu môi trường
+## 8.1. Yêu cầu môi trường
 * **Node.js:** v22.0.0 trở lên
 * **Package Manager:** `npm` v10+
 * **Database:** PostgreSQL 16 (Local Server hoặc Neon/Supabase PostgreSQL Cloud)
 
-## 6.2. Cài đặt Backend Server
+## 8.2. Cài đặt Backend Server
 ```bash
 # 1. Di chuyển vào thư mục backend
 cd backend
@@ -521,7 +935,7 @@ npm run dev
 # Server lắng nghe tại: http://localhost:3000
 ```
 
-## 6.3. Cài đặt Frontend Customer
+## 8.3. Cài đặt Frontend Customer
 ```bash
 cd frontend-customer
 npm install
@@ -529,16 +943,16 @@ npm run dev
 # Ứng dụng chạy tại: http://localhost:5173
 ```
 
-## 6.4. Cài đặt các Frontend khác
+## 8.4. Cài đặt các Frontend khác
 * **Partner Frontend:** `cd frontend-partner && npm install && npm run dev` (Port 5174)
 * **Admin Frontend:** `cd frontend-admin && npm install && npm run dev` (Port 5175)
 * **Staff Mobile App:** `cd frontend-staff && npm install && npm run dev` (Port 8081)
 
 ---
 
-# PHẦN 7: HƯỚNG DẪN SỬ DỤNG & DANH SÁCH TÀI KHOẢN MẪU
+# PHẦN 9: HƯỚNG DẪN SỬ DỤNG & DANH SÁCH TÀI KHOẢN MẪU
 
-## 7.1. Danh sách tài khoản thử nghiệm các phân hệ
+## 9.1. Danh sách tài khoản thử nghiệm các phân hệ
 
 | Phân hệ / Vai trò | Tên đăng nhập (Email / SĐT) | Mật khẩu | Ghi chú quyền hạn |
 |---|---|---|---|
@@ -548,7 +962,7 @@ npm run dev
 | **Khách hàng 1 (Customer)** | `customer1@gmail.com` (hoặc `0901234567`) | `Customer@123456` | Đã verify email, có lịch sử mua voucher |
 | **Khách hàng 2 (Customer)** | `customer2@gmail.com` (hoặc `0987654321`) | `Customer@123456` | Khách hàng thử nghiệm mới |
 
-## 7.2. Thông tin thẻ thử nghiệm VNPAY Sandbox
+## 9.2. Thông tin thẻ thử nghiệm VNPAY Sandbox
 
 Khi thực hiện thanh toán đơn hàng bằng cổng **VNPAY Sandbox**, sử dụng thông tin thẻ test chuẩn:
 * **Ngân hàng:** NCB
@@ -559,9 +973,9 @@ Khi thực hiện thanh toán đơn hàng bằng cổng **VNPAY Sandbox**, sử 
 
 ---
 
-# PHẦN 8: THÔNG TIN HOSTING & QUẢN LÝ HOST
+# PHẦN 10: THÔNG TIN HOSTING & QUẢN LÝ HOST
 
-## 8.1. Thông tin cổng Môi trường Phát triển (Local Host)
+## 10.1. Thông tin cổng Môi trường Phát triển (Local Host)
 
 * **Backend REST API Server:** `http://localhost:3000/api`
 * **Frontend Khách hàng (Customer):** `http://localhost:5173`
@@ -569,7 +983,7 @@ Khi thực hiện thanh toán đơn hàng bằng cổng **VNPAY Sandbox**, sử 
 * **Frontend Quản trị viên (Admin):** `http://localhost:5175`
 * **Frontend Thu ngân (Staff Mobile):** `http://localhost:8081`
 
-## 8.2. Thông tin Triển khai Production / Staging Cloud
+## 10.2. Thông tin Triển khai Production / Staging Cloud
 
 * **Database Hosting:** Cloud PostgreSQL 16 (Supabase Cloud Engine)
   * *Connection String:* `postgresql://postgres.uqlpueszaffhqxqiqpkl:Everest_database_123@aws-1-ap-southeast-2.pooler.supabase.com:6543/postgres`
@@ -582,7 +996,7 @@ Khi thực hiện thanh toán đơn hàng bằng cổng **VNPAY Sandbox**, sử 
 
 ---
 
-# PHẦN 9: THÔNG TIN VIDEO DEMO YOUTUBE
+# PHẦN 11: THÔNG TIN VIDEO DEMO YOUTUBE
 
 * **Tên Video Demo chuẩn quy định:** `Nhom01-Demo EC-Everest`
 * **Đường dẫn xem Video (Trạng thái Unlisted/Public):** [https://www.youtube.com/watch?v=demo_everest_ec_2026](https://www.youtube.com/watch?v=demo_everest_ec_2026)
