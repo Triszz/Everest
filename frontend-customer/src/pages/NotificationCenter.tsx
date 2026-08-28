@@ -109,6 +109,7 @@ export function NotificationCenter() {
     );
     try {
       await notificationApi.markAsRead(id);
+      window.dispatchEvent(new Event('notification_updated'));
     } catch {
       // ignore
     }
@@ -118,6 +119,7 @@ export function NotificationCenter() {
     setNotifications((prev) => prev.map((n) => ({ ...n, status: 'Read' as const })));
     try {
       await notificationApi.markAllAsRead();
+      window.dispatchEvent(new Event('notification_updated'));
     } catch {
       // ignore
     }
@@ -129,6 +131,7 @@ export function NotificationCenter() {
     setTotal((t) => t - 1);
     try {
       await notificationApi.delete(id);
+      window.dispatchEvent(new Event('notification_updated'));
     } catch {
       // ignore
     }

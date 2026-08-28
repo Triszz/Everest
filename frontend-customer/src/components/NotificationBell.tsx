@@ -72,33 +72,42 @@ export function NotificationBell({ isLoggedIn }: NotificationBellProps) {
     if (!isLoggedIn) return;
     try {
       const res = await notificationApi.getUnreadCount();
-      setUnreadCount(res.count);
+      const val = res?.count ?? (res as any)?.data?.count ?? 0;
+      setUnreadCount(typeof val === 'number' ? val : 0);
     } catch {
       // ignore — polling không hiển thị lỗi cho user
     }
   }, [isLoggedIn]);
 
-  // Polling mỗi 30s
+  // Polling mỗi 10s & lắng nghe sự kiện notification_updated
   useEffect(() => {
     loadUnreadCount();
-    const interval = setInterval(loadUnreadCount, 30000);
-    return () => clearInterval(interval);
+    const interval = setInterval(loadUnreadCount, 10000);
+    window.addEventListener('notification_updated', loadUnreadCount);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('notification_updated', loadUnreadCount);
+    };
   }, [loadUnreadCount]);
 
-  // Khi mở dropdown → load list mới nhất
+  // Khi mở dropdown → Mở ngay lập tức (0ms delay) rồi fetch list mới nhất ở background
   const handleToggle = async () => {
-    if (!open) {
+    const nextOpen = !open;
+    setOpen(nextOpen);
+
+    if (nextOpen) {
       setLoading(true);
       try {
         const res = await notificationApi.list(1, 5);
-        setNotifications(res.notifications);
+        if (res && res.notifications) {
+          setNotifications(res.notifications);
+        }
       } catch {
         // ignore
       } finally {
         setLoading(false);
       }
     }
-    setOpen(!open);
   };
 
   // Click outside để đóng
@@ -114,11 +123,25 @@ export function NotificationBell({ isLoggedIn }: NotificationBellProps) {
     }
   }, [open]);
 
+  const handleItemClick = async (id: number) => {
+    try {
+      setNotifications((prev) =>
+        prev.map((n) => (n.notificationId === id ? { ...n, status: 'Read' as const } : n))
+      );
+      setUnreadCount((prev) => Math.max(0, prev - 1));
+      await notificationApi.markAsRead(id);
+      window.dispatchEvent(new Event('notification_updated'));
+    } catch {
+      // ignore
+    }
+  };
+
   const handleMarkAllRead = async () => {
     try {
       await notificationApi.markAllAsRead();
       setNotifications((prev) => prev.map((n) => ({ ...n, status: 'Read' as const })));
       setUnreadCount(0);
+      window.dispatchEvent(new Event('notification_updated'));
     } catch {
       // ignore
     }
@@ -173,8 +196,9 @@ export function NotificationBell({ isLoggedIn }: NotificationBellProps) {
             padding: '0 5px',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             boxShadow: '0 0 0 2px white',
+            lineHeight: 1,
           }}>
-            {unreadCount > 9 ? '9+' : unreadCount}
+            {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
       </button>
@@ -239,7 +263,10 @@ export function NotificationBell({ isLoggedIn }: NotificationBellProps) {
                   <Link
                     key={n.notificationId}
                     to={`/notifications/${n.notificationId}`}
-                    onClick={() => setOpen(false)}
+                    onClick={() => {
+                      if (isUnread) handleItemClick(n.notificationId);
+                      setOpen(false);
+                    }}
                     style={{
                       display: 'flex', alignItems: 'flex-start', gap: 12,
                       padding: '12px 16px',

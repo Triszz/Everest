@@ -177,6 +177,7 @@ export function Checkout() {
         cartItems.map((item) => cartApi.removeCartItem(item.cartItemId))
       );
       sessionStorage.removeItem("checkoutSelectedIds");
+      window.dispatchEvent(new Event("notification_updated"));
 
       navigate(`/orders?justPlaced=${createRes.data.orderId}`);
     } catch (err: any) {
@@ -235,6 +236,7 @@ export function Checkout() {
         cartItems.map((item) => cartApi.removeCartItem(item.cartItemId))
       );
       sessionStorage.removeItem("checkoutSelectedIds");
+      window.dispatchEvent(new Event("notification_updated"));
 
       // ── Step 4: redirect sang VNPAY sandbox ──
       // Sau khi thanh toán, VNPAY redirect về VNP_RETURN_URL (/payment/return)

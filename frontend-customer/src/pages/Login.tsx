@@ -28,6 +28,9 @@ export function LoginPage() {
           localStorage.setItem('current_session_id', response.data.sessionId);
         }
 
+        // Bắn sự kiện làm mới số lượng thông báo chưa đọc
+        window.dispatchEvent(new Event('notification_updated'));
+
         // Chuyển hướng về trang chủ
         navigate('/');
       }
