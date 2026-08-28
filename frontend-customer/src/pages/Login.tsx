@@ -1,11 +1,13 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import { authApi, ApiResponseError } from '../services';
 
 export function LoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -261,28 +263,52 @@ export function LoginPage() {
                 color: '#1E293B',
                 marginBottom: 8,
               }}>Mật khẩu</label>
-              <input
-                id="login-password"
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="Nhập mật khẩu"
-                required
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  border: '1.5px solid #E2E8F0',
-                  borderRadius: 12,
-                  fontSize: 14,
-                  fontFamily: 'Inter, sans-serif',
-                  color: '#1E293B',
-                  background: '#F8FAFC',
-                  outline: 'none',
-                  transition: 'border-color 0.2s',
-                }}
-                onFocus={e => (e.currentTarget.style.borderColor = '#0E76A8')}
-                onBlur={e => (e.currentTarget.style.borderColor = '#E2E8F0')}
-              />
+              <div style={{ position: 'relative' }}>
+                <input
+                  id="login-password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="Nhập mật khẩu"
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '12px 44px 12px 16px',
+                    border: '1.5px solid #E2E8F0',
+                    borderRadius: 12,
+                    fontSize: 14,
+                    fontFamily: 'Inter, sans-serif',
+                    color: '#1E293B',
+                    background: '#F8FAFC',
+                    outline: 'none',
+                    transition: 'border-color 0.2s',
+                    boxSizing: 'border-box',
+                  }}
+                  onFocus={e => (e.currentTarget.style.borderColor = '#0E76A8')}
+                  onBlur={e => (e.currentTarget.style.borderColor = '#E2E8F0')}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                  style={{
+                    position: 'absolute',
+                    right: 14,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    color: '#94A3B8',
+                    cursor: 'pointer',
+                    padding: 4,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
 
             <div style={{
