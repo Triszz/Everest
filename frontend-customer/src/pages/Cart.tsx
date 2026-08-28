@@ -32,7 +32,7 @@ export function CartPage() {
       if (response.success && response.data) {
         setCart(response.data);
 
-        // Lần đầu load, áp dụng "Mua ngay" nếu có flag
+        // Lần đầu load, áp dụng "Mua ngay" nếu có flag, nếu không thì mặc định chọn tất cả items
         if (!buyNowApplied) {
           const buyNowItemIdStr = sessionStorage.getItem("buyNowItemId");
           const buyNowVoucherIdStr = sessionStorage.getItem("buyNowVoucherId");
@@ -46,15 +46,19 @@ export function CartPage() {
             if (match) chosenId = match.cartItemId;
           }
 
+          const next: Record<number, boolean> = {};
           if (chosenId != null) {
             // Chỉ tick item vừa "Mua ngay", KHÔNG tick các item khác
-            const next: Record<number, boolean> = {};
             response.data.items.forEach((it) => {
               next[it.cartItemId] = it.cartItemId === chosenId;
             });
-            setSelectedIds(next);
+          } else {
+            // Mặc định chọn tất cả các item trong giỏ hàng khi vào /cart
+            response.data.items.forEach((it) => {
+              next[it.cartItemId] = true;
+            });
           }
-          // Nếu không có flag → giữ nguyên selectedIds rỗng (không tick gì)
+          setSelectedIds(next);
           setBuyNowApplied(true);
           // Xoá flag ngay để lần sau vào /cart thì không bị áp dụng lại
           sessionStorage.removeItem("buyNowItemId");

@@ -81,12 +81,12 @@ export function Checkout() {
           if (raw) {
             try {
               const ids: number[] = JSON.parse(raw);
-              const idSet = new Set(ids);
-              items = items.filter((it) => idSet.has(it.cartItemId));
-              // Xoá flag để back/refresh không bị lọc lại
-              sessionStorage.removeItem("checkoutSelectedIds");
+              if (Array.isArray(ids) && ids.length > 0) {
+                const idSet = new Set(ids);
+                items = items.filter((it) => idSet.has(it.cartItemId));
+              }
             } catch {
-              sessionStorage.removeItem("checkoutSelectedIds");
+              /* ignore parse error */
             }
           }
 
@@ -172,10 +172,12 @@ export function Checkout() {
         throw new Error(createRes.error?.message || "Không thể tạo đơn hàng.");
       }
 
-      // Xóa cart và chuyển đến trang /orders để user có thể thanh toán sau.
-      cartApi.clearCart().catch(() => {
-        /* ignore — không chặn flow */
-      });
+      // Chỉ xóa các item đã chọn mua khỏi giỏ hàng
+      await Promise.allSettled(
+        cartItems.map((item) => cartApi.removeCartItem(item.cartItemId))
+      );
+      sessionStorage.removeItem("checkoutSelectedIds");
+
       navigate(`/orders?justPlaced=${createRes.data.orderId}`);
     } catch (err: any) {
       alert(err.message || "Đã xảy ra lỗi. Vui lòng thử lại.");
@@ -228,10 +230,11 @@ export function Checkout() {
         throw new Error(paymentRes.error?.message || "Không thể tạo liên kết thanh toán.");
       }
 
-      // ── Step 3: clear cart trước khi redirect (tránh user back lại) ──
-      cartApi.clearCart().catch(() => {
-        /* ignore — không chặn payment */
-      });
+      // ── Step 3: Xoá chỉ các items đã chọn mua khỏi giỏ hàng ──
+      await Promise.allSettled(
+        cartItems.map((item) => cartApi.removeCartItem(item.cartItemId))
+      );
+      sessionStorage.removeItem("checkoutSelectedIds");
 
       // ── Step 4: redirect sang VNPAY sandbox ──
       // Sau khi thanh toán, VNPAY redirect về VNP_RETURN_URL (/payment/return)
