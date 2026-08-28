@@ -38,20 +38,29 @@ export function Header() {
     }
   }, [location.pathname]);
 
-  // Fetch cart count
+  // Fetch cart count & lắng nghe sự kiện cart_updated khi giỏ hàng thay đổi
   useEffect(() => {
-    const token = localStorage.getItem('access_token');
-    if (!token) {
-      setCartCount(0);
-      return;
-    }
-    cartApi.getCart()
-      .then(res => {
-        if (res.success && res.data) {
-          setCartCount(res.data.summary.totalItems);
-        }
-      })
-      .catch(() => setCartCount(0));
+    const fetchCartCount = () => {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        setCartCount(0);
+        return;
+      }
+      cartApi.getCart()
+        .then(res => {
+          if (res.success && res.data) {
+            setCartCount(res.data.summary.totalItems);
+          }
+        })
+        .catch(() => setCartCount(0));
+    };
+
+    fetchCartCount();
+
+    window.addEventListener('cart_updated', fetchCartCount);
+    return () => {
+      window.removeEventListener('cart_updated', fetchCartCount);
+    };
   }, [location.pathname]);
 
   // Close dropdown on outside click

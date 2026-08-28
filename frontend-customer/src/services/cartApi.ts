@@ -29,7 +29,9 @@ export const cartApi = {
       auth: true,
       body: JSON.stringify({ voucher_id: voucherId, quantity }),
     });
-    return handleResponse<{ success: boolean; data: { message: string; item: CartItem } }>(res);
+    const result = await handleResponse<{ success: boolean; data: { message: string; item: CartItem } }>(res);
+    if (typeof window !== "undefined") window.dispatchEvent(new Event("cart_updated"));
+    return result;
   },
 
   /** Cập nhật số lượng của 1 cart item. */
@@ -39,7 +41,9 @@ export const cartApi = {
       auth: true,
       body: JSON.stringify({ quantity }),
     });
-    return handleResponse<{ success: boolean; data: { message: string; item: CartItem } }>(res);
+    const result = await handleResponse<{ success: boolean; data: { message: string; item: CartItem } }>(res);
+    if (typeof window !== "undefined") window.dispatchEvent(new Event("cart_updated"));
+    return result;
   },
 
   /** Xoá 1 item khỏi giỏ. */
@@ -48,7 +52,9 @@ export const cartApi = {
       method: "DELETE",
       auth: true,
     });
-    return handleResponse<{ success: boolean; data: { message: string } }>(res);
+    const result = await handleResponse<{ success: boolean; data: { message: string } }>(res);
+    if (typeof window !== "undefined") window.dispatchEvent(new Event("cart_updated"));
+    return result;
   },
 
   /** Xoá sạch giỏ hàng. */
@@ -57,7 +63,9 @@ export const cartApi = {
       method: "DELETE",
       auth: true,
     });
-    return handleResponse<{ success: boolean; data: { message: string } }>(res);
+    const result = await handleResponse<{ success: boolean; data: { message: string } }>(res);
+    if (typeof window !== "undefined") window.dispatchEvent(new Event("cart_updated"));
+    return result;
   },
 
   /**
