@@ -499,6 +499,107 @@ async function main() {
     ],
   });
 
+  // 11. Tạo thêm 10 Users đăng ký từ tháng 4 đến tháng 8/2026
+  console.log("👥 Đang tạo thêm 10 Users đăng ký (tháng 4-8/2026)...");
+  const newCustomers = [];
+  for (let i = 1; i <= 10; i++) {
+    const month = 3 + Math.floor((i - 1) / 3) + 1; // tháng 4, 5, 6, 7, 8
+    const day = ((i - 1) % 10) + 1;
+    const createdAt = new Date(2026, month - 1, day, 10 + (i % 5), 30);
+
+    const customer = await prisma.user.create({
+      data: {
+        email: `customer_new_${i}@gmail.com`,
+        phoneNumber: `090${1000000 + i}`,
+        passwordHash: customerPasswordHash,
+        fullName: `Khách Hàng Mới ${i}`,
+        role: UserRole.Customer,
+        status: AccountStatus.Active,
+        emailVerified: true,
+        createdAt,
+      },
+    });
+    newCustomers.push(customer);
+  }
+
+  // 12. Tạo thêm 10 Orders từ tháng 4 đến tháng 8/2026
+  console.log("🛒 Đang tạo thêm 10 Orders (tháng 4-8/2026)...");
+  const vouchers = [voucherHighlandsFreeze, voucherCGV2D, voucherVinWondersNhaTrang, voucherHighlandsPhin];
+
+  // Phân bổ trạng thái: 4 Paid, 3 Pending, 3 Cancelled
+  const paymentStatuses = [
+    PaymentStatus.Paid,
+    PaymentStatus.Paid,
+    PaymentStatus.Paid,
+    PaymentStatus.Paid,
+    PaymentStatus.Pending,
+    PaymentStatus.Pending,
+    PaymentStatus.Pending,
+    PaymentStatus.Cancelled,
+    PaymentStatus.Cancelled,
+    PaymentStatus.Cancelled,
+  ];
+
+  for (let i = 1; i <= 10; i++) {
+    const month = 3 + Math.floor((i - 1) / 3) + 1; // tháng 4, 5, 6, 7, 8
+    const day = ((i - 1) % 10) + 1;
+    const orderCreatedAt = new Date(2026, month - 1, day, 14 + (i % 8), 15);
+    const voucher = vouchers[(i - 1) % vouchers.length];
+    const customer = newCustomers[(i - 1) % newCustomers.length];
+    const paymentStatus = paymentStatuses[i - 1];
+
+    // Tạo order
+    const order = await prisma.order.create({
+      data: {
+        customerId: customer.userId,
+        totalAmount: voucher.salePrice,
+        paymentMethod: "VNPAY",
+        paymentStatus,
+        createdAt: orderCreatedAt,
+      },
+    });
+
+    // Chỉ tạo order item và issued voucher khi chưa bị hủy
+    if (paymentStatus !== PaymentStatus.Cancelled) {
+      const orderItem = await prisma.orderItem.create({
+        data: {
+          orderId: order.orderId,
+          voucherId: voucher.voucherId,
+          quantity: 1,
+          price: voucher.salePrice,
+        },
+      });
+
+      const validFrom = orderCreatedAt;
+      const validTo = new Date(validFrom.getTime() + voucher.expiryDays * 24 * 60 * 60 * 1000);
+      const voucherCode = `EV-${String(voucher.voucherId).padStart(4, '0')}-${2026}${String(i).padStart(4, '0')}`;
+
+      // Nếu là Pending: issued voucher chưa active
+      // Nếu là Paid: tạo issued voucher (Unused hoặc Used tùy i)
+      const usedStatus = paymentStatus === PaymentStatus.Pending
+        ? VoucherUsageStatus.Unused
+        : (i <= 6 ? VoucherUsageStatus.Unused : VoucherUsageStatus.Used);
+      const usedAtBranch = usedStatus === VoucherUsageStatus.Used
+        ? (voucher === voucherCGV2D ? branchCGVHN.branchId : branchHighlandsQ1.branchId)
+        : undefined;
+      const usedAt = usedStatus === VoucherUsageStatus.Used
+        ? new Date(orderCreatedAt.getTime() + 1 * 24 * 60 * 60 * 1000)
+        : undefined;
+
+      await prisma.issuedVoucher.create({
+        data: {
+          orderItemId: orderItem.orderItemId,
+          voucherCode,
+          status: usedStatus,
+          validFrom,
+          validTo,
+          usedAt,
+          usedAtBranchId: usedAtBranch,
+        },
+      });
+    }
+  }
+
   console.log("🎉 Seed Data hoàn tất thành công 100%! Sẵn sàng cho buổi Vấn Đáp!");
 }
 

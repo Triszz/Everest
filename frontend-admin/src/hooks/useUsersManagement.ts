@@ -80,7 +80,7 @@ export function useUsersManagement() {
       const updatedUser = await adminUsersApi.updateStatus(userId, targetStatus);
 
       setUsers((prev) =>
-        prev.map((u) => (u.userId === userId ? updatedUser : u)),
+        prev.map((u) => (u.userId === userId ? { ...u, status: targetStatus } : u)),
       );
 
       if (selectedUser?.userId === userId) {
