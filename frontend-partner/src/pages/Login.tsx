@@ -50,6 +50,7 @@ export function LoginPage() {
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -291,16 +292,54 @@ export function LoginPage() {
 
             <div>
               <label htmlFor="login-password" style={LABEL_STYLE}>Mật khẩu <span style={{ color: '#EF4444' }}>*</span></label>
-              <input
-                id="login-password"
-                type="password"
-                value={password}
-                onChange={e => { setPassword(e.target.value); if (fieldErrors.password) setFieldErrors(prev => { const n = { ...prev }; delete n.password; return n; }); }}
-                placeholder="Nhập mật khẩu"
-                style={fieldErrors.password ? INPUT_ERROR_STYLE : INPUT_STYLE}
-                onFocus={e => (e.currentTarget.style.borderColor = fieldErrors.password ? '#EF4444' : '#0E76A8')}
-                onBlur={e => (e.currentTarget.style.borderColor = fieldErrors.password ? '#EF4444' : '#E2E8F0')}
-              />
+              <div style={{ position: 'relative' }}>
+                <input
+                  id="login-password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={e => { setPassword(e.target.value); if (fieldErrors.password) setFieldErrors(prev => { const n = { ...prev }; delete n.password; return n; }); }}
+                  placeholder="Nhập mật khẩu"
+                  style={{ ...(fieldErrors.password ? INPUT_ERROR_STYLE : INPUT_STYLE), paddingRight: 44 }}
+                  onFocus={e => (e.currentTarget.style.borderColor = fieldErrors.password ? '#EF4444' : '#0E76A8')}
+                  onBlur={e => (e.currentTarget.style.borderColor = fieldErrors.password ? '#EF4444' : '#E2E8F0')}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(prev => !prev)}
+                  tabIndex={-1}
+                  aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                  style={{
+                    position: 'absolute',
+                    right: 12,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: 4,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#94A3B8',
+                    transition: 'color 0.2s',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#0E76A8')}
+                  onMouseLeave={e => (e.currentTarget.style.color = '#94A3B8')}
+                >
+                  {showPassword ? (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                      <line x1="1" y1="1" x2="23" y2="23" />
+                    </svg>
+                  ) : (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  )}
+                </button>
+              </div>
               {fieldErrors.password && <div style={ERROR_TEXT_STYLE}>{fieldErrors.password}</div>}
             </div>
 
@@ -317,8 +356,7 @@ export function LoginPage() {
                 color: '#64748B',
                 cursor: 'pointer',
               }}>
-                <input type="checkbox" style={{ width: 16, height: 16, accentColor: '#0E76A8' }} />
-                Ghi nhớ đăng nhập
+
               </label>
               <Link to="/forgot-password" style={{
                 fontSize: 13,
