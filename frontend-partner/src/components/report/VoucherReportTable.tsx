@@ -14,6 +14,8 @@ interface VoucherReportTableProps {
   onSortChange: (sortBy: VoucherSortBy, sortOrder: "asc" | "desc") => void;
   onPageChange: (page: number) => void;
   onSearchChange: (search: string) => void;
+  onSearchSubmit: () => void;
+  onSearchReset: () => void;
 }
 
 function SortIcon({ active, direction }: { active: boolean; direction?: "asc" | "desc" }) {
@@ -78,7 +80,7 @@ function Th({ label, sortKey, currentSort, currentOrder, onClick, align = "left"
 export function VoucherReportTable({
   data, pagination, loading = false,
   sortBy, sortOrder, search,
-  onSortChange, onPageChange, onSearchChange,
+  onSortChange, onPageChange, onSearchChange, onSearchSubmit, onSearchReset,
 }: VoucherReportTableProps) {
   const totalPages = pagination ? Math.ceil(pagination.total / pagination.limit) : 0;
 
@@ -89,8 +91,6 @@ export function VoucherReportTable({
       onSortChange(key, "desc");
     }
   };
-
-  if (loading) return <SkeletonTable rows={6} />;
 
   return (
     <div style={{
@@ -117,12 +117,12 @@ export function VoucherReportTable({
             {pagination.total} voucher
           </span>
         )}
-        <div style={{ marginLeft: "auto" }}>
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ position: "relative" }}>
             <svg
               width="14" height="14" viewBox="0 0 24 24" fill="none"
               stroke={REPORT_COLORS.textMuted} strokeWidth="2"
-              style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }}
+              style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}
             >
               <circle cx="11" cy="11" r="8" />
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -130,6 +130,12 @@ export function VoucherReportTable({
             <input
               type="text" placeholder="Tìm voucher..."
               value={search} onChange={(e) => onSearchChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  onSearchSubmit();
+                }
+              }}
               style={{
                 padding: "8px 12px 8px 34px", borderRadius: 10,
                 border: `1.5px solid ${REPORT_COLORS.border}`,
@@ -141,14 +147,62 @@ export function VoucherReportTable({
               onBlur={(e) => { e.currentTarget.style.borderColor = REPORT_COLORS.border; }}
             />
           </div>
+          <button
+            type="button"
+            onClick={onSearchSubmit}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 5,
+              padding: "8px 14px", borderRadius: 10,
+              border: `1.5px solid ${REPORT_COLORS.primary}`,
+              background: REPORT_COLORS.primary,
+              fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600,
+              color: "white", cursor: "pointer",
+              transition: "all 0.15s ease",
+              whiteSpace: "nowrap" as const,
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = REPORT_COLORS.primaryHover; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = REPORT_COLORS.primary; }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            Tìm kiếm
+          </button>
+          
+          <button
+            type="button"
+            onClick={onSearchReset}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 5,
+              padding: "8px 14px", borderRadius: 10,
+              border: `1.5px solid ${REPORT_COLORS.border}`,
+              background: "white",
+              fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600,
+              color: REPORT_COLORS.textSecondary, cursor: "pointer",
+              transition: "all 0.15s ease",
+              whiteSpace: "nowrap" as const,
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "#F1F5F9"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "white"; }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+              <path d="M3 3v5h5" />
+            </svg>
+            Reset
+          </button>
         </div>
       </div>
 
       {/* Table */}
       <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ background: REPORT_COLORS.bgPage }}>
+        {loading ? (
+          <SkeletonTable rows={6} />
+        ) : (
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background: REPORT_COLORS.bgPage }}>
               <Th label="Tên voucher" sortKey="title" currentSort={sortBy} currentOrder={sortOrder} onClick={() => handleSort("title")} />
               <Th
                 label="Tổng phát hành"
@@ -288,10 +342,11 @@ export function VoucherReportTable({
             )}
           </tbody>
         </table>
+        )}
       </div>
 
       {/* Pagination */}
-      {pagination && totalPages > 1 && (
+      {!loading && pagination && totalPages > 1 && (
         <div style={{
           padding: "14px 20px",
           borderTop: `1px solid ${REPORT_COLORS.border}`,
