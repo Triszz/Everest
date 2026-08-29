@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { prisma } from "../../config/prisma";
 import { AppError } from "../../middlewares/errorHandler";
 import { emailOtpService } from "./email-otp.service";
+import { emailService } from "./email.service";
 import type { OtpPurposeType } from "./email-otp.schemas";
 import type { Prisma } from "../../generated/prisma/client";
 
@@ -14,7 +15,7 @@ export const passwordService = {
   /**
    * B4: Gửi yêu cầu quên mật khẩu.
    * Luôn trả về success=true để tránh user enumeration.
-   * Ghi PasswordReset record vào DB (hoặc gửi email trong thực tế).
+   * Ghi PasswordReset record vào DB và gửi email thực tế qua Gmail SMTP.
    */
   async requestReset(email: string, ipAddress?: string) {
     const user = await prisma.user.findUnique({
@@ -44,10 +45,16 @@ export const passwordService = {
         },
       });
 
-      // TODO: Gửi email thực tế với link
-      // Trong dev: log link ra console để test
-      const resetLink = `${process.env.CLIENT_URL}/reset-password?token=${token}`;
-      console.log(`[Password Reset] Email: ${email} | Link: ${resetLink}`);
+      // Lấy URL frontend từ CLIENT_URL (ưu tiên cổng 5174 của Customer App)
+      const rawClientUrl = process.env.CLIENT_URL || "http://localhost:5174";
+      const urls = rawClientUrl.split(",").map((u) => u.trim());
+      const baseUrl = urls.find((u) => u.includes("5174")) || urls[0] || "http://localhost:5174";
+      const resetLink = `${baseUrl}/reset-password?token=${token}`;
+
+      console.log(`[Password Reset] Sending email to: ${email} | Link: ${resetLink}`);
+
+      // Gửi email thực tế qua Gmail SMTP
+      await emailService.sendPasswordResetLink({ to: email, resetLink });
     }
 
     return {

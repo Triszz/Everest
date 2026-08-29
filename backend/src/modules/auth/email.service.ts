@@ -180,6 +180,45 @@ function buildOrderHtml(p: OrderEmailParams): string {
 </html>`;
 }
 
+export type PasswordResetEmailParams = {
+  to: string;
+  resetLink: string;
+};
+
+function buildPasswordResetHtml(p: PasswordResetEmailParams): string {
+  return `<!DOCTYPE html>
+<html lang="vi">
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#F8FAFC;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1E293B">
+  <div style="max-width:520px;margin:40px auto;background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 12px rgba(15,23,42,0.06)">
+    <div style="background:linear-gradient(135deg,#0E76A8 0%,#1A8FC0 100%);padding:32px 24px;text-align:center">
+      <h1 style="margin:0;color:white;font-size:22px;font-weight:800">Đặt lại mật khẩu Everest</h1>
+    </div>
+    <div style="padding:32px 24px">
+      <p style="font-size:15px;line-height:1.6;color:#475569;margin:0 0 24px">
+        Chúng tôi đã nhận được yêu cầu đặt lại mật khẩu cho tài khoản Everest của bạn (<strong style="color:#1E293B">${p.to}</strong>).
+      </p>
+      <div style="text-align:center;margin:32px 0">
+        <a href="${p.resetLink}" style="display:inline-block;padding:14px 28px;background:#0E76A8;color:white;text-decoration:none;border-radius:12px;font-weight:700;font-size:15px">
+          Đặt lại mật khẩu ngay
+        </a>
+      </div>
+      <p style="font-size:13px;color:#64748B;margin:0 0 8px">
+        Hoặc copy liên kết này dán vào trình duyệt:<br>
+        <a href="${p.resetLink}" style="color:#0E76A8;word-break:break-all">${p.resetLink}</a>
+      </p>
+      <p style="font-size:13px;color:#94A3B8;margin:24px 0 0;line-height:1.5">
+        Liên kết này có hiệu lực trong 24 giờ. Nếu bạn không gửi yêu cầu này, vui lòng bỏ qua email. Tài khoản của bạn vẫn an toàn.
+      </p>
+    </div>
+    <div style="background:#F8FAFC;padding:16px 24px;text-align:center;border-top:1px solid #E2E8F0">
+      <p style="margin:0;font-size:12px;color:#94A3B8">© Everest — Nền tảng voucher & ưu đãi</p>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
 export const emailService = {
   /** Gửi mã OTP qua Gmail. Trả về true nếu thành công. */
   async sendOtp({ to, code, ttlMinutes, purpose }: OtpEmailParams): Promise<boolean> {
@@ -206,6 +245,32 @@ export const emailService = {
       console.error(`[email.service] Gửi email thất bại tới ${to}:`, err);
       // Vẫn in OTP ra console để dev debug được
       console.log(`[email.service] DEV fallback OTP for ${to}: ${code}`);
+      return false;
+    }
+  },
+
+  /** Gửi email liên kết Đặt lại mật khẩu (Password Reset Link) qua Gmail. */
+  async sendPasswordResetLink({ to, resetLink }: PasswordResetEmailParams): Promise<boolean> {
+    const t = getTransporter();
+
+    if (!t) {
+      console.log(
+        `\n📧 [DEV EMAIL RESET LINK] To: ${to}\n   Link: ${resetLink}\n`,
+      );
+      return true;
+    }
+
+    try {
+      await t.sendMail({
+        from: FROM,
+        to,
+        subject: "Hướng dẫn đặt lại mật khẩu Everest",
+        html: buildPasswordResetHtml({ to, resetLink }),
+      });
+      return true;
+    } catch (err) {
+      console.error(`[email.service] Gửi reset link thất bại tới ${to}:`, err);
+      console.log(`[email.service] DEV fallback reset link for ${to}: ${resetLink}`);
       return false;
     }
   },
