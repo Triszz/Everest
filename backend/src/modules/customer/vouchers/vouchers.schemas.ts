@@ -70,7 +70,7 @@ export const voucherQuerySchema = z.object({
   limit: intFromString("limit phải là số dương")
     .refine((val) => val > 0 && val <= 100, { message: "limit phải trong (0, 100]" })
     .optional()
-    .default(20),
+    .default(50),
 });
 
 /** Query cho GET /api/vouchers/:voucherId/reviews */

@@ -52,14 +52,11 @@ export const CUSTOMER_MINI_SELECT = {
 
 /**
  * Default where clause cho voucher hiển thị trên customer UI
- * (đã duyệt, đang hiển thị, còn hàng, đang trong thời gian bán).
+ * (chọn tất cả voucher đã được duyệt và ở trạng thái hiển thị).
  */
-export const VISIBLE_VOUCHER_WHERE = (now: Date = new Date()): Prisma.VoucherWhereInput => ({
+export const VISIBLE_VOUCHER_WHERE = (): Prisma.VoucherWhereInput => ({
   approvalStatus: "Approved",
   displayStatus: "Visible",
-  availableQuantity: { gt: 0 },
-  startDate: { lte: now },
-  endDate: { gte: now },
 });
 
 // ── Status enums (string literal types) ───────────────────────────────────────
