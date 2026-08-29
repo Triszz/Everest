@@ -1,5 +1,6 @@
 import { prisma } from "../../config/prisma";
 import { AppError } from "../../middlewares/errorHandler";
+import { notificationsService } from "../customer/notifications/notifications.service";
 import type { AccountStatus, AuditActor, JwtPayload, Role } from "../../shared/types";
 import type { UserRole, VoucherApprovalStatus, AuditTargetType } from "../../generated/prisma/enums";
 import type { PartnerStatus } from "../../generated/prisma/enums";
@@ -1897,6 +1898,7 @@ export const adminService = {
       const updated = await tx.order.update({
         where: { orderId },
         data: {
+          paymentStatus: "Cancelled",
           cancelledAt: now,
           cancelledBy: actor.userId,
           cancelReason: input.reason,
@@ -1924,6 +1926,13 @@ export const adminService = {
           reason: input.reason,
         },
       });
+
+      // Gửi thông báo cho khách hàng
+      await notificationsService.notifyOrderCancelled(
+        order.customerId,
+        orderId,
+        input.reason,
+      );
 
       return updated;
     });

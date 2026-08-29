@@ -98,6 +98,19 @@ export const notificationsService = {
   },
 
   /**
+   * Tạo notification cho buyer khi đơn hàng bị Admin/Hệ thống hủy hoặc hoàn tiền.
+   */
+  async notifyOrderCancelled(customerId: string, orderId: number, reason: string) {
+    return this.createNotification(
+      customerId,
+      "SYSTEM",
+      "Đơn hàng bị hủy/hoàn tiền",
+      `Đơn hàng #${orderId} của bạn đã bị hủy/hoàn tiền. Lý do: ${reason}`,
+      { orderId, reason },
+    );
+  },
+
+  /**
    * Tạo notification cho người nhận khi được tặng voucher.
    */
   async notifyVoucherGiftReceived(
