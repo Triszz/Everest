@@ -90,8 +90,11 @@ export function ReportsPage() {
   const [tablePage, setTablePage] = useState(1);
   const [tableSortBy, setTableSortBy] = useState<VoucherSortBy>("revenue");
   const [tableSortOrder, setTableSortOrder] = useState<"asc" | "desc">("desc");
-  const [tableSearch, setTableSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  // Search: tách input state (UI) và applied state (API query).
+  // Typing chỉ cập nhật tableSearchInput, KHÔNG gọi API.
+  // Chỉ khi nhấn Enter mới commit sang appliedSearch → trigger API.
+  const [tableSearchInput, setTableSearchInput] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
 
   // ── Refresh state ─────────────────────────────────────────────────────────
   // refreshKey dùng làm dependency trigger cho tất cả hooks.
@@ -102,11 +105,6 @@ export function ReportsPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   // Error message hiển thị khi refresh thất bại.
   const [refreshError, setRefreshError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(tableSearch), 400);
-    return () => clearTimeout(timer);
-  }, [tableSearch]);
 
   // ── Shared filters (memoized) ──────────────────────────────────────────────
   const filters: ReportFilters = useMemo(() => ({
@@ -123,7 +121,7 @@ export function ReportsPage() {
   const { data: statusChart, loading: loadingStatus, error: errorStatus } = useStatusDistribution(filters, refreshKey);
   const { data: revenueChart, loading: loadingRevenue, error: errorRevenue } = useRevenueChart(filters, granularity, refreshKey, chartOffset);
   const { data: tableData, loading: loadingTable, error: errorTable } = useVoucherTable(
-    filters, tablePage, tableSortBy, tableSortOrder, debouncedSearch, refreshKey,
+    filters, tablePage, tableSortBy, tableSortOrder, appliedSearch, refreshKey,
   );
 
   // ── Refresh UX: sync error from hooks into page-level refreshError ────────────
@@ -195,7 +193,19 @@ export function ReportsPage() {
   };
 
   const handleSearchChange = (search: string) => {
-    setTableSearch(search);
+    setTableSearchInput(search);
+  };
+
+  const handleSearchSubmit = () => {
+    setAppliedSearch(tableSearchInput);
+    setTablePage(1);
+  };
+
+  const handleSearchReset = () => {
+    setTableSearchInput("");
+    setAppliedSearch("");
+    setTableSortBy("revenue");
+    setTableSortOrder("desc");
     setTablePage(1);
   };
 
@@ -216,7 +226,8 @@ export function ReportsPage() {
     setTablePage(1);
     setTableSortBy("revenue");
     setTableSortOrder("desc");
-    setTableSearch("");
+    setTableSearchInput("");
+    setAppliedSearch("");
     // Tăng key để trigger re-fetch ở TẤT CẢ hooks
     setRefreshKey((k) => k + 1);
   };
@@ -414,10 +425,12 @@ export function ReportsPage() {
           loading={loadingTable}
           sortBy={tableSortBy}
           sortOrder={tableSortOrder}
-          search={tableSearch}
+          search={tableSearchInput}
           onSortChange={handleSortChange}
           onPageChange={handlePageChange}
           onSearchChange={handleSearchChange}
+          onSearchSubmit={handleSearchSubmit}
+          onSearchReset={handleSearchReset}
         />
       </div>
 

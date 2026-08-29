@@ -78,7 +78,7 @@ export const voucherReportFiltersSchema = reportFiltersSchema.safeExtend({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(10),
   sortBy: z
-    .enum(["title", "issued", "sold", "used", "revenue", "usageRate", "status"])
+    .enum(["title", "issued", "totalQuantity", "isLive", "sold", "used", "soldRate", "revenue", "usageRate", "status"])
     .default("revenue"),
   sortOrder: z.enum(["asc", "desc"]).default("desc"),
   search: z.string().max(200).optional(),
