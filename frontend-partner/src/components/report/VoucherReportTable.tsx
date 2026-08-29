@@ -117,8 +117,8 @@ export function VoucherReportTable({
             {pagination.total} voucher
           </span>
         )}
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ position: "relative" }}>
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <div style={{ position: "relative", flex: "1 1 auto" }}>
             <svg
               width="14" height="14" viewBox="0 0 24 24" fill="none"
               stroke={REPORT_COLORS.textMuted} strokeWidth="2"
@@ -141,7 +141,7 @@ export function VoucherReportTable({
                 border: `1.5px solid ${REPORT_COLORS.border}`,
                 background: REPORT_COLORS.bgPage,
                 fontFamily: "Inter, sans-serif", fontSize: 13,
-                color: REPORT_COLORS.text, outline: "none", width: 200,
+                color: REPORT_COLORS.text, outline: "none", width: "100%", minWidth: 150, maxWidth: 250,
               }}
               onFocus={(e) => { e.currentTarget.style.borderColor = REPORT_COLORS.primary; }}
               onBlur={(e) => { e.currentTarget.style.borderColor = REPORT_COLORS.border; }}
