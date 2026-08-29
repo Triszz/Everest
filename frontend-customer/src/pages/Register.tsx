@@ -42,6 +42,14 @@ export function RegisterPage() {
     }
   };
 
+  const handleConfirmChannel = async () => {
+    if (selectedChannel === 'sms' && !phone.trim()) {
+      setError('Vui lòng nhập số điện thoại để nhận mã qua SMS.');
+      return;
+    }
+    await doRegister(selectedChannel);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -58,12 +66,8 @@ export function RegisterPage() {
       return;
     }
 
-    // Nếu người dùng có nhập Số điện thoại → Hiện modal chọn phương thức nhận OTP trước
-    if (phone.trim()) {
-      setShowChannelModal(true);
-    } else {
-      await doRegister('email');
-    }
+    // Bắt buộc hiện giao diện chọn phương thức nhận mã OTP (Email vs SMS) trước khi gửi mã
+    setShowChannelModal(true);
   };
 
   return (
@@ -662,9 +666,31 @@ export function RegisterPage() {
                   }}>
                     Gửi mã qua Số điện thoại (SMS)
                   </div>
-                  <div style={{ fontSize: 13, color: '#64748B' }}>{phone}</div>
+                  <div style={{ fontSize: 13, color: '#64748B' }}>
+                    {phone ? phone : 'Chưa có SĐT (bấm để nhập)'}
+                  </div>
                 </div>
               </button>
+
+              {selectedChannel === 'sms' && (
+                <div style={{ marginTop: 4 }}>
+                  <input
+                    type="tel"
+                    placeholder="Nhập số điện thoại của bạn (VD: 0912345678)"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: 10,
+                      border: '1.5px solid #0E76A8',
+                      fontSize: 14,
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+              )}
             </div>
 
             <div style={{ display: 'flex', gap: 12 }}>
@@ -688,7 +714,7 @@ export function RegisterPage() {
               <button
                 type="button"
                 disabled={loading}
-                onClick={() => doRegister(selectedChannel)}
+                onClick={handleConfirmChannel}
                 style={{
                   flex: 1,
                   padding: '12px',
