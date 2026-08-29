@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Loader2, CheckCircle2, ShieldCheck } from 'lucide-react';
-import { profileApi } from '../services';
+import { profileApi, authApi } from '../services';
 
 export function ChangePasswordPage() {
   const navigate = useNavigate();
@@ -164,6 +164,40 @@ export function ChangePasswordPage() {
             {loading ? <><Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> Đang cập nhật...</> : 'Cập nhật mật khẩu'}
           </button>
         </form>
+
+        <div style={{ marginTop: 20, textAlign: 'center' }}>
+          <button
+            type="button"
+            onClick={async () => {
+              const stored = localStorage.getItem('user');
+              if (stored) {
+                try {
+                  const u = JSON.parse(stored);
+                  if (u.email) {
+                    await authApi.forgotPassword(u.email);
+                    alert(`Đã gửi liên kết đặt lại mật khẩu đến email ${u.email}. Vui lòng kiểm tra hộp thư của bạn!`);
+                  }
+                } catch {
+                  // ignore
+                }
+              } else {
+                navigate('/forgot-password');
+              }
+            }}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#0E76A8',
+              fontFamily: 'Inter, sans-serif',
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer',
+              textDecoration: 'underline',
+            }}
+          >
+            Quên mật khẩu hiện tại? Gửi Email đặt lại mật khẩu
+          </button>
+        </div>
       </div>
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>

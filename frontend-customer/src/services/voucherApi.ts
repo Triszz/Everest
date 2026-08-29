@@ -35,7 +35,8 @@ export const voucherApi = {
    * @param params {@link VoucherQuery}
    */
   list: async (params?: VoucherQuery) => {
-    const res = await authFetch(`${BASE_URL}/vouchers${buildQuery(params as Record<string, unknown>)}`, {
+    const queryParams = { limit: 50, ...params };
+    const res = await authFetch(`${BASE_URL}/vouchers${buildQuery(queryParams as Record<string, unknown>)}`, {
       auth: true,
     });
     const json = await handleResponse<{

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { profileApi, type User as ApiUser } from '../services';
+import { profileApi, authApi, type User as ApiUser } from '../services';
 import Loading from '../components/Loading';
 import { Breadcrumb } from '../components/Breadcrumb';
 
@@ -9,6 +9,23 @@ export function ProfilePage() {
   const [user, setUser] = useState<ApiUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [resetEmailSending, setResetEmailSending] = useState(false);
+  const [resetEmailSuccess, setResetEmailSuccess] = useState<string | null>(null);
+
+  const handleSendResetEmail = async () => {
+    if (!user?.email) return;
+    setResetEmailSending(true);
+    setResetEmailSuccess(null);
+    setError(null);
+    try {
+      await authApi.forgotPassword(user.email);
+      setResetEmailSuccess(`Đã gửi hướng dẫn đặt lại mật khẩu đến email ${user.email}. Vui lòng kiểm tra hộp thư của bạn!`);
+    } catch {
+      setError('Không thể gửi yêu cầu đặt lại mật khẩu. Vui lòng thử lại sau.');
+    } finally {
+      setResetEmailSending(false);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -210,6 +227,92 @@ export function ProfilePage() {
                 </span>
               } />
               <FormField label="Ngày tham gia" value={user.createdAt ? new Date(user.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: 'long', year: 'numeric' }) : '-'} />
+            </div>
+
+            {/* Security / Password Reset Section */}
+            <div style={{
+              marginTop: 32,
+              padding: 24,
+              background: '#F0F9FF',
+              border: '1px solid #BAE6FD',
+              borderRadius: 16,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+                <div>
+                  <h3 style={{
+                    fontFamily: 'Manrope, sans-serif',
+                    fontSize: 16,
+                    fontWeight: 700,
+                    color: '#0369A1',
+                    marginBottom: 4,
+                  }}>
+                    🔒 Bảo mật & Đặt lại mật khẩu
+                  </h3>
+                  <p style={{
+                    fontFamily: 'Inter, sans-serif',
+                    fontSize: 13,
+                    color: '#0284C7',
+                    margin: 0,
+                  }}>
+                    Gửi liên kết đặt lại mật khẩu an toàn đến email <strong style={{ color: '#0369A1' }}>{user.email}</strong>.
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => navigate('/settings/change-password')}
+                    style={{
+                      padding: '10px 18px',
+                      background: '#FFFFFF',
+                      color: '#0E76A8',
+                      border: '1.5px solid #0E76A8',
+                      borderRadius: 10,
+                      fontFamily: 'Inter, sans-serif',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    Đổi mật khẩu trực tiếp
+                  </button>
+                  <button
+                    disabled={resetEmailSending}
+                    onClick={handleSendResetEmail}
+                    style={{
+                      padding: '10px 18px',
+                      background: resetEmailSending ? '#94A3B8' : '#0E76A8',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 10,
+                      fontFamily: 'Inter, sans-serif',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      cursor: resetEmailSending ? 'wait' : 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    📧 {resetEmailSending ? 'Đang gửi email...' : 'Gửi Email đặt lại mật khẩu'}
+                  </button>
+                </div>
+              </div>
+
+              {resetEmailSuccess && (
+                <div style={{
+                  marginTop: 16,
+                  padding: '12px 16px',
+                  background: '#DCFCE7',
+                  border: '1px solid #BBF7D0',
+                  color: '#15803D',
+                  borderRadius: 10,
+                  fontSize: 13,
+                  fontFamily: 'Inter, sans-serif',
+                  fontWeight: 600,
+                }}>
+                  {resetEmailSuccess}
+                </div>
+              )}
             </div>
 
             <div style={{
