@@ -188,7 +188,7 @@ export const ordersService = {
     if (order.paymentStatus === "Paid") {
       throw new AppError("Đơn hàng đã thanh toán trước đó", 400, "ALREADY_PAID");
     }
-    if (order.paymentStatus === "Cancelled") {
+    if (order.paymentStatus === "Cancelled" || order.cancelledAt || order.cancelledBy) {
       throw new AppError("Đơn hàng đã bị hủy", 400, "ORDER_CANCELLED");
     }
     if (order.expiresAt && order.expiresAt < new Date()) {
@@ -379,7 +379,7 @@ export const ordersService = {
     });
 
     if (!order) throw new AppError("Không tìm thấy đơn hàng", 404, "ORDER_NOT_FOUND");
-    if (order.paymentStatus === "Cancelled") {
+    if (order.paymentStatus === "Cancelled" || order.cancelledAt || order.cancelledBy) {
       throw new AppError("Đơn hàng đã bị hủy trước đó", 400, "ALREADY_CANCELLED");
     }
 

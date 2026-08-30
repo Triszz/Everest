@@ -104,8 +104,8 @@ export const notificationsService = {
     return this.createNotification(
       customerId,
       "SYSTEM",
-      "Đơn hàng bị hủy/hoàn tiền",
-      `Đơn hàng #${orderId} của bạn đã bị hủy/hoàn tiền. Lý do: ${reason}`,
+      `Đơn hàng #${orderId} đã bị hủy`,
+      `Đơn hàng #${orderId} đã bị hủy bởi quản trị viên. Lý do: ${reason}. Yêu cầu hoàn tiền của bạn đang được xử lý.`,
       { orderId, reason },
     );
   },

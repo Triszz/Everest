@@ -242,12 +242,12 @@ export const paymentService = {
   ) {
     const order = await prisma.order.findFirst({
       where: { orderId, customerId },
-      select: { orderId: true, totalAmount: true, paymentStatus: true },
+      select: { orderId: true, totalAmount: true, paymentStatus: true, cancelledAt: true, cancelledBy: true },
     });
 
     if (!order) throw new AppError("Không tìm thấy đơn hàng", 404, "ORDER_NOT_FOUND");
     if (order.paymentStatus === "Paid") throw new AppError("Đơn hàng đã thanh toán", 400, "ALREADY_PAID");
-    if (order.paymentStatus === "Cancelled") throw new AppError("Đơn hàng đã bị hủy", 400, "ORDER_CANCELLED");
+    if (order.paymentStatus === "Cancelled" || order.cancelledAt || order.cancelledBy) throw new AppError("Đơn hàng đã bị hủy", 400, "ORDER_CANCELLED");
 
     // Amount: VNPAY SDK tự động nhân 100 (quy ước của VNPAY: 1 VND = 100)
     // Ví dụ: 70000 VND → gửi 70000, SDK sẽ convert thành 7000000
