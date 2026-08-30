@@ -1892,9 +1892,9 @@ export const adminService = {
       await tx.issuedVoucher.updateMany({
         where: {
           orderItemId: { in: order.orderItems.map((oi) => oi.orderItemId) },
-          status: { in: ["Unused", "Locked"] },
+          status: { in: ["Unused"] },
         },
-        data: { status: "Expired" },
+        data: { status: "Locked" },
       });
 
       for (const oi of order.orderItems) {
