@@ -78,12 +78,13 @@ export default function OrderDetail() {
       </button>
     </div>
   );
-
+  console.log(order);
   const cancelled = Boolean(order.cancelledAt);
   const refunded = Boolean(order.refundedAt);
   const canCancel = !cancelled && !refunded && (order.paymentStatus === 'Pending' || order.paymentStatus === 'Paid');
   const canMarkPaid = !cancelled && !refunded && order.paymentStatus === 'Pending';
   const canRefund = cancelled && !refunded && order.paymentStatus === 'Paid' && order.cancelledBy !== null && order.cancelledBy !== order.customerId;
+  console.log(order.paymentStatus === 'Paid');
 
   const StatusBadge = () => {
     if (refunded) return <span className="badge badge-info">Đã hoàn tiền</span>;

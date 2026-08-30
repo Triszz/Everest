@@ -1907,7 +1907,6 @@ export const adminService = {
       const updated = await tx.order.update({
         where: { orderId },
         data: {
-          paymentStatus: "Cancelled",
           cancelledAt: now,
           cancelledBy: actor.userId,
           cancelReason: input.reason,
