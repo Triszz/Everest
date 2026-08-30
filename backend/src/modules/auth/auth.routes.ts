@@ -6,11 +6,7 @@ import emailOtpRouter from "./email-otp.routes";
 import { asyncHandler } from "../../middlewares/asyncHandler";
 import { AppError } from "../../middlewares/errorHandler";
 import { authenticate } from "../../middlewares/authenticate";
-import {
-  forgotPasswordSchema,
-  resetPasswordSchema,
-  resetPasswordWithOtpSchema,
-} from "./password.schemas";
+import { forgotPasswordSchema, resetPasswordSchema, resetPasswordWithOtpSchema } from "./password.schemas";
 import { ZodError } from "zod";
 import { authSensitiveLimiter } from "../../middlewares/rateLimiters";
 
@@ -40,7 +36,7 @@ router.post(
     const { email } = req.body as { email: string };
     const result = await passwordService.requestReset(email, req.ip);
     res.json({ success: true, ...result });
-  })
+  }),
 );
 
 router.put(
@@ -55,7 +51,7 @@ router.put(
     const { token, newPassword } = req.body as { token: string; newPassword: string };
     const result = await passwordService.resetPassword(token, newPassword);
     res.json({ success: true, ...result });
-  })
+  }),
 );
 
 /**
@@ -86,7 +82,7 @@ router.post(
     };
     const result = await passwordService.resetPasswordWithOtp(email, otp, newPassword);
     res.json({ success: true, ...result });
-  })
+  }),
 );
 
 // ── Authenticated ────────────────────────────────────────────────
@@ -95,21 +91,33 @@ router.put("/me", authenticate, authController.updateProfile);
 router.put("/password", authenticate, authController.changePassword);
 
 // ── Session management (B9) ──────────────────────────────────────
-router.get("/sessions", authenticate, asyncHandler(async (req, res) => {
-  const sessions = await authService.listSessions(req.user!.userId);
-  res.json({ success: true, data: sessions });
-}));
+router.get(
+  "/sessions",
+  authenticate,
+  asyncHandler(async (req, res) => {
+    const sessions = await authService.listSessions(req.user!.userId);
+    res.json({ success: true, data: sessions });
+  }),
+);
 
-router.post("/sessions/:sessionId/revoke", authenticate, asyncHandler(async (req, res) => {
-  const { sessionId } = req.params as { sessionId: string };
-  const result = await authService.revokeSession(req.user!.userId, sessionId);
-  res.json({ success: true, ...result });
-}));
+router.post(
+  "/sessions/:sessionId/revoke",
+  authenticate,
+  asyncHandler(async (req, res) => {
+    const { sessionId } = req.params as { sessionId: string };
+    const result = await authService.revokeSession(req.user!.userId, sessionId);
+    res.json({ success: true, ...result });
+  }),
+);
 
-router.post("/sessions/revoke-all", authenticate, asyncHandler(async (req, res) => {
-  const sessionId = (req.user as any).sessionId as string | undefined;
-  const result = await authService.revokeAllOtherSessions(req.user!.userId, sessionId);
-  res.json({ success: true, ...result });
-}));
+router.post(
+  "/sessions/revoke-all",
+  authenticate,
+  asyncHandler(async (req, res) => {
+    const sessionId = (req.user as any).sessionId as string | undefined;
+    const result = await authService.revokeAllOtherSessions(req.user!.userId, sessionId);
+    res.json({ success: true, ...result });
+  }),
+);
 
 export default router;
