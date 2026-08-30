@@ -144,17 +144,15 @@ export default function Orders() {
     });
   };
 
-  const openDetail = (order: OrderResponse) => navigate(`/orders/${order.orderId}`);
-
-  const totalOrders = orders.length;
-  const pendingOrders = orders.filter((o) => o.paymentStatus === 'Pending' && !o.cancelledAt).length;
-  const cancelledOrders = orders.filter((o) => Boolean(o.cancelledAt)).length;
-
-  const getStatsGridClass = () => {
-    if (isMobile) return 'grid-cols-3';
-    if (isTablet) return 'grid-cols-3';
-    return 'grid-cols-3';
+  const resetFilters = () => {
+    setSearch('');
+    setPaymentStatusFilter('all');
+    setFromDate('');
+    setToDate('');
+    updateFilters({ search: '', status: undefined, fromDate: undefined, toDate: undefined });
   };
+
+  const openDetail = (order: OrderResponse) => navigate(`/orders/${order.orderId}`);
 
   return (
     <div>
@@ -164,59 +162,50 @@ export default function Orders() {
         <p style={{ color: 'var(--color-on-surface-variant)', fontSize: isMobile ? '0.8rem' : '0.875rem' }}>Tra cứu, giám sát và xử lý đơn hàng.</p>
       </div>
 
-      {/* Stats */}
-      <div className={`grid ${getStatsGridClass()} gap-3 mb-4`}>
-        <div className="admin-card" style={{ padding: isMobile ? '0.625rem' : '1rem', textAlign: 'center' }}>
-          <p style={{ color: 'var(--color-on-surface-variant)', fontSize: isMobile ? '0.6rem' : '0.7rem', marginBottom: '0.125rem' }}>Tổng đơn</p>
-          <p style={{ fontSize: isMobile ? '1.125rem' : '1.5rem', fontWeight: 700 }}>{totalOrders}</p>
-        </div>
-        <div className="admin-card" style={{ padding: isMobile ? '0.625rem' : '1rem', textAlign: 'center' }}>
-          <p style={{ color: 'var(--color-on-surface-variant)', fontSize: isMobile ? '0.6rem' : '0.7rem', marginBottom: '0.125rem' }}>Chờ TT</p>
-          <p style={{ fontSize: isMobile ? '1.125rem' : '1.5rem', fontWeight: 700, color: 'var(--color-tertiary, #f59e0b)' }}>{pendingOrders}</p>
-        </div>
-        <div className="admin-card" style={{ padding: isMobile ? '0.625rem' : '1rem', textAlign: 'center' }}>
-          <p style={{ color: 'var(--color-on-surface-variant)', fontSize: isMobile ? '0.6rem' : '0.7rem', marginBottom: '0.125rem' }}>Đã hủy</p>
-          <p style={{ fontSize: isMobile ? '1.125rem' : '1.5rem', fontWeight: 700, color: 'var(--color-error, #b91c1c)' }}>{cancelledOrders}</p>
-        </div>
-      </div>
-
       {/* Filters */}
       <div className="admin-card" style={{ padding: isMobile ? '0.75rem' : '1rem', marginBottom: '1.5rem' }}>
-        <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-row lg:items-end'} gap-2`}>
-          <div style={{ position: 'relative', flex: isMobile ? 'unset' : 1 }}>
-            <span style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-on-surface-variant)', fontSize: '20px' }} className="material-symbols-outlined">search</span>
-            <input
+        {/* Search - hàng riêng */}
+        <div style={{ position: 'relative', marginBottom: '0.75rem' }}>
+          <span style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-on-surface-variant)', fontSize: '20px' }} className="material-symbols-outlined">search</span>
+          <input
+            className="admin-input"
+            style={{ paddingLeft: '2.5rem', width: '100%' }}
+            placeholder="Mã đơn..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+          />
+        </div>
+        {/* Filter rows */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          {/* Row 1: Status */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2" style={{ alignItems: 'center' }}>
+            <select
               className="admin-input"
-              style={{ paddingLeft: '2.5rem', width: '100%' }}
-              placeholder="Mã đơn..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            />
+              value={paymentStatusFilter}
+              onChange={(e) => setPaymentStatusFilter(e.target.value as 'all' | OrderPaymentStatus)}
+            >
+              <option value="Pending">Chờ thanh toán</option>
+              <option value="Paid">Đã thanh toán</option>
+              <option value="Cancelled">Đã hủy</option>
+              <option value="Refunded">Đã hoàn tiền</option>
+            </select>
+            <button className="admin-btn admin-btn-ghost" onClick={resetFilters}>
+              <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>filter_alt_off</span>
+              Reset
+            </button>
           </div>
-          <select
-            className={`admin-input w-full ${isMobile ? '' : 'lg:w-auto lg:min-w-[140px]'}`}
-            value={paymentStatusFilter}
-            onChange={(e) => setPaymentStatusFilter(e.target.value as 'all' | OrderPaymentStatus)}
-          >
-            <option value="all">Tất cả trạng thái</option>
-            <option value="Pending">Chờ thanh toán</option>
-            <option value="Paid">Đã thanh toán</option>
-            <option value="Cancelled">Đã hủy</option>
-            <option value="Refunded">Đã hoàn tiền</option>
-          </select>
-          <label className={`${isMobile ? 'w-full' : 'lg:w-auto lg:min-w-[120px]'}`} style={{ color: 'var(--color-on-surface-variant)' }}>
-            <span style={{ fontSize: '0.7rem', display: 'block', marginBottom: '0.25rem' }}>Từ ngày</span>
-            <input className="admin-input" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
-          </label>
-          <label className={`${isMobile ? 'w-full' : 'lg:w-auto lg:min-w-[120px]'}`} style={{ color: 'var(--color-on-surface-variant)' }}>
-            <span style={{ fontSize: '0.7rem', display: 'block', marginBottom: '0.25rem' }}>Đến ngày</span>
-            <input className="admin-input" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
-          </label>
-          <button className={`admin-btn admin-btn-primary ${isMobile ? 'w-full' : 'lg:w-auto lg:shrink-0'}`} onClick={handleSearch} style={{ height: isMobile ? '2.25rem' : '2.5rem' }}>
-            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>filter_list</span>
-            {isMobile ? '' : 'Lọc'}
-          </button>
+          {/* Row 2: Date filters */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <label style={{ color: 'var(--color-on-surface-variant)' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 500 }}>Từ</span>
+              <input className="admin-input" type="date" style={{ marginTop: '0.25rem', width: '100%' }} value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+            </label>
+            <label style={{ color: 'var(--color-on-surface-variant)' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 500 }}>Tới</span>
+              <input className="admin-input" type="date" style={{ marginTop: '0.25rem', width: '100%' }} value={toDate} onChange={(e) => setToDate(e.target.value)} />
+            </label>
+          </div>
         </div>
       </div>
 

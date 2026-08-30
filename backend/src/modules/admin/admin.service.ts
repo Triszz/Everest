@@ -152,7 +152,16 @@ export const adminService = {
           updatedAt: true,
         },
       });
-
+      if( input.status === "Banned" )
+      {
+        await prisma.userSession.updateMany({
+          where: {
+            userId,
+            revokedAt: null,
+          },
+          data: { revokedAt: new Date() },
+        });
+      }
       await logAudit(tx, actor)({
         action: AuditAction.UPDATE_USER_STATUS,
         targetType: AuditTarget.USER,

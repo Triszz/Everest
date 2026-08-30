@@ -248,22 +248,26 @@ export default function Partners() {
                     Đăng ký: {fmtDate(partner.createdAt)}
                   </span>
                   <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                    <button
-                      className="admin-btn admin-btn-ghost"
-                      style={{ padding: '0.25rem 0.5rem', fontSize: '0.7rem', height: isMobile ? '1.5rem' : '1.75rem' }}
-                      onClick={() => navigate(`/partners/${partner.partnerId}/branches`)}
-                      title="Chi nhánh"
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>store</span>
-                    </button>
-                    <button
-                      className="admin-btn admin-btn-ghost"
-                      style={{ padding: '0.25rem 0.5rem', fontSize: '0.7rem', height: isMobile ? '1.5rem' : '1.75rem' }}
-                      onClick={() => navigate(`/vouchers?partnerId=${partner.partnerId}`)}
-                      title="Voucher"
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>confirmation_number</span>
-                    </button>
+                    {partner.status !== 'Pending' && (
+                      <>
+                        <button
+                          className="admin-btn admin-btn-ghost"
+                          style={{ padding: '0.25rem 0.5rem', fontSize: '0.7rem', height: isMobile ? '1.5rem' : '1.75rem' }}
+                          onClick={() => navigate(`/partners/${partner.partnerId}/branches`)}
+                          title="Chi nhánh"
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>store</span>
+                        </button>
+                        <button
+                          className="admin-btn admin-btn-ghost"
+                          style={{ padding: '0.25rem 0.5rem', fontSize: '0.7rem', height: isMobile ? '1.5rem' : '1.75rem' }}
+                          onClick={() => navigate(`/vouchers?partnerId=${partner.partnerId}`)}
+                          title="Voucher"
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>confirmation_number</span>
+                        </button>
+                      </>
+                    )}
 
                     {partner.status === 'Pending' && (
                       <>
@@ -364,24 +368,28 @@ export default function Partners() {
                       <td><span className="font-label-sm" style={{ color: 'var(--color-on-surface-variant)' }}>{fmtDate(partner.createdAt)}</span></td>
                       <td>
                         <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                          <button
-                            className="admin-btn admin-btn-ghost"
-                            style={{ padding: '0.375rem 0.625rem', fontSize: '0.75rem' }}
-                            onClick={() => navigate(`/partners/${partner.partnerId}/branches`)}
-                            title="Xem chi nhánh"
-                          >
-                            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>store</span>
-                            Chi nhánh
-                          </button>
-                          <button
-                            className="admin-btn admin-btn-ghost"
-                            style={{ padding: '0.375rem 0.625rem', fontSize: '0.75rem' }}
-                            onClick={() => navigate(`/vouchers?partnerId=${partner.partnerId}`)}
-                            title="Xem voucher của đối tác"
-                          >
-                            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>confirmation_number</span>
-                            Voucher
-                          </button>
+                          {partner.status !== 'Pending' && (
+                            <>
+                              <button
+                                className="admin-btn admin-btn-ghost"
+                                style={{ padding: '0.375rem 0.625rem', fontSize: '0.75rem' }}
+                                onClick={() => navigate(`/partners/${partner.partnerId}/branches`)}
+                                title="Xem chi nhánh"
+                              >
+                                <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>store</span>
+                                Chi nhánh
+                              </button>
+                              <button
+                                className="admin-btn admin-btn-ghost"
+                                style={{ padding: '0.375rem 0.625rem', fontSize: '0.75rem' }}
+                                onClick={() => navigate(`/vouchers?partnerId=${partner.partnerId}`)}
+                                title="Xem voucher của đối tác"
+                              >
+                                <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>confirmation_number</span>
+                                Voucher
+                              </button>
+                            </>
+                          )}
 
                           {partner.status === 'Pending' && (
                             <>

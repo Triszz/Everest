@@ -268,7 +268,7 @@ export default function Dashboard() {
 
       {/* Orders by Status */}
       <div className="admin-card" style={{ padding: isMobile ? '1rem' : '1.5rem', marginBottom: isMobile ? '1rem' : '2rem' }}>
-        <h2 className="font-headline-md" style={{ fontSize: isMobile ? '1rem' : '1.25rem', marginBottom: isMobile ? '1rem' : '1.5rem' }}>Đơn hàng theo trạng thái</h2>
+        <h2 className="font-headline-md" style={{ fontSize: isMobile ? '1rem' : '1.25rem', marginBottom: isMobile ? '1rem' : '1.5rem' }}>Đơn hàng theo trạng thái           <span className="badge badge-info">6 tháng</span></h2>
         <ResponsiveContainer width="100%" height={isMobile ? 180 : 220}>
           <BarChart data={statusChart} layout="vertical">
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-outline-variant)" horizontal={false} />
@@ -313,7 +313,7 @@ export default function Dashboard() {
         <div className="admin-card" style={{ padding: isMobile ? '1rem' : '1.5rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
             <h2 className="font-headline-md" style={{ fontSize: isMobile ? '0.9rem' : '1.25rem' }}>
-              {isMobile ? 'Top đối tác' : 'Top 10 đối tác bán nhiều voucher nhất'}
+              {isMobile ? 'Top đối tác' : 'Top 10 đối tác bán nhiều voucher nhất( 6 tháng )'}
             </h2>
             <a href="/partners" style={{ color: 'var(--color-primary)', fontSize: '0.75rem', textDecoration: 'none' }} className="font-label-sm">
               Xem tất cả

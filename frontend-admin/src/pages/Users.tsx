@@ -177,6 +177,7 @@ export default function Users() {
     toggleUserLock,
     updateUserRole,
     updateFilters,
+    resetFilters,
   } = useUsersManagement()
 
   // ── Handlers ───────────────────────────────────────────────────────────────
@@ -220,19 +221,21 @@ export default function Users() {
 
       {/* Filters */}
       <div className="admin-card" style={{ padding: isMobile ? '0.75rem' : '1rem', marginBottom: '1rem' }}>
-        <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-row'} gap-2`}>
-          <div style={{ position: 'relative', flex: 1 }}>
-            <span className="material-symbols-outlined" style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-on-surface-variant)', fontSize: '18px' }}>
-              search
-            </span>
-            <input
-              className="admin-input"
-              style={{ paddingLeft: '2.5rem', width: '100%' }}
-              placeholder="Tìm kiếm tên, email, SĐT..."
-              value={filters.search}
-              onChange={(e) => updateFilters({ search: e.target.value })}
-            />
-          </div>
+        {/* Search - hàng riêng */}
+        <div style={{ position: 'relative', marginBottom: '0.75rem' }}>
+          <span className="material-symbols-outlined" style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-on-surface-variant)', fontSize: '18px' }}>
+            search
+          </span>
+          <input
+            className="admin-input"
+            style={{ paddingLeft: '2.5rem', width: '100%' }}
+            placeholder="Tìm kiếm tên, email, SĐT..."
+            value={filters.search}
+            onChange={(e) => updateFilters({ search: e.target.value })}
+          />
+        </div>
+        {/* Filters row */}
+        <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2 sm:grid-cols-3'} gap-2`}>
           <select
             className="admin-input admin-select"
             value={filters.role}
@@ -253,6 +256,16 @@ export default function Users() {
             <option value="Active">Hoạt động</option>
             <option value="Banned">Bị khóa</option>
           </select>
+          {(filters.search || filters.role || filters.status) && (
+            <button
+              className="admin-btn admin-btn-ghost"
+              style={{ height: '2.5rem' }}
+              onClick={resetFilters}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+              Xóa lọc
+            </button>
+          )}
         </div>
       </div>
 

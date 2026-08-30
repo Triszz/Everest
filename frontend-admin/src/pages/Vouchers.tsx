@@ -240,19 +240,21 @@ export default function Vouchers() {
 
       {/* Filters */}
       <div className="admin-card" style={{ padding: isMobile ? '0.75rem' : '1rem', marginBottom: '1.5rem' }}>
-        <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-row lg:items-center'} gap-2`}>
-          <div style={{ position: 'relative', flex: 1 }}>
-            <span className="material-symbols-outlined" style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-on-surface-variant)', fontSize: '18px' }}>
-              search
-            </span>
-            <input
-              className="admin-input"
-              style={{ paddingLeft: '2.5rem' }}
-              placeholder={filters.searchField === 'voucherId' ? 'Nhập ID voucher...' : 'Tìm kiếm mã, tên voucher, đối tác...'}
-              value={filters.search}
-              onChange={(e) => updateFilters({ search: e.target.value })}
-            />
-          </div>
+        {/* Search - hàng riêng */}
+        <div style={{ position: 'relative', marginBottom: '0.75rem' }}>
+          <span className="material-symbols-outlined" style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-on-surface-variant)', fontSize: '18px' }}>
+            search
+          </span>
+          <input
+            className="admin-input"
+            style={{ paddingLeft: '2.5rem', width: '100%' }}
+            placeholder={filters.searchField === 'voucherId' ? 'Nhập ID voucher...' : 'Tìm kiếm bằng tên voucher...'}
+            value={filters.search}
+            onChange={(e) => updateFilters({ search: e.target.value })}
+          />
+        </div>
+        {/* Filters row */}
+        <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2 sm:grid-cols-4'} gap-2`}>
           <select
             className="admin-input admin-select"
             value={filters.searchField}
@@ -340,12 +342,6 @@ export default function Vouchers() {
                     <span className={`badge ${v.displayStatus === 'Visible' ? 'badge-active' : 'badge-info'}`} style={{ fontSize: isMobile ? '0.55rem' : undefined }}>
                       {v.displayStatus === 'Visible' ? 'Đang hiện' : 'Đang ẩn'}
                     </span>
-                    {v.isLocked && (
-                      <span className="badge badge-locked" style={{ fontSize: isMobile ? '0.55rem' : undefined }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '10px' }}>lock</span>
-                        Đã khóa
-                      </span>
-                    )}
                   </div>
                 </div>
 
